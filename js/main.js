@@ -55,14 +55,17 @@
 document.addEventListener('DOMContentLoaded', () => {
   const root = document.documentElement;
 
-  // Theme toggle
-  let theme = 'light';
+  // Theme toggle — persists across page loads via localStorage
+  const savedTheme = localStorage.getItem('impactus-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  let theme = savedTheme || (prefersDark ? 'dark' : 'light');
   root.setAttribute('data-theme', theme);
 
   document.querySelectorAll('[data-theme-toggle]').forEach(toggle => {
     toggle.addEventListener('click', () => {
       theme = theme === 'dark' ? 'light' : 'dark';
       root.setAttribute('data-theme', theme);
+      localStorage.setItem('impactus-theme', theme);
     });
   });
 
