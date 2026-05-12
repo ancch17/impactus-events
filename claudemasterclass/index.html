@@ -63,7 +63,7 @@
                 radial-gradient(ellipse 400px 300px at 10% 80%, rgba(122,59,16,.04) 0%, transparent 70%); }
   .hero__layout { display:grid; grid-template-columns:1fr 360px; gap:64px; align-items:start; position:relative; }
   @media(max-width:880px){ .hero__layout{ grid-template-columns:1fr; gap:40px; } .hero__card{ order:-1; } }
-  .hero__eyebrow { display:inline-flex; align-items:center; gap:10px; font-size:10px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--brand); margin-bottom:20px; }
+  .hero__eyebrow { display:inline-flex; align-items:center; gap:10px; font-size:13px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--brand); margin-bottom:20px; }
   .hero__dot { width:5px; height:5px; background:var(--brand); border-radius:50%; animation:pulse 2s ease infinite; }
   @keyframes pulse{ 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.7)} }
   .hero__h1 { font-family:var(--serif); font-size:clamp(54px,8vw,100px); font-weight:400; line-height:.95; color:var(--text); letter-spacing:-.02em; margin-bottom:12px; }
@@ -96,7 +96,7 @@
 
   /* BAND */
   .band { background:var(--brown); }
-  .band__row { display:grid; grid-template-columns:repeat(5,1fr); max-width:1080px; margin:0 auto; padding:0 40px; border-top:1px solid var(--brown-line); }
+  .band__row { display:grid; grid-template-columns:repeat(4,1fr); max-width:1080px; margin:0 auto; padding:0 40px; border-top:1px solid var(--brown-line); }
   @media(max-width:640px){ .band__row{ grid-template-columns:1fr 1fr; padding:0 20px; } }
   .band__cell { padding:24px 0 24px 24px; border-right:1px solid var(--brown-line); }
   .band__cell:first-child { padding-left:0; }
@@ -122,7 +122,7 @@
   .platform:hover { background:var(--surface); }
   .platform__bar { position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, var(--brand), var(--amber)); transform:scaleX(0); transform-origin:left; transition:transform .4s ease; }
   .platform:hover .platform__bar { transform:scaleX(1); }
-  .platform__num  { font-family:var(--serif); font-style:italic; font-size:11px; color:var(--text-light); letter-spacing:.1em; margin-bottom:20px; }
+  .platform__num  { font-family:var(--serif); font-style:italic; font-size:22px; color:var(--text-light); letter-spacing:.1em; margin-bottom:20px; }
   .platform__icon { width:46px; height:46px; border:1px solid var(--divider); border-radius:var(--r-md); display:grid; place-items:center; color:var(--brand); margin-bottom:22px; background:var(--brand-subtle); }
   .platform__name { font-family:var(--serif); font-size:24px; color:var(--text); margin-bottom:6px; }
   .platform__role { font-size:10px; font-weight:600; letter-spacing:.15em; text-transform:uppercase; color:var(--text-light); margin-bottom:16px; display:block; }
@@ -140,8 +140,8 @@
   .case:hover { background:var(--surface); }
   .case--wide { grid-column:span 2; }
   @media(max-width:620px){ .case--wide{ grid-column:span 1; } }
-  .case__n   { font-family:var(--serif); font-style:italic; font-size:11px; color:var(--text-light); margin-bottom:12px; }
-  .case__cat { font-size:9px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--brand); margin-bottom:10px; display:block; }
+  .case__n   { font-family:var(--serif); font-style:italic; font-size:22px; color:var(--text-light); margin-bottom:12px; }
+  .case__cat { font-size:12px; font-weight:600; letter-spacing:.15em; text-transform:uppercase; color:var(--brand); margin-bottom:10px; display:block; }
   .case__h3  { font-family:var(--serif); font-size:19px; line-height:1.3; color:var(--text); margin-bottom:10px; }
   .case__p   { font-size:13px; color:var(--text-muted); line-height:1.65; }
   .ai-proof  { display:inline-flex; align-items:center; gap:7px; font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--brand); background:var(--brand-subtle); border:1px solid rgba(122,59,16,.2); border-radius:20px; padding:5px 12px; margin-top:14px; }
@@ -290,10 +290,10 @@
   <div class="wrap">
     <div class="hero__layout">
       <div class="hero__left">
-        <div class="hero__eyebrow"><span class="hero__dot"></span>Singapore&rsquo;s Only Face-to-Face Claude Masterclass</div>
+        <div class="hero__eyebrow"><span class="hero__dot"></span>Singapore&rsquo;s Only Online Claude Masterclass</div>
         <h1 class="hero__h1"><em>Master Claude</em></h1>
-        <p class="hero__subtitle">A One-Day Agentic AI Masterclass</p>
-        <p class="hero__desc">No theory. Hands-on, hands-on, hands-on. Skills distilled into one day so that you hit the ground running with Claude, Claude Cowork, and Claude Code.</p>
+        <p class="hero__subtitle">Agentic AI Masterclass</p>
+        <p class="hero__desc">No theory. Hands-on skills distilled into three hours. Learn everything you need to know about Claude and hit the ground running with an agentic AI — Claude Cowork and Claude Code.</p>
         <div class="hero__btns">
           <a href="https://wa.me/6593942524" class="btn btn--fill btn--lg">Reserve My Seat
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -306,12 +306,9 @@
         <div class="hero__deets">
           <div class="deet">
             <svg class="deet__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <div><span class="deet__label">Date TBC &mdash; 2026</span><span class="deet__sub">9:00 AM &ndash; 5:00 PM &middot; Kaplan @ Odeon 333</span></div>
+            <div><span class="deet__label">From 2nd June 2026 &mdash; Several Dates</span><span class="deet__sub">7:00 PM &ndash; 10:00 PM (Singapore Time) &middot; Online &middot; 3 Hours</span></div>
           </div>
-          <div class="deet">
-            <svg class="deet__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-            <div><span class="deet__label">Bring Your Laptop</span><span class="deet__sub">Fully hands-on throughout &mdash; come with a need, leave with it solved</span></div>
-          </div>
+
           <div class="deet__pro-wrap">
             <div class="deet__pro-pulse"></div>
             <div class="deet__pro-inner">
@@ -328,7 +325,7 @@
           </div>
           <div class="deet">
             <svg class="deet__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            <div><span class="deet__label">Limited to 20 &mdash; Past Students a Priority</span><span class="deet__sub">Bring a friend &middot; Same price</span></div>
+            <div><span class="deet__label">Limited to 20 &mdash; Past Students a Priority</span><span class="deet__sub">Bring a friend</span></div>
           </div>
         </div>
       </div>
@@ -340,11 +337,10 @@
 <!-- BAND -->
 <div class="band">
   <div class="band__row">
-    <div class="band__cell"><div class="band__lbl">Format</div><div class="band__val">Face-to-Face</div><div class="band__sub">Hands-on throughout</div></div>
-    <div class="band__cell"><div class="band__lbl">Duration</div><div class="band__val">Full Day</div><div class="band__sub">9:00 AM &ndash; 5:00 PM</div></div>
-    <div class="band__cell"><div class="band__lbl">Platforms</div><div class="band__val">3 Platforms</div><div class="band__sub">Claude &middot; Claude Cowork &middot; Claude Code</div></div>
-    <div class="band__cell"><div class="band__lbl">Seats</div><div class="band__val">~20 Only</div><div class="band__sub">Past students a priority</div></div>
-    <div class="band__cell"><div class="band__lbl">Investment</div><div class="band__val band__val--gold">$128</div><div class="band__sub">No grants &middot; No paperwork</div></div>
+    <div class="band__cell"><div class="band__lbl">Format</div><div class="band__val">Online</div><div class="band__sub">3 Hours &middot; Hands-on</div></div>
+    <div class="band__cell"><div class="band__lbl">Duration</div><div class="band__val">3 Hours</div><div class="band__sub">7:00 PM &ndash; 10:00 PM (SGT)</div></div>
+    <div class="band__cell"><div class="band__lbl">Seats</div><div class="band__val">20 Only</div><div class="band__sub">Small class, better attention</div></div>
+    <div class="band__cell"><div class="band__lbl">Investment</div><div class="band__val band__val--gold">SGD $90</div><div class="band__sub">Small investment &middot; Power-packed knowledge</div></div>
   </div>
 </div>
 
@@ -353,9 +349,9 @@
 <section class="section section--ruled">
   <div class="wrap">
     <div class="section__hd">
-      <span class="tag">What You&rsquo;ll Master</span>
-      <h2 class="section__h2">Three platforms.<br><em>One transformative day.</em></h2>
-      <p class="section__body">Every agentic AI course in Singapore teaches LangChain, Power Automate, or DeepSeek. This is the only one built entirely around Claude &mdash; taught by someone who uses it daily with enterprise clients.</p>
+      <span class="tag" style="font-size:13px;letter-spacing:.15em;">What You&rsquo;ll Master</span>
+      <h2 class="section__h2"><em>Three transformative hours.</em></h2>
+      <p class="section__body">This is the only one built entirely around Claude &mdash; taught by someone who uses it daily for high personal productivity gains.</p>
     </div>
     <div class="platforms">
       <div class="platform">
@@ -369,10 +365,8 @@
         </div>
         <h3 class="platform__name">Claude</h3>
         <span class="platform__role">Agentic AI &amp; Reasoning</span>
-        <p class="platform__desc">Go beyond basic prompting. Orchestrate Claude as a true thinking agent &mdash; chaining tasks, analysing documents, and delivering intelligent decisions.</p>
+        <p class="platform__desc">Uncover all the hidden gems of Claude. Fully understand the platform and all its hidden features &mdash; go beyond the surface and use Claude the way power users do.</p>
         <div class="platform__pts">
-          <div class="platform__pt"><svg class="platform__tick" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Advanced prompt techniques</div>
-          <div class="platform__pt"><svg class="platform__tick" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Document &amp; data reasoning</div>
         </div>
         <hr class="platform__divider">
         <span class="platform__ms-label">Also Covers &mdash; Claude for Microsoft</span>
@@ -394,8 +388,8 @@
         <span class="platform__role">Workflow Automation</span>
         <p class="platform__desc">Build real automated business workflows without a single line of code. Full websites in minutes. Processes that run independently while you focus on what matters.</p>
         <div class="platform__pts">
-          <div class="platform__pt"><svg class="platform__tick" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Full websites created end-to-end</div>
-          <div class="platform__pt"><svg class="platform__tick" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Automated comms &amp; welcome flows</div>
+          <div class="platform__pt"><svg class="platform__tick" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Automated workflows</div>
+          <div class="platform__pt"><svg class="platform__tick" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Website creation</div>
           <div class="platform__pt"><svg class="platform__tick" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Content pipelines on autopilot</div>
         </div>
       </div>
@@ -438,7 +432,7 @@
         <p class="case__p">impactuslearning.com is a fully live, production website built using Claude Cowork. No developer. No agency. Dr. Andrew has since used Claude Cowork to build multiple other professional websites. Visit impactuslearning.com right now and see what AI-built looks like in the real world.</p>
         <div class="ai-proof">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-          This advertisement was also created using Claude
+          This advertisement was also created using Claude Cowork
         </div>
       </div>
       <div class="case">
@@ -450,14 +444,14 @@
       <div class="case">
         <div class="case__n">03 &mdash;</div>
         <span class="case__cat">Claude Cowork &middot; Workflow Automation</span>
-        <h3 class="case__h3">Two workflows running while you have coffee</h3>
-        <p class="case__p">Website content updated automatically &mdash; no manual effort. Automated class welcome notes &mdash; one trigger, personalised messages sent to every student, zero admin. Both running in the background while Dr. Andrew focuses on what matters.</p>
+        <h3 class="case__h3">Let workflows run while you have coffee</h3>
+        <p class="case__p">Website content updated automatically &mdash; no manual effort. Automated class welcome notes &mdash; one trigger, personalised messages sent to every student, zero admin. Processes run in the background while Dr. Andrew focuses on what matters.</p>
       </div>
       <div class="case case--wide">
         <div class="case__n">04 &mdash;</div>
         <span class="case__cat">Practicum &middot; You Build It</span>
-        <h3 class="case__h3">By 5pm, you leave with something you built yourself &mdash; for your real work</h3>
-        <p class="case__p">A guided hands-on session. Bring your own challenge &mdash; a workflow you&rsquo;ve been putting off, a tool you wish existed, a process that wastes your time. You build it on the day, with Dr. Andrew alongside. You take it home and use it on Monday.</p>
+        <h3 class="case__h3">By the end of the course, you empower yourself to automate with agentic AI.</h3>
+        <p class="case__p">Bring your own challenge &mdash; a workflow you&rsquo;ve been putting off, a tool you wish existed, a process that wastes your time. You will know how to build a solution with the guidance of Dr. Andrew.</p>
       </div>
     </div>
   </div>
@@ -485,7 +479,7 @@
         <div class="note__quote">&ldquo;Come with a need, come with a problem &mdash; and you&rsquo;ll leave with it solved.&rdquo;</div>
         <p class="note__body">I&rsquo;m giving you a course that is no nonsense. I want to put everything I know across to you so that you can hit the ground running. No fluff. No theory. Just hands-on, hands-on, hands-on &mdash; to supercharge you with all you need to know about Claude, Claude Cowork, and Claude Code to get your personal apps up and running, customised just to suit your needs.</p>
         <p class="note__body">You&rsquo;ll learn how to build websites at a very low cost. You&rsquo;ll build your own personal apps. And you&rsquo;ll walk out with working agentic workflows &mdash; not a workbook to read later.</p>
-        <p class="note__body">I&rsquo;m keeping this to around 20 people so I can give everyone proper attention. Past students are a priority &mdash; but bring your friends. Same price. My goal isn&rsquo;t to make this exorbitant. I genuinely want to benefit you, and $128 is where cost and value find their balance.</p>
+        <p class="note__body">I&rsquo;m keeping this to around 20 people so I can give everyone proper attention. Reserve your place today. Bring your friends.</p><p class="note__body">My goal isn&rsquo;t to make this exorbitant. I genuinely want to benefit you. SGD $90 is where cost and value find their balance.</p>
         <div class="note__sig">&mdash; Dr. Andrew</div>
       </div>
     </div>
@@ -494,146 +488,34 @@
 
 
 <!-- COMPETITIVE VALUE -->
-<section class="section section--ruled">
-  <div class="wrap">
-    <div class="section__hd">
-      <span class="tag">Singapore&rsquo;s Competitive Landscape</span>
-      <h2 class="section__h2"><em>No one else</em> is teaching<br>Claude face-to-face.</h2>
-      <p class="section__body">We searched every agentic AI course in Singapore. Not one is built around Claude. They teach LangChain, Power Automate, DeepSeek, or n8n. The gap is real &mdash; and this is the course that fills it.</p>
-    </div>
-    <div class="compete">
-      <div class="compete__row compete__row--head">
-        <div class="compete__cell">Provider &amp; Course</div>
-        <div class="compete__cell">Duration &amp; Fee</div>
-        <div class="compete__cell c3">Teaches Claude?</div>
-      </div>
-      <div class="compete__row compete__row--you">
-        <div class="compete__cell"><span class="compete__name">Impactus Learning</span><span style="font-size:11px;color:var(--brand);">Master Claude &mdash; This Masterclass</span></div>
-        <div class="compete__cell"><span class="compete__price-hi">$128</span><span class="compete__price-lo" style="color:var(--brand);">1 day &middot; Face-to-face</span></div>
-        <div class="compete__cell c3"><span class="compete__badge">Claude Masterclass</span></div>
-      </div>
-      <div class="compete__row">
-        <div class="compete__cell"><span class="compete__name">SMU Academy</span><span style="font-size:11px;color:var(--text-light);">Building Autonomous AI Agents</span></div>
-        <div class="compete__cell"><span class="compete__price-hi" style="font-size:16px;color:var(--text-muted);">$2,180</span><span class="compete__price-lo">2 days &middot; from $254 subsidised</span></div>
-        <div class="compete__cell c3"><span class="compete__no">LangChain, LangGraph &mdash; no Claude</span></div>
-      </div>
-      <div class="compete__row">
-        <div class="compete__cell"><span class="compete__name">SUTD Academy</span><span style="font-size:11px;color:var(--text-light);">Certified Agentic AI Professional</span></div>
-        <div class="compete__cell"><span class="compete__price-hi" style="font-size:16px;color:var(--text-muted);">$2,250</span><span class="compete__price-lo">2 days &middot; from $250 subsidised</span></div>
-        <div class="compete__cell c3"><span class="compete__no">Zero/low-code workflows &mdash; no Claude</span></div>
-      </div>
-      <div class="compete__row">
-        <div class="compete__cell"><span class="compete__name">NTUC LearningHub</span><span style="font-size:11px;color:var(--text-light);">Agentic AI for Business Workflow</span></div>
-        <div class="compete__cell"><span class="compete__price-hi" style="font-size:16px;color:var(--text-muted);">$1,000</span><span class="compete__price-lo">3 days &middot; Virtual only &middot; from $300 subsidised</span></div>
-        <div class="compete__cell c3"><span class="compete__no">Power Automate, ChatGPT, DeepSeek &mdash; no Claude</span></div>
-      </div>
-      <div class="compete__row">
-        <div class="compete__cell"><span class="compete__name">Heicoders Academy</span><span style="font-size:11px;color:var(--text-light);">GA100 Generative AI with Agents</span></div>
-        <div class="compete__cell"><span class="compete__price-hi" style="font-size:16px;color:var(--text-muted);">$1,798.50</span><span class="compete__price-lo">3 days &middot; Face-to-face &middot; from $643.50 subsidised</span></div>
-        <div class="compete__cell c3"><span class="compete__no">n8n, Manus AI &mdash; no Claude</span></div>
-      </div>
-    </div>
-
-    <div style="background:var(--brown);border-radius:var(--r-lg);padding:40px;position:relative;overflow:hidden;">
-      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--brand),var(--amber));"></div>
-      <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at top right,rgba(232,164,90,.07) 0%,transparent 60%);"></div>
-      <div style="position:relative;z-index:1;">
-        <div style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--brown-muted);margin-bottom:10px;">Your Rate</div>
-        <div style="font-family:var(--serif);font-style:italic;font-size:68px;line-height:1;color:var(--amber);margin-bottom:12px;">$128</div>
-        <div style="font-size:13px;color:var(--brown-muted);line-height:1.65;margin-bottom:20px;">Claude-specific. Practitioner-led.</div>
-        <div style="display:flex;flex-direction:column;gap:9px;">
-          <div style="display:flex;gap:8px;font-size:13px;color:var(--brown-muted);align-items:flex-start;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e8a45a" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px;"><polyline points="20 6 9 17 4 12"/></svg>
-            Claude, Claude Cowork &amp; Claude Code
-          </div>
-          <div style="display:flex;gap:8px;font-size:13px;color:var(--brown-muted);align-items:flex-start;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e8a45a" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px;"><polyline points="20 6 9 17 4 12"/></svg>
-            Build something real and take it home
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-<hr class="rule">
-
 
 <!-- AGENDA -->
 <section class="section section--tinted section--ruled" id="agenda">
   <div class="wrap">
     <div class="section__hd">
-      <span class="tag">Day Programme</span>
-      <h2 class="section__h2">9 AM to 5 PM.<br><em>Every hour counts.</em></h2>
+      <span class="tag" style="font-size:13px;letter-spacing:.15em;">Programme</span>
+      <h2 class="section__h2">7 PM to 10 PM (Singapore Time).<br><em>Every hour counts.</em></h2>
     </div>
     <div class="agenda">
       <div class="agenda__row">
-        <div class="agenda__t">9:00</div>
+        <div class="agenda__t">7:00 PM</div>
         <div class="agenda__b">
-          <div class="agenda__h">Welcome &mdash; The Age of Agentic AI</div>
-          <div class="agenda__sub">Why agentic AI is the shift no professional can sit out. Scene-setting: what Claude, Claude Cowork, and Claude Code each do &mdash; and how the three platforms connect into one powerful day.</div>
+          <div class="agenda__h">Hour One &mdash; Mastering the Claude Environment <span class="pill">Foundations &amp; Hidden Gems</span></div>
+          <div class="agenda__sub">Begin where most people never go. A deep, unhurried exploration of Claude &mdash; its hidden features, its full capabilities, and the techniques that separate power users from everyone else. Understand the platform the way it was meant to be used.</div>
         </div>
       </div>
       <div class="agenda__row">
-        <div class="agenda__t">9:30</div>
+        <div class="agenda__t">8:00 PM</div>
         <div class="agenda__b">
-          <div class="agenda__h">Claude &mdash; Agentic Reasoning + Microsoft Plugins <span class="pill">Hands-On</span></div>
-          <div class="agenda__sub">One focused hour: multi-step reasoning, document analysis, chained instructions &mdash; then Claude for Excel and PowerPoint. Supercharging the tools you already use every day.</div>
-        </div>
-      </div>
-      <div class="agenda__row agenda__row--break">
-        <div class="agenda__t">10:30</div>
-        <div class="agenda__b">
-          <div class="agenda__h">Coffee Break <span class="pill">20 min</span></div>
-          <div class="agenda__sub">Recharge before the longest and most hands-on session of the day.</div>
+          <div class="agenda__h">Hour Two &mdash; Live Showcase: Claude Cowork &amp; Claude Code <span class="pill">Use Case Demo</span></div>
+          <div class="agenda__sub">Watch real workflows come alive. Dr. Andrew demonstrates how Claude Cowork builds and automates entire websites, runs background processes, and handles comms without lifting a finger &mdash; then pivots to Claude Code, where natural language becomes deployable software before your eyes.</div>
         </div>
       </div>
       <div class="agenda__row">
-        <div class="agenda__t">10:50</div>
+        <div class="agenda__t">9:00 PM</div>
         <div class="agenda__b">
-          <div class="agenda__h">Claude Cowork &mdash; Build &amp; Automate <span class="pill">Live Demo + You Build</span></div>
-          <div class="agenda__sub">Live: how impactuslearning.com and other websites were built. Then: the automated welcome note workflow and content update pipeline. You build your own version alongside.</div>
-        </div>
-      </div>
-      <div class="agenda__row agenda__row--break">
-        <div class="agenda__t">12:15</div>
-        <div class="agenda__b">
-          <div class="agenda__h">Lunch Break <span class="pill">1 hr 15 min</span></div>
-          <div class="agenda__sub">Recharge. The afternoon is where things get genuinely exciting.</div>
-        </div>
-      </div>
-      <div class="agenda__row">
-        <div class="agenda__t">1:30</div>
-        <div class="agenda__b">
-          <div class="agenda__h">Claude Code &mdash; Build Software With Words <span class="pill">Live Builds</span></div>
-          <div class="agenda__sub">Live: the networked Kahoot-style quiz game from scratch &mdash; multiplayer, persistent, through conversation alone. Then replicate the process with your own idea.</div>
-        </div>
-      </div>
-      <div class="agenda__row agenda__row--break">
-        <div class="agenda__t">3:00</div>
-        <div class="agenda__b">
-          <div class="agenda__h">Coffee Break <span class="pill">20 min</span></div>
-          <div class="agenda__sub">The next session is the most valuable of the day.</div>
-        </div>
-      </div>
-      <div class="agenda__row">
-        <div class="agenda__t">3:20</div>
-        <div class="agenda__b">
-          <div class="agenda__h">Practicum &mdash; Your Use Case, Built Today <span class="pill">You Build</span></div>
-          <div class="agenda__sub">Bring your own challenge. Come with a need, come with a problem. Guided hands-on &mdash; you leave with a real, working agentic workflow built for your actual work, not a practice exercise.</div>
-        </div>
-      </div>
-      <div class="agenda__row">
-        <div class="agenda__t">4:35</div>
-        <div class="agenda__b">
-          <div class="agenda__h">Showcase + Open Q&amp;A</div>
-          <div class="agenda__sub">Share what you built. Open floor discussion. Resources and next steps to keep building momentum long after today.</div>
-        </div>
-      </div>
-      <div class="agenda__row agenda__row--close">
-        <div class="agenda__t">5:00 PM</div>
-        <div class="agenda__b">
-          <div class="agenda__h">Close</div>
-          <div class="agenda__sub">Three platforms mastered. Real workflows running. An entirely new sense of what you&rsquo;re capable of.</div>
+          <div class="agenda__h">Hour Three &mdash; Hands-On Solutioning <span class="pill">You Build</span></div>
+          <div class="agenda__sub">Your turn. Come with a challenge &mdash; a workflow you&rsquo;ve been putting off, a process that drains your time, an idea you haven&rsquo;t known how to start. With Dr. Andrew&rsquo;s guidance, you build a real solution tonight and leave empowered to keep going.</div>
         </div>
       </div>
     </div>
@@ -664,65 +546,25 @@
             <svg class="prereq__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
             <div>
               <span class="prereq__label">Railway Account</span>
-              <span class="prereq__sub">Free at railway.app &middot; Host and deploy your apps</span>
+              <span class="prereq__sub">Limited free at railway.app &middot; Host and deploy your apps</span>
             </div>
           </div>
         </div>
-        <div class="prereq__note"><strong>Don&rsquo;t have any of these yet? Just come.</strong> We&rsquo;ll sort it out together on the day. The only thing you truly need to bring is your laptop and a problem you want solved.</div>
       </div>
     </div>
   </div>
 </section>
 <hr class="rule">
 
-
-<!-- VENUE -->
-<section class="section section--ruled">
-  <div class="wrap">
-    <div class="section__hd">
-      <span class="tag">Venue</span>
-      <h2 class="section__h2">A setting<br><em>worthy of the work.</em></h2>
-    </div>
-    <div class="venue-wrap">
-      <div class="venue__card">
-        <svg class="venue__icon" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
-        <div class="venue__name">Kaplan City Campus<br>@ Odeon 333</div>
-        <div class="venue__addr">333 North Bridge Road<br>Singapore 188721</div>
-        <span class="venue__badge">Opposite Raffles Hotel</span>
-      </div>
-      <div class="venue__facts">
-        <div class="venue__fact">
-          <svg class="venue__fi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-          <div class="venue__fb"><strong>State-of-the-Art Computer Labs</strong><span>Dual monitors, high-performance hardware, inverted-U layout for instructor-led hands-on learning</span></div>
-        </div>
-        <div class="venue__fact">
-          <svg class="venue__fi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <div class="venue__fb"><strong>The Connexion &mdash; Collaborative Hub</strong><span>Height-adjustable writable tables and interactive spaces for group work and discussion</span></div>
-        </div>
-        <div class="venue__fact">
-          <svg class="venue__fi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          <div class="venue__fb"><strong>Heart of the City</strong><span>8 MRT stations within walking distance &mdash; easily accessible from anywhere in Singapore</span></div>
-        </div>
-        <div class="venue__fact">
-          <svg class="venue__fi" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <div class="venue__fb"><strong>BCA Green Mark Platinum</strong><span>A premium, sustainable landmark &mdash; the right backdrop for future-ready learning</span></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-
 <!-- CTA -->
 <div class="cta">
   <div class="wrap">
     <div class="cta__inner">
-      <span class="tag tag--light" style="margin-bottom:20px;">The Invitation</span>
-      <h2 class="cta__h2">Come with a need.<br><em>Leave with it solved.</em></h2>
-      <p class="cta__sub">No fluff. No theory. Singapore&rsquo;s only face-to-face Claude masterclass &mdash; hands-on, hands-on, hands-on. One day with Dr. Andrew, three platforms mastered, real workflows running.</p>
-      <div class="cta__price">$128</div>
-      <div class="cta__price-note">No SSG registration &middot; No HR approval &middot; WhatsApp and show up</div>
-      <div class="cta__scarcity">Limited to ~20 &middot; Past students a priority &middot; Bring a friend &mdash; same price</div>
+      <span class="tag tag--light" style="margin-bottom:20px;font-size:14px;letter-spacing:.15em;">The Invitation</span>
+      <h2 class="cta__h2">Come. Learn.<br><em>Real workflows running — you hit the ground running the following day.</em></h2>
+      <p class="cta__sub">No fluff. No theory. There is no course like this &mdash; everything you need to know about Claude in three hours. Three platforms mastered, real workflows running, and you hit the ground running on Monday.</p>
+      <div class="cta__price">SGD $90</div>
+      <div class="cta__scarcity">Limited to 20 &middot; Bring a friend</div>
       <div class="seats-box">
         <div class="seats-item">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -731,8 +573,8 @@
         </div>
         <div class="seats-item">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.58 3.38 2 2 0 0 1 3.55 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l.86-.86a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 17z"/></svg>
-          <strong>Bring a Friend &mdash; Same Price</strong>
-          <span>Past students are a priority. Bring someone who would benefit &mdash; same $128, same hands-on experience</span>
+          <strong>Bring a Friend</strong>
+          <span>Past students are a priority. Bring someone who would benefit &mdash; same hands-on online experience</span>
         </div>
       </div>
       <div class="cta__btns">
