@@ -63,7 +63,11 @@
   .header__logo { height:48px; width:auto; }
   .header__label { font-size:12px; font-weight:500; letter-spacing:.15em; text-transform:uppercase; color:var(--text-light); display:flex; align-items:center; gap:10px; }
   .header__label::before { content:''; width:18px; height:1px; background:var(--brand); display:block; }
-  @media(max-width:540px){ .header__label{ display:none; } }
+  .header__right { display:flex; align-items:center; gap:28px; }
+  .header__nav { display:flex; align-items:center; gap:20px; }
+  .header__nav a { font-size:13px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); text-decoration:none; transition:color .2s ease; }
+  .header__nav a:hover { color:var(--brand); }
+  @media(max-width:540px){ .header__label{ display:none; } .header__nav a{ font-size:12px; } }
 
   /* HERO */
   .hero { padding:80px 0 88px; border-bottom:1px solid var(--divider); position:relative; overflow:hidden; }
@@ -290,7 +294,13 @@
       <a href="https://impactuslearning.com" class="header__logo-wrap">
         <img src="../images/logo-dark-nobg.png" alt="Impactus Learning" class="header__logo">
       </a>
-      <span class="header__label">Agentic AI Masterclass &middot; 2026</span>
+      <div class="header__right">
+        <nav class="header__nav">
+          <a href="https://impactuslearning.com">Home</a>
+          <a href="https://events.impactuslearning.com">Events</a>
+        </nav>
+        <span class="header__label">Agentic AI Masterclass &middot; 2026</span>
+      </div>
     </div>
   </div>
 </header>
