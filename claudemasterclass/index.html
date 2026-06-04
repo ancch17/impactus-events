@@ -305,6 +305,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .reviews-track--animate { animation:reviewsScroll 45s linear infinite; }
   .reviews-track--animate:hover { animation-play-state:paused; }
   @keyframes reviewsScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+  /* JS-driven carousel: tap to pause/resume, drag to scroll. touch-action:pan-y keeps vertical page scrolling working. */
+  .reviews-track--js { cursor:grab; touch-action:pan-y; -webkit-user-select:none; user-select:none; will-change:transform; }
+  .reviews-track--js.is-grabbing { cursor:grabbing; }
+  .reviews-track--js .review-card,
+  .reviews-track--js .review-card * { -webkit-user-drag:none; }
 
   .review-card { width:300px; flex-shrink:0; background:#fff; border:1px solid var(--divider); border-radius:var(--r-lg); padding:20px 22px; display:flex; flex-direction:column; gap:10px; transition:box-shadow .2s ease; }
   .review-card:hover { box-shadow:0 4px 20px rgba(30,26,20,.08); }
@@ -758,6 +763,105 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div><!-- end reviews-track -->
   </div>
 </div>
+<script>
+(function () {
+  var track = document.getElementById('reviewsTrack');
+  if (!track) return;
+
+  // Take over from the CSS animation so we control position in JS.
+  track.classList.remove('reviews-track--animate');
+  track.classList.add('reviews-track--js');
+
+  var SPEED = 40;          // px per second (auto-scroll), matches old ~45s loop feel
+  var pos = 0;             // current translateX (<= 0)
+  var paused = false;      // toggled by tap/click
+  var dragging = false;    // pointer is down
+  var moved = false;       // pointer moved enough to count as a drag (not a tap)
+  var startX = 0, startPos = 0, lastX = 0, lastT = 0, velocity = 0;
+  var lastFrame = null;
+  var DRAG_THRESHOLD = 6;  // px before a press becomes a drag
+
+  function half() {
+    // Width of one full set (track holds two identical sets for seamless looping).
+    return track.scrollWidth / 2 || 1;
+  }
+  function wrap(x) {
+    var h = half();
+    // keep pos in (-h, 0]
+    x = x % h;
+    if (x > 0) x -= h;
+    return x;
+  }
+  function apply() {
+    track.style.transform = 'translateX(' + pos + 'px)';
+  }
+
+  function frame(t) {
+    if (lastFrame == null) lastFrame = t;
+    var dt = (t - lastFrame) / 1000;
+    lastFrame = t;
+    if (!paused && !dragging) {
+      if (velocity) {
+        // momentum from a flick, decaying
+        pos += velocity * dt;
+        velocity *= Math.pow(0.92, dt * 60);
+        if (Math.abs(velocity) < 8) velocity = 0;
+      } else {
+        pos -= SPEED * dt;
+      }
+      pos = wrap(pos);
+      apply();
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  track.addEventListener('pointerdown', function (e) {
+    dragging = true;
+    moved = false;
+    velocity = 0;
+    startX = lastX = e.clientX;
+    startPos = pos;
+    lastT = performance.now();
+    track.classList.add('is-grabbing');
+    try { track.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+
+  track.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    var dx = e.clientX - startX;
+    if (Math.abs(dx) > DRAG_THRESHOLD) moved = true;
+    pos = wrap(startPos + dx);
+    apply();
+    var now = performance.now();
+    var dt = (now - lastT) / 1000;
+    if (dt > 0) velocity = (e.clientX - lastX) / dt;  // px/sec for momentum
+    lastX = e.clientX;
+    lastT = now;
+  });
+
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    track.classList.remove('is-grabbing');
+    try { track.releasePointerCapture(e.pointerId); } catch (err) {}
+    if (!moved) {
+      // It was a tap/click, not a drag: toggle pause/resume.
+      paused = !paused;
+      velocity = 0;
+    }
+    // If it was a drag, momentum (velocity) carries on, then auto-scroll resumes.
+  }
+  track.addEventListener('pointerup', endDrag);
+  track.addEventListener('pointercancel', endDrag);
+
+  // Prevent native image dragging from hijacking the gesture.
+  track.addEventListener('dragstart', function (e) { e.preventDefault(); });
+
+  // Recompute wrap on resize so positions stay seamless.
+  window.addEventListener('resize', function () { pos = wrap(pos); apply(); });
+})();
+</script>
 
 
 <!-- AGENDA -->
@@ -1014,17 +1118,4 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- GA4 CTA Event Tracking via GTM dataLayer -->
 <script>
-document.addEventListener('click', function(e) {
-  var el = e.target.closest('[data-ga-event]');
-  if (!el) return;
-  window.dataLayer = window.dataLayer || [];
-  window.dataLayer.push({
-    event: el.dataset.gaEvent,
-    ga_label: el.dataset.gaLabel || '',
-    ga_location: el.dataset.gaLocation || ''
-  });
-});
-</script>
-</body>
-</html>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+document.addEventListener
