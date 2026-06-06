@@ -597,6 +597,24 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <p class="review-card__text">"Excellent teacher for all of us!"</p>
       </div>
 
+      <div class="review-card">
+        <div class="review-card__top">
+          <div class="review-card__avatar" style="background:#34A853; color:#fff;">T</div>
+          <div>
+            <div class="review-card__name">Tan K</div>
+            <div class="review-card__date">June 2026</div>
+          </div>
+        </div>
+        <div class="review-card__stars">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <p class="review-card__text">"I recently attended an excellent course on Agentic AI with Claude. A huge thank you to Andrew (Dr. Chew) for sharing such valuable insights; the blend of theory and hands-on practice sessions were incredibly effective in deepening my understanding of the subject. I'm looking forward to applying these new skills to my work and daily life. Highly recommended!"</p>
+      </div>
+
       <!-- === SET 2 (duplicate for seamless infinite loop) === -->
       <div class="review-card">
         <div class="review-card__top">
@@ -758,6 +776,24 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
         </div>
         <p class="review-card__text">"Excellent teacher for all of us!"</p>
+      </div>
+
+      <div class="review-card">
+        <div class="review-card__top">
+          <div class="review-card__avatar" style="background:#34A853; color:#fff;">T</div>
+          <div>
+            <div class="review-card__name">Tan K</div>
+            <div class="review-card__date">June 2026</div>
+          </div>
+        </div>
+        <div class="review-card__stars">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <p class="review-card__text">"I recently attended an excellent course on Agentic AI with Claude. A huge thank you to Andrew (Dr. Chew) for sharing such valuable insights; the blend of theory and hands-on practice sessions were incredibly effective in deepening my understanding of the subject. I'm looking forward to applying these new skills to my work and daily life. Highly recommended!"</p>
       </div>
 
     </div><!-- end reviews-track -->
@@ -1118,4 +1154,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- GA4 CTA Event Tracking via GTM dataLayer -->
 <script>
-document.addEventListener
+document.addEventListener('click', function(e) {
+  var el = e.target.closest('[data-ga-event]');
+  if (!el) return;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    event: el.dataset.gaEvent,
+    ga_label: el.dataset.gaLabel || '',
+    ga_location: el.dataset.gaLocation || ''
+  });
+});
+</script>
+</body>
+</html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
