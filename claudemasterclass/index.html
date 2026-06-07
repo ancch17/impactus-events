@@ -1192,4 +1192,50 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- FLOATING CTA -->
 <a href="https://luma.com/user/impactus" target="_blank" rel="noopener" class="float-cta" data-ga-event="cta_click" data-ga-label="reserve_seat" data-ga-location="floating">
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="no
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  Reserve your seat
+</a>
+<style>
+.float-cta {
+  position:fixed; bottom:28px; right:28px; z-index:999;
+  display:inline-flex; align-items:center; gap:9px;
+  background:var(--brand); color:#fff;
+  font-family:var(--sans); font-size:14px; font-weight:600;
+  padding:14px 24px; border-radius:50px;
+  box-shadow:0 6px 28px rgba(122,59,16,.35);
+  text-decoration:none; overflow:hidden;
+  transition:all .2s ease;
+  animation:rmsGlow 2.5s ease-in-out infinite;
+}
+.float-cta::before {
+  content:''; position:absolute; top:0; left:-100%;
+  width:55%; height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.40),transparent);
+  animation:rmsShimmer 2.5s ease-in-out infinite;
+  pointer-events:none;
+}
+.float-cta:hover {
+  background:var(--brand-dark);
+  transform:translateY(-2px);
+  box-shadow:0 10px 36px rgba(122,59,16,.45);
+}
+@media(max-width:640px){
+  .float-cta { bottom:18px; right:18px; padding:12px 20px; font-size:13px; }
+}
+</style>
+
+<!-- GA4 CTA Event Tracking via GTM dataLayer -->
+<script>
+document.addEventListener('click', function(e) {
+  var el = e.target.closest('[data-ga-event]');
+  if (!el) return;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    event: el.dataset.gaEvent,
+    ga_label: el.dataset.gaLabel || '',
+    ga_location: el.dataset.gaLocation || ''
+  });
+});
+</script>
+</body>
+</html>
