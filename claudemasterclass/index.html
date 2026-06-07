@@ -900,6 +900,55 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 </script>
 
 
+<!-- STUDENT SPOTLIGHT -->
+<style>
+  .spotlight__grid,.certblk__grid{display:flex;gap:48px;align-items:center;max-width:1000px;margin:0 auto}
+  .spotlight__media{flex:0 0 300px;max-width:300px}
+  .spotlight__media img,.certblk__media img{width:100%;height:auto;display:block;border-radius:var(--r-lg);box-shadow:0 18px 50px rgba(61,32,16,.18)}
+  .spotlight__body{flex:1}
+  .spotlight__lead{font-family:var(--serif);font-size:27px;line-height:1.34;color:var(--text);margin:0 0 16px}
+  .spotlight__text{font-size:16px;line-height:1.7;color:var(--text-muted);margin:0 0 24px}
+  .spotlight__stat{display:flex;flex-direction:column;gap:3px;padding:16px 20px;background:var(--brand-subtle);border-left:3px solid var(--amber);border-radius:var(--r-sm);margin-bottom:20px}
+  .spotlight__stat-num{font-family:var(--serif);font-size:24px;color:var(--brand);line-height:1.1}
+  .spotlight__stat-lbl{font-size:14px;color:var(--text-muted)}
+  .spotlight__attr{font-size:14px;font-weight:600;color:var(--brand);letter-spacing:.02em}
+  .certblk__media{flex:0 0 320px;max-width:320px}
+  .certblk__body .section__h2,.certblk__body .section__body{text-align:left}
+  .certblk__pts{list-style:none;padding:0;margin:22px 0 0}
+  .certblk__pts li{display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--text-muted);margin-bottom:11px;line-height:1.5}
+  .certblk__pts svg{flex:0 0 auto;color:var(--amber);margin-top:3px}
+  @media(max-width:760px){
+    .spotlight__grid,.certblk__grid{flex-direction:column;gap:28px}
+    .spotlight__media,.certblk__media{flex:0 0 auto;max-width:250px}
+    .certblk__grid{flex-direction:column-reverse}
+    .certblk__body .section__h2,.certblk__body .section__body{text-align:center}
+    .spotlight__lead{font-size:24px}
+  }
+</style>
+<section class="section section--ruled spotlight">
+  <div class="wrap">
+    <div class="section__hd">
+      <span class="tag" style="font-size:13px;letter-spacing:.15em;">Student Spotlight</span>
+      <h2 class="section__h2">From zero to a working app &mdash;<br><em>in a single day.</em></h2>
+    </div>
+    <div class="spotlight__grid">
+      <div class="spotlight__media">
+        <img src="images/spotlight-kelvin.jpg" alt="The Asia Tech News Digest app Kelvin Tan built the day after the Master Claude masterclass" loading="lazy">
+      </div>
+      <div class="spotlight__body">
+        <p class="spotlight__lead">Kelvin attended on a Thursday. By Friday, he&rsquo;d built a live AI news digest that scrapes and summarises Asia tech news automatically &mdash; every single day.</p>
+        <p class="spotlight__text">No fluff. No theory. Just applied Claude Cowork concepts that work in the real world &mdash; the very same hands-on approach you&rsquo;ll walk away with in class.</p>
+        <div class="spotlight__stat">
+          <span class="spotlight__stat-num">3 hours of class</span>
+          <span class="spotlight__stat-lbl">&rarr; a productivity app running on autopilot</span>
+        </div>
+        <div class="spotlight__attr">&mdash; Kelvin Tan, Master Claude graduate</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
 <!-- AGENDA -->
 <section class="section section--tinted section--ruled" id="agenda">
   <div class="wrap">
@@ -1064,6 +1113,26 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 
 <!-- COMPETITIVE VALUE -->
+<section class="section section--tinted section--ruled certblk">
+  <div class="wrap">
+    <div class="certblk__grid">
+      <div class="certblk__media">
+        <img src="images/certificate-sample.png" alt="Master Claude: Agentic AI Masterclass certificate of completion" loading="lazy">
+      </div>
+      <div class="certblk__body">
+        <span class="tag" style="font-size:13px;letter-spacing:.15em;">What You Walk Away With</span>
+        <h2 class="section__h2">Earn your <em>Master Claude</em> certificate.</h2>
+        <p class="section__body">Every graduate receives a Master Claude: Agentic AI Masterclass certificate of completion &mdash; a credible signal of hands-on, forward-thinking AI skill, and a strong addition to any resume.</p>
+        <ul class="certblk__pts">
+          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Recognition of a completed, practical hands-on programme</li>
+          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Signed by Dr. Andrew Chew, Founder &amp; Principal Trainer</li>
+          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>A forward-thinking signal for your resume and LinkedIn</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 
 
 
@@ -1124,47 +1193,4 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- FLOATING CTA -->
 <a href="https://luma.com/user/impactus" target="_blank" rel="noopener" data-ga-event="cta_click" data-ga-label="reserve_seat" data-ga-location="floating" style="
   position:fixed;
-  bottom:28px;
-  right:28px;
-  z-index:999;
-  display:inline-flex;
-  align-items:center;
-  gap:9px;
-  background:var(--brand);
-  color:#fff;
-  font-family:var(--sans);
-  font-size:14px;
-  font-weight:600;
-  padding:14px 24px;
-  border-radius:50px;
-  box-shadow:0 6px 28px rgba(122,59,16,.35);
-  text-decoration:none;
-  transition:all .2s ease;
-  animation:rmsGlow 2.5s ease-in-out infinite;
-" onmouseover="this.style.background='#5c2d0a';this.style.transform='translateY(-2px)';this.style.boxShadow='0 10px 36px rgba(122,59,16,.45)'" onmouseout="this.style.background='var(--brand)';this.style.transform='translateY(0)';this.style.boxShadow='0 6px 28px rgba(122,59,16,.35)'">
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-  Reserve your seat
-</a>
-<style>
-@keyframes floatPulse {
-  0%,100% { box-shadow:0 6px 28px rgba(122,59,16,.35); }
-  50%      { box-shadow:0 6px 36px rgba(122,59,16,.55); }
-}
-</style>
-
-<!-- GA4 CTA Event Tracking via GTM dataLayer -->
-<script>
-document.addEventListener('click', function(e) {
-  var el = e.target.closest('[data-ga-event]');
-  if (!el) return;
-  window.dataLayer = window.dataLayer || [];
-  window.dataLayer.push({
-    event: el.dataset.gaEvent,
-    ga_label: el.dataset.gaLabel || '',
-    ga_location: el.dataset.gaLocation || ''
-  });
-});
-</script>
-</body>
-</html>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+  bottom:28
