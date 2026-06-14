@@ -441,4 +441,54 @@ section { padding:80px 0; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
-      <div class="cta-banner
+    </div><!-- /.cta-banner__inner -->
+  </div><!-- /.wrap -->
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer__inner">
+      <div class="footer__brand">Impactus Learning</div>
+      <div class="footer__copy">&copy; 2026 Impactus Learning Pte Ltd · <a href="https://impactuslearning.com" target="_blank" rel="noopener" style="color:inherit;">impactuslearning.com</a></div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ─── Shared competition deadline: end of Sat 20 June 2026, midnight SGT (UTC+8) ─── */
+var DEADLINE = new Date('2026-06-21T00:00:00+08:00').getTime();
+
+function pad(n){ return n < 10 ? '0' + n : '' + n; }
+
+function tickCountdown(){
+  var now = Date.now();
+  var diff = DEADLINE - now;
+  var elDays = document.getElementById('cd-days');
+  if (!elDays) return;
+  if (diff <= 0){
+    var cont = document.getElementById('countdown');
+    if (cont){ cont.innerHTML = '<span class="countdown__ended">⏱ Competition closed — winner announced Sun 21 June</span>'; }
+    return;
+  }
+  var d = Math.floor(diff / 86400000);
+  var h = Math.floor((diff % 86400000) / 3600000);
+  var m = Math.floor((diff % 3600000) / 60000);
+  var s = Math.floor((diff % 60000) / 1000);
+  elDays.textContent = d;
+  document.getElementById('cd-hours').textContent = pad(h);
+  document.getElementById('cd-mins').textContent = pad(m);
+  document.getElementById('cd-secs').textContent = pad(s);
+}
+tickCountdown();
+setInterval(tickCountdown, 1000);
+
+/* ─── Lazy-load the game iframe on poster click ─── */
+function loadGame(){
+  var frame = document.getElementById('game-frame');
+  if (!frame) return;
+  frame.innerHTML = '<iframe src="https://cat-mouse-chomp-production.up.railway.app/" title="Andrew\'s Cat & Mouse Chomp" allow="autoplay; fullscreen; gamepad" allowfullscreen></iframe>';
+}
+</script>
+</body>
+</html>
