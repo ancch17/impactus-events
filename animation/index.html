@@ -78,6 +78,23 @@ body::before {
 .float-cta::before { content:''; width:8px; height:8px; border-radius:50%; background:#fff; animation:pulse 2s ease-in-out infinite; }
 @media(max-width:480px){ .float-cta { bottom:16px; right:16px; padding:14px 22px; font-size:14px; } }
 
+/* ─── DATES / BOOKING CARDS ─── */
+.dates { border-bottom:1px solid var(--border); scroll-margin-top:90px; }
+.dates__grid { display:grid; grid-template-columns:repeat(2,1fr); gap:24px; margin-top:44px; max-width:780px; }
+@media(max-width:640px){ .dates__grid { grid-template-columns:1fr; } }
+.date-card { background:var(--surface); border:1px solid rgba(79,142,247,.25); border-radius:var(--r-lg); padding:32px 30px; position:relative; overflow:hidden; display:flex; flex-direction:column; transition:border-color .25s, transform .25s; }
+.date-card:hover { border-color:rgba(79,142,247,.5); transform:translateY(-3px); }
+.date-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--grad); }
+.date-card__tag { display:inline-flex; align-self:flex-start; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--cyan); margin-bottom:16px; }
+.date-card__day { font-size:13px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.1em; margin-bottom:4px; }
+.date-card__date { font-family:var(--display); font-weight:800; font-size:2rem; line-height:1.1; margin-bottom:18px; }
+.date-card__meta { font-size:14px; color:var(--muted); margin-bottom:26px; display:flex; flex-direction:column; gap:9px; }
+.date-card__meta span { display:inline-flex; align-items:center; gap:9px; }
+.date-card__meta svg { opacity:.7; flex-shrink:0; }
+.date-card__meta strong { color:var(--text); font-weight:600; }
+.date-card__book { margin-top:auto; display:inline-flex; align-items:center; justify-content:center; gap:10px; background:var(--grad); color:#fff; font-weight:700; font-size:15px; padding:15px 28px; border-radius:100px; transition:transform .2s, box-shadow .2s; box-shadow:0 0 30px rgba(79,142,247,.25); }
+.date-card__book:hover { transform:translateY(-2px); box-shadow:0 8px 36px rgba(79,142,247,.42); }
+
 /* ─── HERO ─── */
 .hero { position:relative; padding:100px 0 80px; overflow:hidden; }
 .hero__glow {
@@ -281,7 +298,7 @@ section { padding:80px 0; }
 </nav>
 
 <!-- FLOATING CTA -->
-<a href="https://luma.com/user/impactus" target="_blank" rel="noopener" class="float-cta">
+<a href="#dates" class="float-cta">
   Reserve Your Seat
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
 </a>
@@ -294,10 +311,10 @@ section { padding:80px 0; }
     <h1>Create AI Animation<br>with <span class="grad">Flow, Suno</span><br><span class="grad">&amp; CapCut</span></h1>
     <p class="hero__sub">A 3-hour power-packed session where you learn everything you need to know about <strong>Google Flow</strong> — including the new <strong>Google Omni</strong> feature and <strong>Agent mode</strong> — how to create compelling background music for your movies, and the key features of <strong>CapCut</strong> to bring it all together through video editing.</p>
     <div class="hero__meta">
-      <div class="hero__pill">
+      <a href="#dates" class="hero__pill">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        Various dates available
-      </div>
+        2 dates available — 24 &amp; 26 Jun
+      </a>
       <div class="hero__pill">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         3-hour session
@@ -312,7 +329,7 @@ section { padding:80px 0; }
       </div>
     </div>
     <div class="hero__actions">
-      <a href="https://luma.com/user/impactus" target="_blank" rel="noopener" class="btn-primary">
+      <a href="#dates" class="btn-primary">
         Reserve Your Seat
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>
@@ -321,6 +338,45 @@ section { padding:80px 0; }
     <div class="hero__req">
       <svg viewBox="0 0 24 24" fill="none" stroke="#c79bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
       <span><span class="req-tag">Prerequisite</span><strong>A Google AI Pro subscription is required for this course</strong> — it gives you access to Google Flow. <em>From US$19.99/mo · cancel anytime.</em></span>
+    </div>
+  </div>
+</section>
+
+<!-- DATES / BOOK -->
+<section class="dates" id="dates">
+  <div class="wrap">
+    <span class="section-label">Upcoming Dates</span>
+    <h2 class="section-heading">Choose your date &amp; book instantly</h2>
+    <p class="section-sub">Pick the session that suits you and book your seat directly — no hunting through a calendar. You'll get your Zoom joining details by email straight away.</p>
+    <div class="dates__grid">
+      <div class="date-card">
+        <span class="date-card__tag">🎬 Live on Zoom</span>
+        <div class="date-card__day">Wednesday</div>
+        <div class="date-card__date">24 June 2026</div>
+        <div class="date-card__meta">
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 7:00pm – 10:00pm <strong>(SGT)</strong></span>
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> <strong>$120 SGD</strong></span>
+        </div>
+        <a href="https://luma.com/impactus-vrtq" target="_blank" rel="noopener" class="date-card__book">
+          Book 24 June
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+      <div class="date-card">
+        <span class="date-card__tag">🎬 Live on Zoom</span>
+        <div class="date-card__day">Friday</div>
+        <div class="date-card__date">26 June 2026</div>
+        <div class="date-card__meta">
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 7:00pm – 10:00pm <strong>(SGT)</strong></span>
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> <strong>$120 SGD</strong></span>
+        </div>
+        <a href="https://luma.com/impactus-46bx" target="_blank" rel="noopener" class="date-card__book">
+          Book 26 June
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
     </div>
   </div>
 </section>
@@ -523,7 +579,7 @@ section { padding:80px 0; }
         <li>Prompting techniques for consistent AI video</li>
         <li>Create your own video during the session</li>
       </ul>
-      <a href="https://luma.com/user/impactus" target="_blank" rel="noopener" class="btn-primary" style="width:100%; justify-content:center;">
+      <a href="#dates" class="btn-primary" style="width:100%; justify-content:center;">
         Reserve Your Seat
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>
@@ -575,7 +631,7 @@ section { padding:80px 0; }
       <h2>Ready to create your first AI video?</h2>
       <p>Join the next live masterclass and walk away with a finished video — made with Flow, Suno and CapCut.</p>
       <div class="actions">
-        <a href="https://luma.com/user/impactus" target="_blank" rel="noopener" class="btn-primary">
+        <a href="#dates" class="btn-primary">
           Reserve Your Seat
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
