@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-5KXF6DVD');</script>
+<!-- End Google Tag Manager -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Animation Masterclass — Impactus Learning</title>
+<meta name="description" content="Create stunning AI animations and videos with Google Flow, Suno and CapCut. A 3-hour power-packed online masterclass. $120 SGD.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ─── RESET & ROOT ─── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+:root {
+  --bg:        #080b12;
+  --surface:   #0f1420;
+  --surface2:  #151c2e;
+  --border:    rgba(255,255,255,0.08);
+  --text:      #f0f4ff;
+  --muted:     #8892aa;
+  --faint:     #4a5270;
+  --blue:      #4f8ef7;
+  --cyan:      #22d3ee;
+  --purple:    #a855f7;
+  --grad:      linear-gradient(135deg, #4f8ef7 0%, #a855f7 50%, #22d3ee 100%);
+  --grad2:     linear-gradient(90deg, #4f8ef7, #22d3ee);
+  --r:         12px;
+  --r-lg:      20px;
+  --sans:      'Inter', system-ui, sans-serif;
+  --display:   'Space Grotesk', system-ui, sans-serif;
+}
+body { background:var(--bg); color:var(--text); font-family:var(--sans); font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+a { text-decoration:none; color:inherit; }
+img { display:block; max-width:100%; }
+.wrap { max-width:1080px; margin:0 auto; padding:0 40px; }
+@media(max-width:640px){ .wrap{ padding:0 20px; } }
+
+/* ─── NOISE TEXTURE OVERLAY ─── */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:0; opacity:.4;
+}
+
+/* ─── NAV ─── */
+.nav { position:sticky; top:0; z-index:100; background:rgba(8,11,18,0.85); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:16px 0; }
+.nav__inner { display:flex; align-items:center; justify-content:space-between; }
+.nav__logo img { height:48px; width:auto; display:block; filter:brightness(0) invert(1); }
+.nav__links { display:flex; align-items:center; gap:32px; }
+.nav__links a { font-size:17px; font-weight:700; color:var(--text); transition:color .2s; }
+.nav__links a:hover { color:var(--blue); }
+@media(max-width:480px){ .nav__links { gap:20px; } .nav__links a { font-size:15px; } .nav__logo img { height:38px; } }
+
+/* ─── FLOATING CTA ─── */
+.float-cta { position:fixed; bottom:24px; right:24px; z-index:200; display:inline-flex; align-items:center; gap:10px; background:var(--grad); color:#fff; font-weight:700; font-size:15px; padding:16px 28px; border-radius:100px; box-shadow:0 8px 30px rgba(79,142,247,.4); transition:transform .2s, box-shadow .2s; }
+.float-cta:hover { transform:translateY(-2px); box-shadow:0 12px 40px rgba(79,142,247,.5); }
+.float-cta::before { content:''; width:8px; height:8px; border-radius:50%; background:#fff; animation:pulse 2s ease-in-out infinite; }
+@media(max-width:480px){ .float-cta { bottom:16px; right:16px; padding:14px 22px; font-size:14px; } }
+
+/* ─── HERO ─── */
+.hero { position:relative; padding:100px 0 80px; overflow:hidden; }
+.hero__glow {
+  position:absolute; top:-200px; left:50%; transform:translateX(-50%);
+  width:900px; height:600px;
+  background: radial-gradient(ellipse at 50% 40%, rgba(79,142,247,0.18) 0%, rgba(168,85,247,0.10) 40%, transparent 70%);
+  pointer-events:none;
+}
+.hero__badge { display:inline-flex; align-items:center; gap:8px; background:rgba(79,142,247,0.12); border:1px solid rgba(79,142,247,0.3); border-radius:100px; padding:6px 16px; font-size:13px; font-weight:600; color:var(--blue); margin-bottom:28px; }
+.hero__badge::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--cyan); animation:pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+.hero h1 { font-family:var(--display); font-size:clamp(2.6rem,6vw,4.4rem); font-weight:800; line-height:1.1; letter-spacing:-0.02em; margin-bottom:24px; }
+.hero h1 .grad { background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.hero__sub { font-size:1.15rem; color:var(--muted); max-width:560px; line-height:1.7; margin-bottom:40px; }
+.hero__meta { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:44px; }
+.hero__pill { display:inline-flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:100px; padding:10px 18px; font-size:14px; font-weight:500; }
+.hero__pill svg { opacity:.6; flex-shrink:0; }
+.hero__actions { display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
+.btn-primary { display:inline-flex; align-items:center; gap:10px; background:var(--grad); color:#fff; font-weight:700; font-size:15px; padding:16px 32px; border-radius:100px; transition:transform .2s, box-shadow .2s; box-shadow:0 0 40px rgba(79,142,247,.25); }
+.btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 40px rgba(79,142,247,.35); }
+.btn-ghost { display:inline-flex; align-items:center; gap:8px; color:var(--muted); font-weight:500; font-size:14px; border:1px solid var(--border); border-radius:100px; padding:14px 24px; transition:all .2s; }
+.btn-ghost:hover { color:var(--text); border-color:rgba(255,255,255,.2); }
+.hero__visual { position:absolute; right:-60px; top:50%; transform:translateY(-50%); width:420px; opacity:.5; pointer-events:none; display:none; }
+@media(min-width:1000px){ .hero__visual { display:block; } }
+
+/* ─── HERO REQUIREMENT NOTE ─── */
+.hero__req { display:flex; align-items:center; gap:14px; margin-top:28px; background:rgba(168,85,247,0.18); border:1.5px solid rgba(168,85,247,0.55); border-radius:14px; padding:16px 22px; font-size:15px; color:var(--text); box-shadow:0 0 30px rgba(168,85,247,0.18); }
+.hero__req svg { width:22px; height:22px; flex-shrink:0; }
+.hero__req strong { font-weight:800; color:#c79bff; }
+.hero__req .req-tag { display:inline-block; font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#fff; background:var(--purple); border-radius:6px; padding:3px 8px; margin-right:8px; vertical-align:middle; }
+.hero__req span { color:var(--text); line-height:1.5; }
+.hero__req span em { color:var(--muted); font-style:normal; }
+
+/* ─── PREPARE / PREREQUISITE ─── */
+.prepare { border-bottom:1px solid var(--border); }
+.prepare__card { margin-top:40px; background:linear-gradient(135deg, rgba(168,85,247,0.10), rgba(79,142,247,0.06)); border:1px solid rgba(168,85,247,0.3); border-radius:var(--r-lg); padding:36px 34px; display:flex; gap:24px; align-items:flex-start; }
+@media(max-width:640px){ .prepare__card { flex-direction:column; gap:16px; padding:28px 22px; } }
+.prepare__icon { width:56px; height:56px; border-radius:16px; background:rgba(168,85,247,0.15); border:1px solid rgba(168,85,247,0.35); display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; }
+.prepare__title { font-family:var(--display); font-weight:700; font-size:1.25rem; margin-bottom:8px; }
+.prepare__title .req { color:var(--purple); }
+.prepare__text { font-size:14px; color:var(--muted); line-height:1.7; }
+.prepare__text strong { color:var(--text); font-weight:600; }
+.prepare__links { margin-top:14px; display:flex; flex-wrap:wrap; gap:12px; }
+.prepare__links a { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--blue); border:1px solid var(--border); border-radius:100px; padding:9px 16px; transition:all .2s; }
+.prepare__links a:hover { color:var(--text); border-color:rgba(255,255,255,.2); }
+
+/* ─── SAMPLE OUTPUTS ─── */
+.samples { padding:72px 0; border-bottom:1px solid var(--border); }
+.samples__grid { display:grid; grid-template-columns:repeat(2,1fr); gap:28px; margin-top:44px; }
+@media(max-width:760px){ .samples__grid { grid-template-columns:1fr; } }
+.sample { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; transition:border-color .25s, transform .25s; }
+.sample:hover { border-color:rgba(79,142,247,.35); transform:translateY(-3px); }
+.video-embed { position:relative; width:100%; aspect-ratio:16/9; background:#000; cursor:pointer; overflow:hidden; }
+.video-embed img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .3s, opacity .3s; }
+.video-embed:hover img { transform:scale(1.04); opacity:.85; }
+.video-embed iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+.video-embed__play { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:72px; height:72px; border-radius:50%; background:var(--grad); display:flex; align-items:center; justify-content:center; box-shadow:0 8px 30px rgba(79,142,247,.4); transition:transform .2s; pointer-events:none; }
+.video-embed:hover .video-embed__play { transform:translate(-50%,-50%) scale(1.08); }
+.video-embed__play svg { margin-left:4px; }
+.sample__body { padding:24px 26px 28px; }
+.sample__tag { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--cyan); margin-bottom:10px; }
+.sample__title { font-family:var(--display); font-weight:700; font-size:1.15rem; margin-bottom:8px; }
+.sample__desc { font-size:14px; color:var(--muted); line-height:1.65; }
+.sample__desc strong { color:var(--text); font-weight:600; }
+
+/* ─── TOOL STRIP ─── */
+.tools { padding:60px 0; border-bottom:1px solid var(--border); }
+.tools__label { text-align:center; font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--faint); margin-bottom:36px; }
+.tools__grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+@media(max-width:640px){ .tools__grid { grid-template-columns:1fr; } }
+.tool-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:32px 28px; transition:border-color .25s, transform .25s; }
+.tool-card:hover { border-color:rgba(79,142,247,.35); transform:translateY(-3px); }
+.tool-card__icon { width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px; margin-bottom:18px; }
+.tool-card__name { font-family:var(--display); font-weight:700; font-size:18px; margin-bottom:8px; }
+.tool-card__desc { font-size:14px; color:var(--muted); line-height:1.6; }
+
+/* ─── SECTION COMMON ─── */
+section { padding:80px 0; }
+.section-label { display:block; font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--blue); margin-bottom:14px; }
+.section-heading { font-family:var(--display); font-size:clamp(1.8rem,4vw,2.8rem); font-weight:800; line-height:1.15; letter-spacing:-0.01em; margin-bottom:16px; }
+.section-sub { font-size:1rem; color:var(--muted); max-width:560px; line-height:1.7; }
+
+/* ─── LEARN SECTION ─── */
+.learn { border-bottom:1px solid var(--border); }
+.learn__grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-top:48px; }
+@media(max-width:640px){ .learn__grid { grid-template-columns:1fr; } }
+.learn-item { display:flex; align-items:flex-start; gap:14px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:20px; }
+.learn-item__dot { width:8px; height:8px; border-radius:50%; background:var(--grad2); flex-shrink:0; margin-top:7px; }
+.learn-item__text { font-size:14px; line-height:1.6; color:var(--muted); }
+.learn-item__text strong { color:var(--text); font-weight:600; display:block; margin-bottom:3px; }
+
+/* ─── SCHEDULE ─── */
+.schedule { border-bottom:1px solid var(--border); }
+.schedule__nights { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:48px; }
+@media(max-width:880px){ .schedule__nights { grid-template-columns:1fr; } }
+@media(max-width:640px){ .schedule__nights { grid-template-columns:1fr; } }
+.night-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:32px; position:relative; overflow:hidden; }
+.night-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--grad); }
+.night-card__num { font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--faint); margin-bottom:12px; }
+.night-card__date { font-family:var(--display); font-weight:700; font-size:1.5rem; margin-bottom:6px; }
+.night-card__time { font-size:14px; color:var(--cyan); font-weight:600; margin-bottom:24px; display:flex; align-items:center; gap:6px; }
+.night-card__time::before { content:''; width:8px; height:8px; border-radius:50%; background:var(--cyan); }
+.agenda-item { display:flex; gap:12px; margin-bottom:14px; }
+.agenda-item:last-child { margin-bottom:0; }
+.agenda-item__time { font-size:12px; color:var(--faint); font-weight:600; min-width:64px; padding-top:2px; }
+.agenda-item__content { font-size:14px; color:var(--muted); }
+.agenda-item__content strong { color:var(--text); font-weight:600; display:block; }
+
+/* ─── TRAINER ─── */
+.trainer { border-bottom:1px solid var(--border); }
+.trainer__inner { display:grid; grid-template-columns:1fr 2fr; gap:60px; align-items:start; }
+@media(max-width:700px){ .trainer__inner { grid-template-columns:1fr; gap:32px; } }
+.trainer__avatar { width:100%; max-width:300px; aspect-ratio:4/5; flex-shrink:0; }
+.trainer__avatar img { width:100%; height:100%; object-fit:cover; object-position:50% 12%; -webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 40%, #000 55%, rgba(0,0,0,0) 100%); mask-image:radial-gradient(ellipse 80% 80% at 50% 40%, #000 55%, rgba(0,0,0,0) 100%); }
+@media(max-width:700px){ .trainer__avatar { max-width:240px; margin:0 auto; } }
+.trainer__name { font-family:var(--display); font-weight:800; font-size:1.6rem; margin-bottom:6px; }
+.trainer__title { font-size:14px; color:var(--blue); font-weight:600; margin-bottom:20px; }
+.trainer__bio { font-size:15px; color:var(--muted); line-height:1.75; }
+.trainer__stats { display:flex; gap:32px; margin-top:28px; }
+.stat { }
+.stat__num { font-family:var(--display); font-weight:800; font-size:1.8rem; background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.stat__label { font-size:12px; color:var(--faint); text-transform:uppercase; letter-spacing:.1em; font-weight:600; }
+
+/* ─── PRICING ─── */
+.pricing { border-bottom:1px solid var(--border); }
+.pricing__card { max-width:500px; margin:48px auto 0; background:var(--surface); border:1px solid rgba(79,142,247,.25); border-radius:var(--r-lg); padding:48px 40px; text-align:center; position:relative; overflow:hidden; }
+.pricing__card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--grad); }
+.pricing__label { font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--blue); margin-bottom:16px; }
+.pricing__price { font-family:var(--display); font-weight:900; font-size:4rem; margin-bottom:4px; }
+.pricing__price span { font-size:1.5rem; font-weight:500; color:var(--muted); }
+.pricing__per { font-size:14px; color:var(--faint); margin-bottom:32px; }
+.pricing__features { list-style:none; margin-bottom:36px; text-align:left; }
+.pricing__features li { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); font-size:14px; color:var(--muted); }
+.pricing__features li:last-child { border-bottom:none; }
+.pricing__features li::before { content:''; width:18px; height:18px; border-radius:50%; background:rgba(34,211,238,.15); border:1px solid var(--cyan); flex-shrink:0; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2322d3ee' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E"); background-size:10px; background-repeat:no-repeat; background-position:center; }
+.pricing__note { font-size:13px; color:var(--faint); margin-top:16px; }
+
+/* ─── FAQ ─── */
+.faq { border-bottom:1px solid var(--border); }
+.faq__list { margin-top:48px; max-width:680px; }
+.faq-item { border-bottom:1px solid var(--border); padding:20px 0; }
+.faq-item__q { font-weight:600; font-size:15px; margin-bottom:10px; color:var(--text); }
+.faq-item__a { font-size:14px; color:var(--muted); line-height:1.7; }
+
+/* ─── CTA BANNER ─── */
+.cta-banner { padding:100px 0; }
+.cta-banner__inner { background:var(--surface); border:1px solid var(--border); border-radius:24px; padding:64px 48px; text-align:center; position:relative; overflow:hidden; }
+.cta-banner__glow { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:600px; height:300px; background:radial-gradient(ellipse, rgba(79,142,247,.12) 0%, rgba(168,85,247,.08) 50%, transparent 70%); pointer-events:none; }
+.cta-banner h2 { font-family:var(--display); font-size:clamp(1.8rem,4vw,2.8rem); font-weight:800; margin-bottom:16px; position:relative; }
+.cta-banner p { font-size:1rem; color:var(--muted); margin-bottom:36px; position:relative; }
+.cta-banner .actions { display:flex; justify-content:center; flex-wrap:wrap; gap:14px; position:relative; }
+.seats-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(168,85,247,.12); border:1px solid rgba(168,85,247,.3); border-radius:100px; padding:6px 14px; font-size:12px; font-weight:600; color:var(--purple); margin-bottom:28px; }
+
+/* ─── FOOTER ─── */
+.footer { border-top:1px solid var(--border); padding:40px 0; }
+.footer__inner { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+.footer__brand { font-family:var(--display); font-weight:700; font-size:15px; color:var(--text); }
+.footer__copy { font-size:13px; color:var(--muted); }
+
+/* ─── MOBILE ─── */
+@media(max-width:640px){
+  .hero { padding:64px 0 60px; }
+  .hero h1 { font-size:2.2rem; }
+  .hero__sub { font-size:1rem; }
+  .hero__actions { flex-direction:column; align-items:flex-start; }
+  .trainer__stats { gap:20px; }
+  .pricing__card { padding:32px 24px; }
+  .cta-banner__inner { padding:40px 24px; }
+}
+</style>
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5KXF6DVD" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="wrap">
+    <div class="nav__inner">
+      <a href="https://impactuslearning.com" class="nav__logo" target="_blank" rel="noopener">
+        <img src="https://events.impactuslearning.com/images/logo-dark-nobg.png" alt="Impactus Learning">
+      </a>
+      <div class="nav__links">
+        <a href="https://impactuslearning.com" target="_blank" rel="noopener">Home</a>
+        <a href="https://events.impactuslearning.com" target="_blank" rel="noopener">Events</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- FLOATING CTA -->
+<a href="https://luma.com/user/impactus" target="_blank" rel="noopener" class="float-cta">
+  Reserve Your Seat
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+</a>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero__glow"></div>
+  <div class="wrap">
+    <div class="hero__badge">🎬 Online Masterclass · 3 Hours</div>
+    <h1>Create AI Videos<br>with <span class="grad">Flow, Suno</span><br><span class="grad">&amp; CapCut</span></h1>
+    <p class="hero__sub">A 3-hour power-packed session where you learn everything you need to know about <strong>Google Flow</strong> — including the new <strong>Google Omni</strong> feature and <strong>Agent mode</strong> — how to create compelling background music for your movies, and the key features of <strong>CapCut</strong> to bring it all together through video editing.</p>
+    <div class="hero__meta">
+      <div class="hero__pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Various dates available
+      </div>
+      <div class="hero__pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        3-hour session
+      </div>
+      <div class="hero__pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+        Online via Zoom
+      </div>
+      <div class="hero__pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        $120 SGD
+      </div>
+    </div>
+    <div class="hero__actions">
+      <a href="https://luma.com/user/impactus" target="_blank" rel="noopener" class="btn-primary">
+        Reserve Your Seat
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#learn" class="btn-ghost">See what you'll learn</a>
+    </div>
+    <div class="hero__req">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#c79bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      <span><span class="req-tag">Prerequisite</span><strong>A Google AI Pro subscription is required for this course</strong> — it gives you access to Google Flow. <em>From US$19.99/mo · cancel anytime.</em></span>
+    </div>
+  </div>
+</section>
+
+<!-- SAMPLE OUTPUTS -->
+<section class="samples" id="samples">
+  <div class="wrap">
+    <span class="section-label">Sample Outputs</span>
+    <h2 class="section-heading">See what's possible</h2>
+    <p class="section-sub">Real videos created with Google Flow, Suno and CapCut — the exact workflow you'll learn. Press play to watch right here.</p>
+    <div class="samples__grid">
+      <div class="sample">
+        <div class="video-embed" data-id="Bo4q0d-qPSg" onclick="playVideo(this)">
+          <img src="https://img.youtube.com/vi/Bo4q0d-qPSg/maxresdefault.jpg" alt="Student-created AI video sample" loading="lazy" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/Bo4q0d-qPSg/hqdefault.jpg'">
+          <div class="video-embed__play"><svg width="28" height="28" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>
+        </div>
+        <div class="sample__body">
+          <span class="sample__tag">See what is possible</span>
+          <div class="sample__title">Made by students with Flow</div>
+          <div class="sample__desc">AI videos produced using Google Omni, Avatar and more. The same tools you can learn in this masterclass and start producing in a single session.</div>
+        </div>
+      </div>
+      <div class="sample">
+        <div class="video-embed" data-id="eqz-dFDWgwc" onclick="playVideo(this)">
+          <img src="https://img.youtube.com/vi/eqz-dFDWgwc/maxresdefault.jpg" alt="Horror mini-video AI sample" loading="lazy" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/eqz-dFDWgwc/hqdefault.jpg'">
+          <div class="video-embed__play"><svg width="28" height="28" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>
+        </div>
+        <div class="sample__body">
+          <span class="sample__tag">Horror mini-video</span>
+          <div class="sample__title">Create your own avatar — star in your own movie</div>
+          <div class="sample__desc">A short horror film showing how you can build your own avatar and feature in the story. <strong>Music generated by Suno</strong> and <strong>edited in CapCut</strong>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TOOLS -->
+<section class="tools">
+  <div class="wrap">
+    <p class="tools__label">Three powerful AI tools · One complete workflow</p>
+    <div class="tools__grid">
+      <div class="tool-card">
+        <div class="tool-card__icon" style="background:rgba(79,142,247,0.12); border:1px solid rgba(79,142,247,0.25);">🎬</div>
+        <div class="tool-card__name">Google Flow</div>
+        <div class="tool-card__desc">Google's AI video generation suite — including the new Google Omni feature and Agent mode. Turn text prompts into cinematic clips, no camera or crew required.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__icon" style="background:rgba(168,85,247,0.12); border:1px solid rgba(168,85,247,0.25);">🎵</div>
+        <div class="tool-card__name">Suno</div>
+        <div class="tool-card__desc">Create compelling background music and full original soundtracks to accompany your movies — in seconds. Give every video a unique sound.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__icon" style="background:rgba(34,211,238,0.12); border:1px solid rgba(34,211,238,0.25);">✂️</div>
+        <div class="tool-card__name">CapCut</div>
+        <div class="tool-card__desc">The world's most popular video editor — now with powerful AI features. Cut, caption, enhance and export in minutes.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHAT YOU'LL LEARN -->
+<section class="learn" id="learn">
+  <div class="wrap">
+    <span class="section-label">Curriculum</span>
+    <h2 class="section-heading">What you'll walk away with</h2>
+    <p class="section-sub">Practical, hands-on skills you can use the same week. No prior video editing or design experience needed.</p>
+    <div class="learn__grid">
+      <div class="learn-item">
+        <div class="learn-item__dot"></div>
+        <div class="learn-item__text"><strong>Master Google Flow</strong>Learn everything about Google's powerful AI filmmaking platform — built on the Veo model — from cinematic camera controls and the multi-shot Scene Builder to the new Omni multimodal editing and Agent mode for hands-free, multi-step video creation.</div>
+      </div>
+      <div class="learn-item">
+        <div class="learn-item__dot"></div>
+        <div class="learn-item__text"><strong>Prompt engineering for video</strong>Write prompts that produce consistent, high-quality AI video clips with Google Flow.</div>
+      </div>
+      <div class="learn-item">
+        <div class="learn-item__dot"></div>
+        <div class="learn-item__text"><strong>AI music creation</strong>Generate custom background music and full songs for your videos using Suno.</div>
+      </div>
+      <div class="learn-item">
+        <div class="learn-item__dot"></div>
+        <div class="learn-item__text"><strong>CapCut AI editing workflow</strong>Use CapCut's AI features to auto-caption, enhance, and produce polished video content fast.</div>
+      </div>
+      <div class="learn-item">
+        <div class="learn-item__dot"></div>
+        <div class="learn-item__text"><strong>End-to-end video production</strong>Combine all three tools into a repeatable workflow to create videos from idea to export.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCHEDULE -->
+<section class="schedule" id="schedule">
+  <div class="wrap">
+    <span class="section-label">Schedule</span>
+    <h2 class="section-heading">3 hours. Every minute counts.</h2>
+    <p class="section-sub">One power-packed, hands-on session — live on Zoom with Dr. Andrew Chew. Multiple dates available throughout the year.</p>
+    <div class="schedule__nights">
+      <div class="night-card">
+        <div class="night-card__num">Hour 1</div>
+        <div class="night-card__date">Google Flow</div>
+        <div class="night-card__time">Including
