@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-5KXF6DVD');</script>
+<!-- End Google Tag Manager -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cat &amp; Mouse Chomp Challenge — Win a Free AI Animation Masterclass Seat</title>
+<meta name="description" content="Play Andrew's Cat & Mouse Chomp — a Pac-Man-style arcade game. The highest scorer wins a FREE seat at the AI Animation Masterclass. Competition ends Sat 20 June 2026, midnight. Winner announced Sunday.">
+<meta property="og:title" content="Cat & Mouse Chomp Challenge — Win a Free Masterclass Seat">
+<meta property="og:description" content="Play the game. Top the leaderboard. Win a free AI Animation Masterclass seat. Ends Sat 20 June, midnight.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ─── RESET & ROOT ─── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+:root {
+  --bg:        #080b12;
+  --surface:   #0f1420;
+  --surface2:  #151c2e;
+  --border:    rgba(255,255,255,0.08);
+  --text:      #f0f4ff;
+  --muted:     #8892aa;
+  --faint:     #4a5270;
+  --blue:      #4f8ef7;
+  --cyan:      #22d3ee;
+  --purple:    #a855f7;
+  --gold:      #fbbf24;
+  --grad:      linear-gradient(135deg, #4f8ef7 0%, #a855f7 50%, #22d3ee 100%);
+  --grad2:     linear-gradient(90deg, #4f8ef7, #22d3ee);
+  --grad-gold: linear-gradient(135deg, #fbbf24 0%, #f59e0b 60%, #fb923c 100%);
+  --r:         12px;
+  --r-lg:      20px;
+  --sans:      'Inter', system-ui, sans-serif;
+  --display:   'Space Grotesk', system-ui, sans-serif;
+}
+body { background:var(--bg); color:var(--text); font-family:var(--sans); font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+a { text-decoration:none; color:inherit; }
+img { display:block; max-width:100%; }
+.wrap { max-width:1080px; margin:0 auto; padding:0 40px; }
+@media(max-width:640px){ .wrap{ padding:0 20px; } }
+
+/* ─── NOISE TEXTURE OVERLAY ─── */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:0; opacity:.4;
+}
+
+/* ─── NAV ─── */
+.nav { position:sticky; top:0; z-index:100; background:rgba(8,11,18,0.85); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:16px 0; }
+.nav__inner { display:flex; align-items:center; justify-content:space-between; }
+.nav__logo img { height:48px; width:auto; display:block; filter:brightness(0) invert(1); }
+.nav__links { display:flex; align-items:center; gap:32px; }
+.nav__links a { font-size:17px; font-weight:700; color:var(--text); transition:color .2s; }
+.nav__links a:hover { color:var(--blue); }
+@media(max-width:480px){ .nav__links { gap:20px; } .nav__links a { font-size:15px; } .nav__logo img { height:38px; } }
+
+/* ─── FLOATING CTA ─── */
+.float-cta { position:fixed; bottom:24px; right:24px; z-index:200; display:inline-flex; align-items:center; gap:10px; background:var(--grad-gold); color:#1a1205; font-weight:800; font-size:15px; padding:16px 28px; border-radius:100px; box-shadow:0 8px 30px rgba(251,191,36,.4); transition:transform .2s, box-shadow .2s; }
+.float-cta:hover { transform:translateY(-2px); box-shadow:0 12px 40px rgba(251,191,36,.55); }
+.float-cta::before { content:'🕹️'; }
+@media(max-width:480px){ .float-cta { bottom:16px; right:16px; padding:14px 22px; font-size:14px; } }
+
+/* ─── HERO ─── */
+.hero { position:relative; padding:80px 0 70px; overflow:hidden; }
+.hero__glow {
+  position:absolute; top:-200px; left:50%; transform:translateX(-50%);
+  width:900px; height:600px;
+  background: radial-gradient(ellipse at 50% 40%, rgba(251,191,36,0.14) 0%, rgba(168,85,247,0.10) 40%, transparent 70%);
+  pointer-events:none;
+}
+.hero__badge { display:inline-flex; align-items:center; gap:8px; background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.35); border-radius:100px; padding:6px 16px; font-size:13px; font-weight:700; color:var(--gold); margin-bottom:26px; }
+.hero__badge::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--gold); animation:pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+.hero h1 { font-family:var(--display); font-size:clamp(2.4rem,5.6vw,4.2rem); font-weight:800; line-height:1.08; letter-spacing:-0.02em; margin-bottom:22px; }
+.hero h1 .grad { background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.hero h1 .grad-gold { background:var(--grad-gold); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.hero__sub { font-size:1.15rem; color:var(--muted); max-width:600px; line-height:1.7; margin-bottom:36px; }
+.hero__sub strong { color:var(--text); font-weight:600; }
+.hero__meta { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:40px; }
+.hero__pill { display:inline-flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:100px; padding:10px 18px; font-size:14px; font-weight:500; }
+.hero__pill svg { opacity:.6; flex-shrink:0; }
+.hero__actions { display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
+.btn-primary { display:inline-flex; align-items:center; gap:10px; background:var(--grad-gold); color:#1a1205; font-weight:800; font-size:16px; padding:18px 36px; border-radius:100px; transition:transform .2s, box-shadow .2s; box-shadow:0 0 40px rgba(251,191,36,.3); }
+.btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 44px rgba(251,191,36,.45); }
+.btn-blue { display:inline-flex; align-items:center; gap:10px; background:var(--grad); color:#fff; font-weight:700; font-size:15px; padding:16px 32px; border-radius:100px; transition:transform .2s, box-shadow .2s; box-shadow:0 0 40px rgba(79,142,247,.25); }
+.btn-blue:hover { transform:translateY(-2px); box-shadow:0 8px 40px rgba(79,142,247,.35); }
+.btn-ghost { display:inline-flex; align-items:center; gap:8px; color:var(--muted); font-weight:500; font-size:14px; border:1px solid var(--border); border-radius:100px; padding:14px 24px; transition:all .2s; }
+.btn-ghost:hover { color:var(--text); border-color:rgba(255,255,255,.2); }
+
+/* ─── COUNTDOWN ─── */
+.countdown { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-bottom:40px; background:linear-gradient(135deg, rgba(251,191,36,0.10), rgba(168,85,247,0.06)); border:1.5px solid rgba(251,191,36,0.4); border-radius:var(--r-lg); padding:22px 26px; box-shadow:0 0 36px rgba(251,191,36,0.10); }
+.countdown__label { font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--gold); margin-right:6px; }
+.countdown__units { display:flex; gap:12px; }
+.cd-unit { min-width:74px; text-align:center; background:rgba(8,11,18,0.5); border:1px solid var(--border); border-radius:14px; padding:12px 10px; }
+.cd-unit__num { font-family:var(--display); font-weight:800; font-size:2.1rem; line-height:1; background:var(--grad-gold); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-variant-numeric:tabular-nums; }
+.cd-unit__lbl { font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); margin-top:8px; }
+.countdown__ended { font-family:var(--display); font-weight:700; font-size:1.2rem; color:var(--gold); }
+@media(max-width:560px){ .countdown { flex-direction:column; align-items:flex-start; } .cd-unit { min-width:64px; } .cd-unit__num { font-size:1.7rem; } }
+
+/* ─── PRIZE BANNER ─── */
+.hero__prize { display:flex; align-items:center; gap:16px; background:rgba(34,211,238,0.10); border:1.5px solid rgba(34,211,238,0.4); border-radius:14px; padding:16px 22px; font-size:15px; color:var(--text); }
+.hero__prize svg { width:24px; height:24px; flex-shrink:0; stroke:var(--cyan); }
+.hero__prize strong { color:var(--cyan); font-weight:800; }
+
+/* ─── NAME RULE CALLOUT ─── */
+.hero__name-rule { display:flex; align-items:flex-start; gap:16px; margin-top:18px; background:rgba(168,85,247,0.16); border:1.5px solid rgba(168,85,247,0.55); border-radius:14px; padding:18px 24px; box-shadow:0 0 34px rgba(168,85,247,0.18); }
+.hero__name-rule__icon { font-size:1.5rem; line-height:1; flex-shrink:0; margin-top:2px; }
+.hero__name-rule__title { font-family:var(--display); font-weight:800; font-size:1.02rem; color:#c79bff; margin-bottom:5px; letter-spacing:.01em; }
+.hero__name-rule__text { font-size:14.5px; color:var(--text); line-height:1.6; }
+.hero__name-rule__text strong { color:#e9d5ff; font-weight:700; }
+
+/* ─── SECTION COMMON ─── */
+section { padding:80px 0; }
+.section-label { display:block; font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+.section-heading { font-family:var(--display); font-size:clamp(1.8rem,4vw,2.8rem); font-weight:800; line-height:1.15; letter-spacing:-0.01em; margin-bottom:16px; }
+.section-sub { font-size:1rem; color:var(--muted); max-width:600px; line-height:1.7; }
+
+/* ─── GAME EMBED ─── */
+.game { border-bottom:1px solid var(--border); }
+.game__frame-wrap { margin-top:44px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:14px; box-shadow:0 0 60px rgba(168,85,247,0.10); }
+.game__frame { position:relative; width:100%; aspect-ratio:16/10; background:#000; border-radius:14px; overflow:hidden; }
+.game__frame iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+.game__poster { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; cursor:pointer; background:radial-gradient(ellipse at 50% 40%, rgba(168,85,247,0.18), rgba(8,11,18,0.92) 70%); text-align:center; padding:24px; }
+.game__poster h3 { font-family:var(--display); font-weight:800; font-size:clamp(1.4rem,3.4vw,2.2rem); }
+.game__poster p { font-size:14px; color:var(--muted); max-width:420px; }
+.game__play-btn { display:inline-flex; align-items:center; gap:10px; background:var(--grad-gold); color:#1a1205; font-weight:800; font-size:16px; padding:16px 34px; border-radius:100px; box-shadow:0 8px 30px rgba(251,191,36,.35); transition:transform .2s; }
+.game__poster:hover .game__play-btn { transform:scale(1.05); }
+.game__chase { font-size:2.4rem; letter-spacing:6px; filter:drop-shadow(0 0 10px rgba(251,191,36,.4)); }
+.game__links { margin-top:18px; display:flex; flex-wrap:wrap; gap:14px; justify-content:center; }
+.game__hint { margin-top:18px; text-align:center; font-size:14px; color:var(--text); background:rgba(34,211,238,0.10); border:1px solid rgba(34,211,238,0.3); border-radius:100px; padding:11px 22px; display:inline-block; }
+.game__hint strong { color:var(--cyan); font-weight:700; }
+.game__hint-wrap { text-align:center; }
+
+/* ─── HOW TO WIN ─── */
+.how { border-bottom:1px solid var(--border); }
+.how__grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; margin-top:48px; }
+@media(max-width:880px){ .how__grid { grid-template-columns:repeat(2,1fr); } }
+@media(max-width:520px){ .how__grid { grid-template-columns:1fr; } }
+.step-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:30px 26px; position:relative; overflow:hidden; transition:border-color .25s, transform .25s; }
+.step-card:hover { border-color:rgba(251,191,36,.35); transform:translateY(-3px); }
+.step-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--grad-gold); }
+.step-card__num { font-family:var(--display); font-weight:800; font-size:2.2rem; background:var(--grad-gold); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:12px; }
+.step-card__title { font-family:var(--display); font-weight:700; font-size:1.05rem; margin-bottom:8px; }
+.step-card__desc { font-size:14px; color:var(--muted); line-height:1.6; }
+.step-card__desc strong { color:var(--text); font-weight:600; }
+
+/* ─── PRIZE SECTION ─── */
+.prize { border-bottom:1px solid var(--border); }
+.prize__card { max-width:560px; margin:48px auto 0; background:linear-gradient(135deg, rgba(251,191,36,0.10), rgba(168,85,247,0.06)); border:1px solid rgba(251,191,36,0.35); border-radius:var(--r-lg); padding:48px 40px; text-align:center; position:relative; overflow:hidden; }
+.prize__card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--grad-gold); }
+.prize__trophy { font-size:3.4rem; margin-bottom:14px; filter:drop-shadow(0 0 18px rgba(251,191,36,.4)); }
+.prize__label { font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+.prize__headline { font-family:var(--display); font-weight:900; font-size:2.2rem; line-height:1.15; margin-bottom:10px; }
+.prize__sub { font-size:15px; color:var(--muted); line-height:1.7; margin-bottom:28px; }
+.prize__sub strong { color:var(--text); font-weight:600; }
+.prize__value { display:inline-flex; align-items:center; gap:10px; background:rgba(8,11,18,0.5); border:1px solid var(--border); border-radius:100px; padding:10px 20px; font-size:14px; font-weight:600; color:var(--text); }
+.prize__value span { color:var(--gold); font-weight:800; }
+
+/* ─── TIMELINE ─── */
+.timeline { border-bottom:1px solid var(--border); }
+.timeline__grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:48px; }
+@media(max-width:760px){ .timeline__grid { grid-template-columns:1fr; } }
+.tl-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:30px; position:relative; overflow:hidden; }
+.tl-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--grad); }
+.tl-card__tag { display:inline-block; font-size:11px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--cyan); background:rgba(34,211,238,0.12); border:1px solid rgba(34,211,238,0.3); border-radius:100px; padding:5px 12px; margin-bottom:14px; }
+.tl-card__date { font-family:var(--display); font-weight:700; font-size:1.4rem; margin-bottom:6px; }
+.tl-card__time { font-size:13px; color:var(--cyan); font-weight:600; margin-bottom:14px; }
+.tl-card__desc { font-size:14px; color:var(--muted); line-height:1.6; }
+
+/* ─── T&C ─── */
+.terms { border-bottom:1px solid var(--border); }
+.terms__list { margin-top:40px; max-width:760px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:36px 38px; }
+@media(max-width:640px){ .terms__list { padding:26px 22px; } }
+.terms__list ol { list-style:none; counter-reset:tc; }
+.terms__list li { counter-increment:tc; position:relative; padding:14px 0 14px 42px; border-bottom:1px solid var(--border); font-size:14px; color:var(--muted); line-height:1.7; }
+.terms__list li:last-child { border-bottom:none; }
+.terms__list li::before { content:counter(tc); position:absolute; left:0; top:14px; width:26px; height:26px; border-radius:50%; background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.35); color:var(--gold); font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+.terms__list li strong { color:var(--text); font-weight:600; }
+.terms__note { margin-top:18px; font-size:14px; color:var(--text); }
+
+/* ─── CTA BANNER ─── */
+.cta-banner { padding:100px 0; }
+.cta-banner__inner { background:var(--surface); border:1px solid var(--border); border-radius:24px; padding:64px 48px; text-align:center; position:relative; overflow:hidden; }
+.cta-banner__glow { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:600px; height:300px; background:radial-gradient(ellipse, rgba(251,191,36,.12) 0%, rgba(168,85,247,.08) 50%, transparent 70%); pointer-events:none; }
+.cta-banner h2 { font-family:var(--display); font-size:clamp(1.8rem,4vw,2.8rem); font-weight:800; margin-bottom:16px; position:relative; }
+.cta-banner p { font-size:1rem; color:var(--muted); margin-bottom:28px; position:relative; }
+.cta-banner .actions { display:flex; justify-content:center; flex-wrap:wrap; gap:14px; position:relative; }
+.seats-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.3); border-radius:100px; padding:6px 14px; font-size:12px; font-weight:600; color:var(--gold); margin-bottom:28px; }
+.cta-banner__countdown { display:inline-flex; gap:8px; margin-top:30px; position:relative; }
+.cta-banner__countdown .cd-unit { min-width:62px; }
+.cta-banner__countdown .cd-unit__num { font-size:1.5rem; }
+
+/* ─── FOOTER ─── */
+.footer { border-top:1px solid var(--border); padding:40px 0; }
+.footer__inner { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+.footer__brand { font-family:var(--display); font-weight:700; font-size:15px; color:var(--text); }
+.footer__copy { font-size:13px; color:var(--muted); }
+
+/* ─── MOBILE ─── */
+@media(max-width:640px){
+  .hero { padding:54px 0 50px; }
+  .hero h1 { font-size:2.1rem; }
+  .hero__sub { font-size:1rem; }
+  .hero__actions { flex-direction:column; align-items:stretch; }
+  .hero__actions a { justify-content:center; }
+  .cta-banner__inner { padding:40px 24px; }
+}
+</style>
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5KXF6DVD" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="wrap">
+    <div class="nav__inner">
+      <a href="https://impactuslearning.com" class="nav__logo" target="_blank" rel="noopener">
+        <img src="https://events.impactuslearning.com/images/logo-dark-nobg.png" alt="Impactus Learning">
+      </a>
+      <div class="nav__links">
+        <a href="https://events.impactuslearning.com/animation" target="_blank" rel="noopener">Animation-Masterclass</a>
+        <a href="https://events.impactuslearning.com" target="_blank" rel="noopener">Events</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- FLOATING CTA -->
+<a href="https://cat-mouse-chomp-p1roduction.up.railway.app/" target="_blank" rel="noopener" class="float-cta">
+  Play Now
+</a>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero__glow"></div>
+  <div class="wrap">
+    <div class="hero__badge">🏆 Community Challenge · Free Seat Up for Grabs</div>
+    <h1>Play <span class="grad-gold">Cat &amp; Mouse Chomp</span><br>Top the board. <span class="grad">Win a free seat.</span></h1>
+    <p class="hero__sub">Dr. Andrew Chew is inviting the Impactus community to play <strong>Andrew's Cat &amp; Mouse Chomp</strong> — a fast, addictive Pac-Man-style arcade game. The single <strong>highest scorer</strong> when the clock hits zero wins a <strong>FREE seat at the AI Animation Masterclass</strong> (worth $120 SGD).</p>
+
+    <!-- COUNTDOWN -->
+    <div class="countdown" id="countdown" aria-label="Time remaining until competition closes">
+      <span class="countdown__label">Closes&nbsp;in</span>
+      <div class="countdown__units" id="cd-units">
+        <div class="cd-unit"><div class="cd-unit__num" id="cd-days">--</div><div class="cd-unit__lbl">Days</div></div>
+        <div class="cd-unit"><div class="cd-unit__num" id="cd-hours">--</div><div class="cd-unit__lbl">Hrs</div></div>
+        <div class="cd-unit"><div class="cd-unit__num" id="cd-mins">--</div><div class="cd-unit__lbl">Min</div></div>
+        <div class="cd-unit"><div class="cd-unit__num" id="cd-secs">--</div><div class="cd-unit__lbl">Sec</div></div>
+      </div>
+    </div>
+
+    <div class="hero__meta">
+      <div class="hero__pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Ends Sat 20 June 2026, midnight
+      </div>
+      <div class="hero__pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.4-6.3-4.6L5.7 21l2.3-7.4-6-4.6h7.6z"/></svg>
+        Winner announced Sun 21 June
+      </div>
+      <div class="hero__pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Free to play · Free to enter
+      </div>
+    </div>
+
+    <div class="hero__actions">
+      <a href="https://cat-mouse-chomp-p1roduction.up.railway.app/" target="_blank" rel="noopener" class="btn-primary">
+        🕹️ Play Cat &amp; Mouse Chomp
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#how" class="btn-ghost">How to win</a>
+    </div>
+
+    <div class="hero__prize" style="margin-top:28px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 010-5C6 4 8 6 8 6m10 3h1.5a2.5 2.5 0 000-5C18 4 16 6 16 6"/><path d="M8 6h8v4a4 4 0 01-8 0V6z"/><path d="M12 14v4m-3 3h6"/></svg>
+      <span><strong>Grand prize:</strong> 1 free ticket to the AI Animation Masterclass. <em style="color:var(--muted);font-style:normal;">Terms &amp; conditions apply — see below.</em></span>
+    </div>
+
+    <div class="hero__name-rule">
+      <div class="hero__name-rule__icon">⚠️</div>
+      <div>
+        <div class="hero__name-rule__title">Important — enter a name we can recognise</div>
+        <p class="hero__name-rule__text">When you play, enter a <strong>name we can clearly trace back to you in the community</strong> (e.g. your real name or your known community handle). If we can't identify the top scorer, we can't award the prize. <strong>If the winner doesn't claim the prize, it will be passed to the next top player.</strong></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GAME -->
+<section class="game" id="play">
+  <div class="wrap">
+    <span class="section-label">The Arcade</span>
+    <h2 class="section-heading">Jump in and start chomping</h2>
+    <p class="section-sub">Guide your character through the maze, chomp the dots, dodge the chasers — and rack up the highest score you can. Play right here, or open it full-screen for the best run.</p>
+
+    <div class="game__frame-wrap">
+      <div class="game__frame" id="game-frame">
+        <div class="game__poster" id="game-poster" onclick="loadGame()">
+          <div class="game__chase">🐱&nbsp;&nbsp;·&nbsp;·&nbsp;·&nbsp;🐭</div>
+          <h3>Andrew's Cat &amp; Mouse Chomp</h3>
+          <p>A Pac-Man-style maze chase. Tap play to load the game right here — or open it full-screen.</p>
+          <div class="game__play-btn">▶ Play the Game</div>
+        </div>
+      </div>
+    </div>
+    <div class="game__links">
+      <a href="https://cat-mouse-chomp-p1roduction.up.railway.app/" target="_blank" rel="noopener" class="btn-blue">
+        Open full-screen
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+      </a>
+    </div>
+    <div class="game__hint-wrap"><p class="game__hint">💡 <strong>Tip:</strong> A laptop or desktop with a keyboard gives you the best control for high scores.</p></div>
+  </div>
+</section>
+
+<!-- HOW TO WIN -->
+<section class="how" id="how">
+  <div class="wrap">
+    <span class="section-label">How it works</span>
+    <h2 class="section-heading">Four steps to the top of the board</h2>
+    <p class="section-sub">No sign-up fees, no entry forms — just play. The leaderboard does the rest.</p>
+    <div class="how__grid">
+      <div class="step-card">
+        <div class="step-card__num">1</div>
+        <div class="step-card__title">Open the game &amp; enter your name</div>
+        <div class="step-card__desc">Launch the arcade and enter a <strong>name we can recognise and trace back to you</strong> — your real name or known community handle.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-card__num">2</div>
+        <div class="step-card__title">Chase the high score</div>
+        <div class="step-card__desc">Chomp the dots, dodge the chasers, and clear the maze to stack up points. Play as many times as you like.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-card__num">3</div>
+        <div class="step-card__title">Land on the leaderboard</div>
+        <div class="step-card__desc">Your best score is your entry. The <strong>single highest score</strong> when the clock hits zero takes the crown.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-card__num">4</div>
+        <div class="step-card__title">Win your free seat</div>
+        <div class="step-card__desc">The winner is announced on <strong>Sunday 21 June</strong> and contacted directly to claim a free masterclass ticket.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRIZE -->
+<section class="prize" id="prize">
+  <div class="wrap">
+    <span class="section-label">The Prize</span>
+    <h2 class="section-heading">What the top scorer takes home</h2>
+    <div class="prize__card">
+      <div class="prize__trophy">🏆</div>
+      <div class="prize__label">Grand Prize · Winner Takes All</div>
+      <div class="prize__headline">1 Free Seat at the<br>AI Animation Masterclass</div>
+      <p class="prize__sub">A full <strong>3-hour, hands-on session</strong> where you learn to create AI videos with <strong>Google Flow, Suno &amp; CapCut</strong> — live with Dr. Andrew Chew. The highest scorer wins a complimentary seat, free of charge.</p>
+      <div class="prize__value">Prize value <span>$120 SGD</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- TIMELINE -->
+<section class="timeline" id="timeline">
+  <div class="wrap">
+    <span class="section-label">Key Dates</span>
+    <h2 class="section-heading">Mark your calendar</h2>
+    <p class="section-sub">One week to set the top score. Here's exactly how the challenge runs.</p>
+    <div class="timeline__grid">
+      <div class="tl-card">
+        <div class="tl-card__tag">Now — Open</div>
+        <div class="tl-card__date">Play Window</div>
+        <div class="tl-card__time">14 – 20 June 2026</div>
+        <div class="tl-card__desc">The arcade is live. Play as many times as you like and push for your best score.</div>
+      </div>
+      <div class="tl-card">
+        <div class="tl-card__tag">Deadline</div>
+        <div class="tl-card__date">Entries Close</div>
+        <div class="tl-card__time">Sat 20 June · Midnight (SGT)</div>
+        <div class="tl-card__desc">Scoring locks at midnight. The leaderboard at that moment decides the winner — so get your runs in early.</div>
+      </div>
+      <div class="tl-card">
+        <div class="tl-card__tag">Results</div>
+        <div class="tl-card__date">Winner Announced</div>
+        <div class="tl-card__time">Sun 21 June 2026</div>
+        <div class="tl-card__desc">The top scorer is announced and contacted directly to claim their free masterclass seat.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TERMS -->
+<section class="terms" id="terms">
+  <div class="wrap">
+    <span class="section-label">The Fine Print</span>
+    <h2 class="section-heading">Terms &amp; Conditions</h2>
+    <p class="section-sub">By taking part in the Cat &amp; Mouse Chomp Challenge, entrants agree to the following.</p>
+    <div class="terms__list">
+      <ol>
+        <li><strong>Eligibility.</strong> The challenge is open to members of the Impactus Learning community. Entrants must be able to attend the AI Animation Masterclass online if they win.</li>
+        <li><strong>How to enter.</strong> Entry is free. Simply play Andrew's Cat &amp; Mouse Chomp at the official game link. No purchase is necessary.</li>
+        <li><strong>Identifiable name required.</strong> Entrants must play using a name that Impactus Learning can clearly recognise and trace back to them within the community (e.g. real name or known community handle). Entries with anonymous, unclear or unidentifiable names may be disqualified, as the prize cannot be awarded if the winner cannot be identified.</li>
+        <li><strong>Competition period.</strong> The challenge runs until <strong>Saturday, 20 June 2026 at midnight (Singapore Time, UTC+8)</strong>. Scores recorded after this time will not be counted.</li>
+        <li><strong>Winning.</strong> The prize is awarded to the entrant with the <strong>single highest score</strong> on the game leaderboard at the close of the competition period.</li>
+        <li><strong>The prize.</strong> One (1) free seat at an AI Animation Masterclass session (value $120 SGD). The prize is non-transferable and cannot be exchanged for cash or any other item.</li>
+        <li><strong>Google AI Pro requirement.</strong> A Google AI Pro subscription is required to attend and follow along in the course. If the winner does not have an active Google AI Pro subscription, a <strong>one-month free subscription will be gifted</strong> to enable participation. This gifted subscription is not redeemable for cash and is non-transferable. If the winner already has an existing Google AI Pro subscription, no compensation or alternative will be given in its place.</li>
+        <li><strong>Winner announcement.</strong> The winner will be announced on <strong>Sunday, 21 June 2026</strong> and notified directly. The winner must respond to claim the prize; if no response is received within 7 days, an alternate winner may be selected.</li>
+        <li><strong>Fair play.</strong> The decision of Impactus Learning is final.</li>
+        <li><strong>Prize redemption.</strong> The free seat applies to a scheduled masterclass session and is subject to seat availability on the chosen date. Standard masterclass prerequisites apply (e.g. a Google AI Pro subscription is required to follow along live).</li>
+        <li><strong>General.</strong> Impactus Learning reserves the right to amend, suspend or cancel the challenge, or these terms, at any time without prior notice. Participation constitutes acceptance of these terms.</li>
+      </ol>
+      <p class="terms__note">Questions about the challenge? WhatsApp Dr. Andrew Chew or reach out via <a href="https://impactuslearning.com" target="_blank" rel="noopener" style="color:var(--blue);">impactuslearning.com</a>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA BANNER -->
+<section class="cta-banner">
+  <div class="wrap">
+    <div class="cta-banner__inner">
+      <div class="cta-banner__glow"></div>
+      <div class="seats-badge">🔥 One free seat. One winner.</div>
+      <h2>Think you can top the board?</h2>
+      <p>The clock is ticking. Play Andrew's Cat &amp; Mouse Chomp now and chase that high score.</p>
+      <div class="actions">
+        <a href="https://cat-mouse-chomp-p1roduction.up.railway.app/" target="_blank" rel="noopener" class="btn-primary">
+          🕹️ Play Now &amp; Win
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+      <div class="cta-banner
