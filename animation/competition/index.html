@@ -207,6 +207,32 @@ section { padding:80px 0; }
 .footer__brand { font-family:var(--display); font-weight:700; font-size:15px; color:var(--text); }
 .footer__copy { font-size:13px; color:var(--muted); }
 
+/* ─── WINNER ANNOUNCEMENT ─── */
+.winner { position:relative; margin:30px 0 8px; background:linear-gradient(135deg, rgba(251,191,36,0.14), rgba(168,85,247,0.10) 55%, rgba(34,211,238,0.10)); border:1.5px solid rgba(251,191,36,0.55); border-radius:var(--r-lg); padding:34px 36px; overflow:hidden; box-shadow:0 0 60px rgba(251,191,36,0.18); }
+.winner::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:var(--grad-gold); }
+.winner__glow { position:absolute; top:-120px; right:-80px; width:380px; height:380px; background:radial-gradient(circle, rgba(251,191,36,0.22), transparent 70%); pointer-events:none; }
+.winner__inner { position:relative; display:flex; align-items:center; gap:34px; }
+.winner__art { flex-shrink:0; width:168px; }
+.winner__art svg { width:100%; height:auto; filter:drop-shadow(0 8px 24px rgba(251,191,36,0.30)); }
+.winner__body { flex:1; min-width:0; }
+.winner__eyebrow { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); background:rgba(251,191,36,0.14); border:1px solid rgba(251,191,36,0.4); border-radius:100px; padding:6px 14px; margin-bottom:16px; }
+.winner__title { font-family:var(--display); font-weight:800; font-size:clamp(1.6rem,3.6vw,2.5rem); line-height:1.12; letter-spacing:-0.01em; margin-bottom:8px; }
+.winner__title .grad-gold { background:var(--grad-gold); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.winner__name { font-family:var(--display); font-weight:900; }
+.winner__sub { font-size:15px; color:var(--text); line-height:1.65; margin-bottom:20px; max-width:560px; }
+.winner__sub strong { color:var(--gold); font-weight:700; }
+.winner__stats { display:flex; flex-wrap:wrap; gap:12px; }
+.winner__stat { display:inline-flex; flex-direction:column; gap:3px; background:rgba(8,11,18,0.45); border:1px solid var(--border); border-radius:14px; padding:12px 20px; }
+.winner__stat-num { font-family:var(--display); font-weight:800; font-size:1.5rem; line-height:1; background:var(--grad-gold); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-variant-numeric:tabular-nums; }
+.winner__stat-lbl { font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); }
+@media(max-width:680px){
+  .winner { padding:26px 22px; }
+  .winner__inner { flex-direction:column; text-align:center; gap:20px; }
+  .winner__art { width:130px; }
+  .winner__sub { margin-left:auto; margin-right:auto; }
+  .winner__stats { justify-content:center; }
+}
+
 /* ─── MOBILE ─── */
 @media(max-width:640px){
   .hero { padding:54px 0 50px; }
@@ -262,7 +288,63 @@ section { padding:80px 0; }
       </div>
     </div>
 
+    <!-- WINNER ANNOUNCEMENT -->
+    <div class="winner" aria-label="Competition winner announcement">
+      <div class="winner__glow"></div>
+      <div class="winner__inner">
+        <div class="winner__art">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Champion mouse holding the big cheese on a winner's podium">
+            <defs>
+              <linearGradient id="wg-gold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#fbbf24"/><stop offset="0.6" stop-color="#f59e0b"/><stop offset="1" stop-color="#fb923c"/>
+              </linearGradient>
+              <radialGradient id="wg-glow" cx="0.5" cy="0.4" r="0.6">
+                <stop offset="0" stop-color="#fbbf24" stop-opacity="0.35"/><stop offset="1" stop-color="#fbbf24" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <circle cx="100" cy="95" r="92" fill="url(#wg-glow)"/>
+            <!-- confetti -->
+            <rect x="24" y="30" width="8" height="8" rx="2" fill="#4f8ef7" transform="rotate(20 28 34)"/>
+            <rect x="168" y="44" width="8" height="8" rx="2" fill="#a855f7" transform="rotate(-15 172 48)"/>
+            <rect x="40" y="120" width="7" height="7" rx="2" fill="#22d3ee" transform="rotate(35 43 123)"/>
+            <rect x="158" y="118" width="7" height="7" rx="2" fill="#fbbf24" transform="rotate(25 161 121)"/>
+            <circle cx="30" cy="74" r="4" fill="#fb923c"/>
+            <circle cx="172" cy="92" r="4" fill="#4f8ef7"/>
+            <!-- trophy cup -->
+            <path d="M70 40 h60 v14 a30 30 0 0 1 -60 0 z" fill="url(#wg-gold)"/>
+            <path d="M70 44 h-12 a10 10 0 0 0 10 12 M130 44 h12 a10 10 0 0 1 -10 12" fill="none" stroke="url(#wg-gold)" stroke-width="6" stroke-linecap="round"/>
+            <rect x="94" y="68" width="12" height="16" fill="url(#wg-gold)"/>
+            <rect x="80" y="84" width="40" height="9" rx="4" fill="url(#wg-gold)"/>
+            <!-- big cheese on trophy -->
+            <path d="M86 40 l28 0 l-14 -12 z" fill="#fde047" stroke="#eab308" stroke-width="1.5"/>
+            <circle cx="98" cy="35" r="2" fill="#ca8a04"/><circle cx="104" cy="38" r="1.6" fill="#ca8a04"/>
+            <!-- champion mouse -->
+            <ellipse cx="100" cy="138" rx="34" ry="30" fill="#cbd5e1"/>
+            <circle cx="80" cy="116" r="12" fill="#cbd5e1"/><circle cx="120" cy="116" r="12" fill="#cbd5e1"/>
+            <circle cx="80" cy="116" r="6" fill="#fbcfe8"/><circle cx="120" cy="116" r="6" fill="#fbcfe8"/>
+            <circle cx="92" cy="134" r="3.4" fill="#0f1420"/><circle cx="108" cy="134" r="3.4" fill="#0f1420"/>
+            <ellipse cx="100" cy="144" rx="4.5" ry="3.4" fill="#fb7185"/>
+            <path d="M100 148 q-8 6 -16 3 M100 148 q8 6 16 3" fill="none" stroke="#94a3b8" stroke-width="1.4"/>
+            <!-- crown -->
+            <path d="M82 104 l5 8 6 -10 7 10 6 -10 6 10 5 -8 -3 14 h-29 z" fill="url(#wg-gold)" stroke="#eab308" stroke-width="1"/>
+            <circle cx="100" cy="100" r="2.6" fill="#fef08a"/>
+          </svg>
+        </div>
+        <div class="winner__body">
+          <span class="winner__eyebrow">🎉 Competition Winner</span>
+          <h2 class="winner__title">Congratulations <span class="grad-gold winner__name">Shawn!</span></h2>
+          <p class="winner__sub">You chomped your way to the very top of the leaderboard and grabbed the <strong>big cheese</strong> — claiming the crown in Andrew's Cat &amp; Mouse Chomp Challenge. Your free seat at the <strong>AI Animation Masterclass</strong> is waiting. We'll be in touch to get you set up. 🏆</p>
+          <div class="winner__stats">
+            <div class="winner__stat"><span class="winner__stat-num">20,670</span><span class="winner__stat-lbl">Winning Score</span></div>
+            <div class="winner__stat"><span class="winner__stat-num">Level 5</span><span class="winner__stat-lbl">Reached</span></div>
+            <div class="winner__stat"><span class="winner__stat-num">#1</span><span class="winner__stat-lbl">Leaderboard</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="hero__meta">
+
       <div class="hero__pill">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Ends Sat 20 June 2026, midnight
