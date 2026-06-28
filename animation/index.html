@@ -151,6 +151,7 @@ body::before {
 .video-embed img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .3s, opacity .3s; }
 .video-embed:hover img { transform:scale(1.04); opacity:.85; }
 .video-embed iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+.video-embed--short { aspect-ratio:9/16; max-width:300px; margin:0 auto; border-radius:var(--r); }
 .video-embed__play { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:72px; height:72px; border-radius:50%; background:var(--grad); display:flex; align-items:center; justify-content:center; box-shadow:0 8px 30px rgba(79,142,247,.4); transition:transform .2s; pointer-events:none; }
 .video-embed:hover .video-embed__play { transform:translate(-50%,-50%) scale(1.08); }
 .video-embed__play svg { margin-left:4px; }
@@ -302,65 +303,6 @@ section { padding:80px 0; }
     <h1>Create AI Animation<br>with <span class="grad">Flow, Suno</span><br><span class="grad">&amp; CapCut</span></h1>
     <p class="hero__sub">A 3-hour power-packed session where you learn everything you need to know about <strong>Google Flow</strong> — including the new <strong>Google Omni</strong> feature and <strong>Agent mode</strong> — how to create compelling background music for your movies, and the key features of <strong>CapCut</strong> to bring it all together through video editing.</p>
 
-    <!-- GOOGLE REVIEWS (added 2026-06-27) -->
-    <div class="hero-reviews">
-      <div class="hero-reviews__head">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 0 1 5.49 12c0-.73.13-1.44.35-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.78.43 3.46 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
-        <span class="hero-reviews__label">Google Reviews</span>
-        <span class="hero-reviews__divider"></span>
-        <span class="hero-reviews__rating">5.0</span>
-        <span class="hero-reviews__stars">★★★★★</span>
-      </div>
-      <div class="hero-reviews__grid">
-        <div class="hrev">
-          <div class="hrev__top"><div class="hrev__av" style="background:#4f8ef7;color:#fff;">M</div><div><div class="hrev__name">Mary Lau</div><div class="hrev__date">June 2026</div></div></div>
-          <div class="hrev__stars">★★★★★</div>
-          <p class="hrev__text">"There were so many valuable takeaways packed into the session. I started with no prior knowledge, and by the end of just 3 hours, I was able to produce my own video."</p>
-        </div>
-        <div class="hrev">
-          <div class="hrev__top"><div class="hrev__av" style="background:#a855f7;color:#fff;">B</div><div><div class="hrev__name">Beng Ha Kor</div><div class="hrev__date">June 2026</div></div></div>
-          <div class="hrev__stars">★★★★★</div>
-          <p class="hrev__text">"I like the last section of cartoon animation. Will try to follow through and learn with Dr Andrew ai animation skills from impactus."</p>
-        </div>
-        <div class="hrev">
-          <div class="hrev__top"><div class="hrev__av" style="background:#22d3ee;color:#06121a;">J</div><div><div class="hrev__name">Junice Liew</div><div class="hrev__date">June 2026</div></div></div>
-          <div class="hrev__stars">★★★★★</div>
-          <p class="hrev__text">"Loved the AI Animation Class. A jam packed 3 hours online class. Another well done course by Dr Andrew 👏"</p>
-        </div>
-        <div class="hrev">
-          <div class="hrev__top"><div class="hrev__av" style="background:#4f8ef7;color:#fff;">E</div><div><div class="hrev__name">Elaine Guoh</div><div class="hrev__date">June 2026</div></div></div>
-          <div class="hrev__stars">★★★★★</div>
-          <p class="hrev__text">"One of the best trainers around."</p>
-        </div>
-        <div class="hrev">
-          <div class="hrev__top"><div class="hrev__av" style="background:#a855f7;color:#fff;">D</div><div><div class="hrev__name">David Ho</div><div class="hrev__date">June 2026</div></div></div>
-          <div class="hrev__stars">★★★★★</div>
-          <p class="hrev__text">"Excellent teacher for all of us!"</p>
-        </div>
-        <div class="hrev">
-          <div class="hrev__top"><div class="hrev__av" style="background:#22d3ee;color:#06121a;">K</div><div><div class="hrev__name">kj tan</div><div class="hrev__date">June 2026</div></div></div>
-          <div class="hrev__stars">★★★★★</div>
-          <p class="hrev__text">"Andrew is one of the best trainers I've ever had the privilege of learning from. His passion for teaching truly stands out and he consistently goes above and beyond for every student."</p>
-        </div>
-      </div>
-    </div>
-    <style>
-      .hero-reviews{max-width:960px;margin:30px auto 0;}
-      .hero-reviews__head{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:18px;color:var(--muted);font-size:14px;}
-      .hero-reviews__label{font-weight:600;color:var(--text);}
-      .hero-reviews__divider{width:1px;height:16px;background:var(--border);}
-      .hero-reviews__rating{color:var(--text);font-weight:700;}
-      .hero-reviews__stars{color:#fbbf24;letter-spacing:2px;}
-      .hero-reviews__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;text-align:left;}
-      @media(max-width:760px){.hero-reviews__grid{grid-template-columns:1fr;}}
-      .hrev{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;}
-      .hrev__top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
-      .hrev__av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex:0 0 auto;}
-      .hrev__name{font-weight:600;color:var(--text);font-size:14px;}
-      .hrev__date{color:var(--faint);font-size:12px;}
-      .hrev__stars{color:#fbbf24;letter-spacing:1px;font-size:13px;margin-bottom:8px;}
-      .hrev__text{color:var(--muted);font-size:13px;line-height:1.6;margin:0;}
-    </style>
     <div class="hero__meta">
       <a href="#dates" class="hero__pill">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -393,61 +335,6 @@ section { padding:80px 0; }
   </div>
 </section>
 
-<!-- DATES / BOOK -->
-<section class="dates" id="dates">
-  <div class="wrap">
-    <span class="section-label">Upcoming Dates</span>
-    <h2 class="section-heading">Choose your date &amp; book instantly</h2>
-    <p class="section-sub">Pick the session that suits you and book your seat directly — no hunting through a calendar. You'll get your Zoom joining details by email straight away.</p>
-    <div class="dates__grid">
-      <div class="date-card">
-        <span class="date-card__tag">🎬 Live on Zoom</span>
-        <div class="date-card__day">Friday</div>
-        <div class="date-card__date">10 July 2026</div>
-        <div class="date-card__meta">
-          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 9:00am &ndash; 12:00pm <strong>(SGT)</strong></span>
-          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
-          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> <strong>$120 SGD</strong></span>
-        </div>
-        <a href="https://luma.com/jhxqka1h" target="_blank" rel="noopener" class="date-card__book">
-          Book 10 July
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </a>
-      </div>
-
-      <div class="date-card">
-        <span class="date-card__tag">🎬 Live on Zoom</span>
-        <div class="date-card__day">Wednesday</div>
-        <div class="date-card__date">15 July 2026</div>
-        <div class="date-card__meta">
-          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 7:00pm &ndash; 10:00pm <strong>(SGT)</strong></span>
-          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
-          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> <strong>$120 SGD</strong></span>
-        </div>
-        <a href="https://luma.com/f65ukqv9" target="_blank" rel="noopener" class="date-card__book">
-          Book 15 July
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </a>
-      </div>
-
-      <div class="date-card">
-        <span class="date-card__tag">🎬 Live on Zoom</span>
-        <div class="date-card__day">Wednesday</div>
-        <div class="date-card__date">22 July 2026</div>
-        <div class="date-card__meta">
-          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 7:00pm &ndash; 10:00pm <strong>(SGT)</strong></span>
-          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
-          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> <strong>$120 SGD</strong></span>
-        </div>
-        <a href="https://luma.com/4lt0ebgw" target="_blank" rel="noopener" class="date-card__book">
-          Book 22 July
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </a>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- SAMPLE OUTPUTS -->
 <section class="samples" id="samples">
   <div class="wrap">
@@ -455,6 +342,28 @@ section { padding:80px 0; }
     <h2 class="section-heading">See what's possible</h2>
     <p class="section-sub">Real videos created with Google Flow, Suno and CapCut — the exact workflow you'll learn. Press play to watch right here.</p>
     <div class="samples__grid">
+      <div class="sample">
+        <div class="video-embed video-embed--short" data-id="Vd-PDwXH-H8" onclick="playVideo(this)">
+          <img src="https://img.youtube.com/vi/Vd-PDwXH-H8/maxresdefault.jpg" alt="AI animation vertical short sample" loading="lazy" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/Vd-PDwXH-H8/hqdefault.jpg'">
+          <div class="video-embed__play"><svg width="28" height="28" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>
+        </div>
+        <div class="sample__body">
+          <span class="sample__tag">AI Short · Made with Flow</span>
+          <div class="sample__title">From a single prompt to a finished scene</div>
+          <div class="sample__desc">A social-ready vertical clip generated end to end with <strong>Google Flow</strong> — the exact kind of video you'll create in the masterclass, scored with Suno and finished in CapCut.</div>
+        </div>
+      </div>
+      <div class="sample">
+        <div class="video-embed video-embed--short" data-id="c0G6Tb_AgJw" onclick="playVideo(this)">
+          <img src="https://img.youtube.com/vi/c0G6Tb_AgJw/maxresdefault.jpg" alt="AI animation vertical short sample" loading="lazy" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/c0G6Tb_AgJw/hqdefault.jpg'">
+          <div class="video-embed__play"><svg width="28" height="28" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>
+        </div>
+        <div class="sample__body">
+          <span class="sample__tag">AI Short · Flow + Suno + CapCut</span>
+          <div class="sample__title">Cinematic storytelling in seconds</div>
+          <div class="sample__desc">A punchy vertical short showing how text prompts become polished, share-worthy video. <strong>Music by Suno</strong> and <strong>edited in CapCut</strong> — the full workflow in one clip.</div>
+        </div>
+      </div>
       <div class="sample">
         <div class="video-embed" data-id="Bo4q0d-qPSg" onclick="playVideo(this)">
           <img src="https://img.youtube.com/vi/Bo4q0d-qPSg/maxresdefault.jpg" alt="Student-created AI video sample" loading="lazy" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/Bo4q0d-qPSg/hqdefault.jpg'">
@@ -630,6 +539,73 @@ section { padding:80px 0; }
   </div>
 </section>
 
+<!-- REVIEWS -->
+<section class="reviews" id="reviews">
+  <div class="wrap">
+    <span class="section-label">Reviews</span>
+    <h2 class="section-heading">What students say</h2>
+    <div class="hero-reviews">
+      <div class="hero-reviews__head">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 0 1 5.49 12c0-.73.13-1.44.35-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.78.43 3.46 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+        <span class="hero-reviews__label">Google Reviews</span>
+        <span class="hero-reviews__divider"></span>
+        <span class="hero-reviews__rating">5.0</span>
+        <span class="hero-reviews__stars">★★★★★</span>
+      </div>
+      <div class="hero-reviews__grid">
+        <div class="hrev">
+          <div class="hrev__top"><div class="hrev__av" style="background:#4f8ef7;color:#fff;">M</div><div><div class="hrev__name">Mary Lau</div><div class="hrev__date">June 2026</div></div></div>
+          <div class="hrev__stars">★★★★★</div>
+          <p class="hrev__text">"There were so many valuable takeaways packed into the session. I started with no prior knowledge, and by the end of just 3 hours, I was able to produce my own video."</p>
+        </div>
+        <div class="hrev">
+          <div class="hrev__top"><div class="hrev__av" style="background:#a855f7;color:#fff;">B</div><div><div class="hrev__name">Beng Ha Kor</div><div class="hrev__date">June 2026</div></div></div>
+          <div class="hrev__stars">★★★★★</div>
+          <p class="hrev__text">"I like the last section of cartoon animation. Will try to follow through and learn with Dr Andrew ai animation skills from impactus."</p>
+        </div>
+        <div class="hrev">
+          <div class="hrev__top"><div class="hrev__av" style="background:#22d3ee;color:#06121a;">J</div><div><div class="hrev__name">Junice Liew</div><div class="hrev__date">June 2026</div></div></div>
+          <div class="hrev__stars">★★★★★</div>
+          <p class="hrev__text">"Loved the AI Animation Class. A jam packed 3 hours online class. Another well done course by Dr Andrew 👏"</p>
+        </div>
+        <div class="hrev">
+          <div class="hrev__top"><div class="hrev__av" style="background:#4f8ef7;color:#fff;">E</div><div><div class="hrev__name">Elaine Guoh</div><div class="hrev__date">June 2026</div></div></div>
+          <div class="hrev__stars">★★★★★</div>
+          <p class="hrev__text">"One of the best trainers around."</p>
+        </div>
+        <div class="hrev">
+          <div class="hrev__top"><div class="hrev__av" style="background:#a855f7;color:#fff;">D</div><div><div class="hrev__name">David Ho</div><div class="hrev__date">June 2026</div></div></div>
+          <div class="hrev__stars">★★★★★</div>
+          <p class="hrev__text">"Excellent teacher for all of us!"</p>
+        </div>
+        <div class="hrev">
+          <div class="hrev__top"><div class="hrev__av" style="background:#22d3ee;color:#06121a;">K</div><div><div class="hrev__name">kj tan</div><div class="hrev__date">June 2026</div></div></div>
+          <div class="hrev__stars">★★★★★</div>
+          <p class="hrev__text">"Andrew is one of the best trainers I've ever had the privilege of learning from. His passion for teaching truly stands out and he consistently goes above and beyond for every student."</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <style>
+    .reviews{border-bottom:1px solid var(--border);}
+    .hero-reviews{max-width:960px;margin:44px auto 0;}
+    .hero-reviews__head{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:18px;color:var(--muted);font-size:14px;}
+    .hero-reviews__label{font-weight:600;color:var(--text);}
+    .hero-reviews__divider{width:1px;height:16px;background:var(--border);}
+    .hero-reviews__rating{color:var(--text);font-weight:700;}
+    .hero-reviews__stars{color:#fbbf24;letter-spacing:2px;}
+    .hero-reviews__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;text-align:left;}
+    @media(max-width:760px){.hero-reviews__grid{grid-template-columns:1fr;}}
+    .hrev{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;}
+    .hrev__top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+    .hrev__av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex:0 0 auto;}
+    .hrev__name{font-weight:600;color:var(--text);font-size:14px;}
+    .hrev__date{color:var(--faint);font-size:12px;}
+    .hrev__stars{color:#fbbf24;letter-spacing:1px;font-size:13px;margin-bottom:8px;}
+    .hrev__text{color:var(--muted);font-size:13px;line-height:1.6;margin:0;}
+  </style>
+</section>
+
 <!-- PRICING -->
 <section class="pricing" id="pricing">
   <div class="wrap">
@@ -651,6 +627,61 @@ section { padding:80px 0; }
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>
       <div class="pricing__note">A Google AI Pro subscription (from US$19.99/mo) is required separately for Google Flow access.</div>
+    </div>
+  </div>
+</section>
+
+<!-- DATES / BOOK -->
+<section class="dates" id="dates">
+  <div class="wrap">
+    <span class="section-label">Upcoming Dates</span>
+    <h2 class="section-heading">Choose your date &amp; book instantly</h2>
+    <p class="section-sub">Pick the session that suits you and book your seat directly — no hunting through a calendar. You'll get your Zoom joining details by email straight away.</p>
+    <div class="dates__grid">
+      <div class="date-card">
+        <span class="date-card__tag">🎬 Live on Zoom</span>
+        <div class="date-card__day">Friday</div>
+        <div class="date-card__date">10 July 2026</div>
+        <div class="date-card__meta">
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 9:00am &ndash; 12:00pm <strong>(SGT)</strong></span>
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> <strong>$120 SGD</strong></span>
+        </div>
+        <a href="https://luma.com/jhxqka1h" target="_blank" rel="noopener" class="date-card__book">
+          Book 10 July
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="date-card">
+        <span class="date-card__tag">🎬 Live on Zoom</span>
+        <div class="date-card__day">Wednesday</div>
+        <div class="date-card__date">15 July 2026</div>
+        <div class="date-card__meta">
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 7:00pm &ndash; 10:00pm <strong>(SGT)</strong></span>
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> <strong>$120 SGD</strong></span>
+        </div>
+        <a href="https://luma.com/f65ukqv9" target="_blank" rel="noopener" class="date-card__book">
+          Book 15 July
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="date-card">
+        <span class="date-card__tag">🎬 Live on Zoom</span>
+        <div class="date-card__day">Wednesday</div>
+        <div class="date-card__date">22 July 2026</div>
+        <div class="date-card__meta">
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 7:00pm &ndash; 10:00pm <strong>(SGT)</strong></span>
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> <strong>$120 SGD</strong></span>
+        </div>
+        <a href="https://luma.com/4lt0ebgw" target="_blank" rel="noopener" class="date-card__book">
+          Book 22 July
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
     </div>
   </div>
 </section>
@@ -735,4 +766,4 @@ function playVideo(el){
 </script>
 </body>
 </html>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                                                                                               
