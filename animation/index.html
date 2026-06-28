@@ -279,15 +279,6 @@ section { padding:80px 0; }
         <a href="https://impactuslearning.com" class="nav__logo" target="_blank" rel="noopener">
           <img src="https://events.impactuslearning.com/images/logo-dark-nobg.png" alt="Impactus Learning">
         </a>
-        <a href="https://events.impactuslearning.com/animation/competition/" class="comp-capsule" aria-label="Cat & Mouse Chomp competition — time left to win a free seat">
-          <svg class="comp-capsule__clock" viewBox="0 0 24 24" fill="none" stroke="#1a1205" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9"></circle>
-            <line class="hand-min" x1="12" y1="12" x2="12" y2="7.5"></line>
-            <line class="hand-sec" x1="12" y1="12" x2="12" y2="6" stroke-width="1.4"></line>
-          </svg>
-          <span class="comp-capsule__label">Win a Free Seat</span>
-          <span class="comp-capsule__time" id="cap-timer">--d --:--:--</span>
-        </a>
       </div>
       <div class="nav__links">
         <a href="https://impactuslearning.com" target="_blank" rel="noopener">Home</a>
@@ -350,16 +341,6 @@ section { padding:80px 0; }
           <div class="hrev__top"><div class="hrev__av" style="background:#22d3ee;color:#06121a;">K</div><div><div class="hrev__name">kj tan</div><div class="hrev__date">June 2026</div></div></div>
           <div class="hrev__stars">★★★★★</div>
           <p class="hrev__text">"Andrew is one of the best trainers I've ever had the privilege of learning from. His passion for teaching truly stands out and he consistently goes above and beyond for every student."</p>
-        </div>
-        <div class="hrev">
-          <div class="hrev__top"><div class="hrev__av" style="background:#4f8ef7;color:#fff;">M</div><div><div class="hrev__name">Mazlan Mohammad</div><div class="hrev__date">June 2026</div></div></div>
-          <div class="hrev__stars">★★★★★</div>
-          <p class="hrev__text">"Andrew was generous with his knowledge and incredibly patient with my questions. I have learnt a ton from him. Thanks so much, Andrew."</p>
-        </div>
-        <div class="hrev">
-          <div class="hrev__top"><div class="hrev__av" style="background:#a855f7;color:#fff;">S</div><div><div class="hrev__name">serene chen</div><div class="hrev__date">June 2026</div></div></div>
-          <div class="hrev__stars">★★★★★</div>
-          <p class="hrev__text">"The course was very helpful, and I found the pace to be just right. I especially enjoyed the hands-on sessions, and Andrew was very patient and supportive throughout the course."</p>
         </div>
       </div>
     </div>
@@ -752,25 +733,6 @@ function playVideo(el){
   el.appendChild(f);
 }
 </script>
-<script>
-/* Competition capsule countdown — same deadline literal as /animation/competition/ (end of Sat 20 Jun 2026, midnight SGT) */
-(function(){
-  var DEADLINE = new Date('2026-06-21T00:00:00+08:00').getTime();
-  var el = document.getElementById('cap-timer');
-  if(!el) return;
-  function pad(n){ return n < 10 ? '0' + n : '' + n; }
-  function tick(){
-    var diff = DEADLINE - Date.now();
-    if(diff <= 0){ el.textContent = 'Closed'; return; }
-    var d = Math.floor(diff / 86400000);
-    var h = Math.floor((diff % 86400000) / 3600000);
-    var m = Math.floor((diff % 3600000) / 60000);
-    var s = Math.floor((diff % 60000) / 1000);
-    el.textContent = d + 'd ' + pad(h) + ':' + pad(m) + ':' + pad(s);
-  }
-  tick();
-  setInterval(tick, 1000);
-})();
-</script>
 </body>
 </html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
