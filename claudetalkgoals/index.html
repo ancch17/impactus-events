@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>What You Want AI To Do First</title>
+<style>
+  :root{ --bg:#0e1116; --fg:#ffffff; --muted:#9aa4b2; --panel:#1b2029; --line:#2a323d; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden;}
+  #app{display:flex;flex-direction:column;height:100dvh;}
+  header{padding:2.4vh 4vw 0;flex:0 0 auto;}
+  h1{font-size:clamp(17px,3vw,40px);font-weight:600;letter-spacing:-.4px;line-height:1.15;}
+  .sub{color:var(--muted);font-size:clamp(11px,1.4vw,18px);margin-top:5px;}
+  .legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin:10px 0 4px;font-size:clamp(11px,1.15vw,16px);color:var(--muted);}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:0 0 auto;}
+  #chart{flex:1 1 auto;width:100%;min-height:0;position:relative;}
+  #chart svg{width:100%;height:100%;display:block;}
+  circle{cursor:pointer;}
+  .sel-circle{stroke:#fff;animation:ringpulse 1.3s ease-in-out infinite;}
+  @keyframes ringpulse{0%,100%{stroke-width:2;}50%{stroke-width:6;}}
+  #panel{flex:0 0 auto;max-height:0;overflow:hidden;background:var(--panel);
+    border-top:1px solid var(--line);transition:max-height .25s ease;}
+  #panel.open{max-height:44dvh;}
+  .phead{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px;position:sticky;top:0;background:var(--panel);}
+  .phead h3{font-size:16px;color:#fff;text-transform:capitalize;font-weight:600;}
+  .phead .cnt{color:var(--muted);font-weight:400;font-size:13px;margin-left:6px;}
+  .pclose{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;
+    padding:5px 12px;font-size:14px;cursor:pointer;}
+  .pclose:active{background:#262c36;}
+  .plist{overflow-y:auto;max-height:calc(44dvh - 48px);-webkit-overflow-scrolling:touch;padding:0 16px 16px;}
+  .plist div{padding:9px 0;border-top:1px solid var(--line);color:#e6eaf0;font-size:15px;line-height:1.45;}
+  .plist div:first-child{border-top:none;}
+  .plist .nm{color:#8b9bb4;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>&ldquo;What&apos;s the first thing you&apos;d want AI to do for you?&rdquo;</h1>
+    <div class="sub">339 registered &middot; 256 answered &middot; bubble size = how many people said it &middot; tap a bubble to read the responses</div>
+    <div class="legend">
+      <span><i class="dot" style="background:#3987e5"></i>Automate &amp; work</span>
+      <span><i class="dot" style="background:#eb6834"></i>Create &amp; content</span>
+      <span><i class="dot" style="background:#1baf7a"></i>Build &amp; present</span>
+      <span><i class="dot" style="background:#eda100"></i>Business &amp; money</span>
+      <span><i class="dot" style="background:#8b7ff0"></i>Research &amp; data</span>
+    </div>
+  </header>
+  <div id="chart"></div>
+  <div id="panel">
+    <div class="phead"><div><h3 id="pword"></h3><span class="cnt" id="pcnt"></span></div>
+      <button class="pclose" id="pclose">Close &times;</button></div>
+    <div class="plist" id="plist"></div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+const SVGNS="http://www.w3.org/2000/svg";
+const VERB={"automate": [{"t": "Automate my trades"}, {"t": "Process automation and platform building"}, {"t": "automation in ageing report"}, {"t": "Automate mechanical processes that may not need human in the loop"}, {"t": "automate my process"}, {"t": "Develop tools to automate collection of outstanding dues"}, {"t": "Automations"}, {"t": "Automation"}, {"t": "Automate"}, {"t": "Automate my repetitive daily tasks"}, {"t": "Automate repetitive task improve efficiency"}, {"t": "Automate tasks"}, {"t": "Automate my email and replies and clean up"}, {"t": "Research on content topics from people i follow for my own content creation automatically and come out for content that suit my niche, my tone so that i can be more productive , plug and play . Act like my social media manager - create , post and reply to DMs"}, {"t": "Automate some work stuff"}, {"t": "Agentic secretary or anything that automates low risk tasks"}, {"t": "Automate emails"}, {"t": "Automate workflow"}, {"t": "Streamline workflow and automate tasks such as content creation"}, {"t": "automate"}, {"t": "Automation"}, {"t": "automation - finance"}, {"t": "Workflow automation"}, {"t": "automate and execute personal workflows to improve productivity"}, {"t": "Find my niche, Build my online personal branding, Automate my marketing and bring in clients."}, {"t": "To automate my routine office task"}, {"t": "To automate and plan my design for my POD platform."}, {"t": "Automating as much workflow as I can"}, {"t": "Automate work processes to analyse differences of data monthly and report for human to make decision"}, {"t": "To automate my presentations and also help to monitor investments."}, {"t": "help to automate my whatever process that can be done it"}, {"t": "Automation of time-consuming tasks such as research and synthesizing of the data"}, {"t": "Automatic forms"}, {"t": "Automate!"}, {"t": "Automate my daily work tasks"}, {"t": "Automate my personal work flow"}, {"t": "Automation workflows"}, {"t": "Automate my business."}, {"t": "Process, workflow automation"}, {"t": "Automate work flow"}, {"t": "Automatically update of real time material cost data"}], "work": [{"t": "Write and AI tools for daily works."}, {"t": "Make my repetitive work faster"}, {"t": "Improve my works"}, {"t": "Work depolyment"}, {"t": "Make work pay more."}, {"t": "Be my personal employees whom i can delegate work to safely and reliable. To build a CRM."}, {"t": "Help me with my work"}, {"t": "Research work that is credible"}, {"t": "Process work and saves me time"}, {"t": "How to build workflow"}, {"t": "Work and Play :)"}, {"t": "Help with works"}, {"t": "Integrated AI into my process and make work more efficient"}, {"t": "Automate some work stuff"}, {"t": "Automate workflow"}, {"t": "Streamline workflow and automate tasks such as content creation"}, {"t": "Improve work"}, {"t": "Improve my work processes"}, {"t": "how to enhance my research for my personal usage (finance, documents records and work?"}, {"t": "Workflow automation"}, {"t": "automate and execute personal workflows to improve productivity"}, {"t": "Research, art work"}, {"t": "To empower my work"}, {"t": "Reduce the duration for work tasks"}, {"t": "Automating as much workflow as I can"}, {"t": "Automate work processes to analyse differences of data monthly and report for human to make decision"}, {"t": "Do my work faster"}, {"t": "Automate my daily work tasks"}, {"t": "Automate my personal work flow"}, {"t": "Efficient at work"}, {"t": "Workflow for productivity for business operation"}, {"t": "Automation workflows"}, {"t": "Improve my work processes"}, {"t": "Improve my work flow"}, {"t": "Process, workflow automation"}, {"t": "For design and workflow"}, {"t": "Automate work flow"}], "task": [{"t": "Simple tasks to aid thinking"}, {"t": "Automate my repetitive daily tasks"}, {"t": "Automate repetitive task improve efficiency"}, {"t": "help me in my daily tasks"}, {"t": "Automate tasks"}, {"t": "Agentic secretary or anything that automates low risk tasks"}, {"t": "Streamline workflow and automate tasks such as content creation"}, {"t": "Build Functions to complete tasks"}, {"t": "To automate my routine office task"}, {"t": "Prepare sales presentation and replace with daily task."}, {"t": "Reduce the duration for work tasks"}, {"t": "Automation of time-consuming tasks such as research and synthesizing of the data"}, {"t": "Automate my daily work tasks"}, {"t": "Calenders tasks"}], "workflow": [{"t": "How to build workflow"}, {"t": "Automate workflow"}, {"t": "Streamline workflow and automate tasks such as content creation"}, {"t": "Workflow automation"}, {"t": "automate and execute personal workflows to improve productivity"}, {"t": "Automating as much workflow as I can"}, {"t": "Automate my personal work flow"}, {"t": "Workflow for productivity for business operation"}, {"t": "Automation workflows"}, {"t": "Improve my work flow"}, {"t": "Process, workflow automation"}, {"t": "For design and workflow"}, {"t": "Automate work flow"}], "process": [{"t": "Process automation and platform building"}, {"t": "Automate mechanical processes that may not need human in the loop"}, {"t": "automate my process"}, {"t": "Improve processes"}, {"t": "Optimise my daily administrative processes"}, {"t": "Process work and saves me time"}, {"t": "Integrated AI into my process and make work more efficient"}, {"t": "Learn to streamline my processes and categorise my emails"}, {"t": "Improve my work processes"}, {"t": "Automate work processes to analyse differences of data monthly and report for human to make decision"}, {"t": "help to automate my whatever process that can be done it"}, {"t": "Improve my work processes"}, {"t": "Process, workflow automation"}], "improve": [{"t": "Help me to improve my day to day business operations"}, {"t": "Improve my use of AI on life and financial"}, {"t": "Improve my works"}, {"t": "Improve processes"}, {"t": "Automate repetitive task improve efficiency"}, {"t": "Prepare me holistically to advance and improve my career"}, {"t": "Improve Job Applications and Resume updates"}, {"t": "Improve work"}, {"t": "Improve my work processes"}, {"t": "automate and execute personal workflows to improve productivity"}, {"t": "Improve my work processes"}, {"t": "Improve my work flow"}], "productivity": [{"t": "Productivity"}, {"t": "Increase productivity"}, {"t": "Research on content topics from people i follow for my own content creation automatically and come out for content that suit my niche, my tone so that i can be more productive , plug and play . Act like my social media manager - create , post and reply to DMs"}, {"t": "Increase productivity"}, {"t": "automate and execute personal workflows to improve productivity"}, {"t": "Make me more productive"}, {"t": "Productivity"}, {"t": "Workflow for productivity for business operation"}], "time": [{"t": "Save time"}, {"t": "Process work and saves me time"}, {"t": "Save my time"}, {"t": "Automation of time-consuming tasks such as research and synthesizing of the data"}, {"t": "help me save time"}, {"t": "Automatically update of real time material cost data"}], "daily": [{"t": "Write and AI tools for daily works."}, {"t": "Will like to learn what Ai could help in planning my daily activities and etc."}, {"t": "Optimise my daily administrative processes"}, {"t": "Automate my repetitive daily tasks"}, {"t": "help me in my daily tasks"}, {"t": "Prepare sales presentation and replace with daily task."}, {"t": "Automate my daily work tasks"}, {"t": "help me with my daily life by compiling info for me so that I can make the best decision"}], "create": [{"t": "Create video"}, {"t": "Create presentation"}, {"t": "Creating tools to make my life easier."}, {"t": "How to create content to make me the top gaming influencer?"}, {"t": "Create impressive presentations in excel and powerpoint"}, {"t": "Analyse, tabulate results or create presentation slides"}, {"t": "Research on content topics from people i follow for my own content creation automatically and come out for content that suit my niche, my tone so that i can be more productive , plug and play . Act like my social media manager - create , post and reply to DMs"}, {"t": "make it easier and faster for me to upload travel photos and create videos with photos to upload into my social media account"}, {"t": "Create a personal website for me"}, {"t": "Create business proposals for personal insurance"}, {"t": "Create content"}, {"t": "Streamline workflow and automate tasks such as content creation"}, {"t": "Create ppt"}, {"t": "Help me create social media content that stands out from others and generates quality leads."}, {"t": "I want to create crystals website"}, {"t": "Create apps."}, {"t": "create fact sheets and include photos of me or videos of me"}, {"t": "Create Dashboard"}, {"t": "Create slides"}, {"t": "Create mini adverts film"}, {"t": "create video"}, {"t": "Create videos, pictures n PowerPoint decks"}, {"t": "Help create videos"}, {"t": "Create investment plans & auto pull in the data shares I bought or those in my watchlist. 😀y watchistr"}, {"t": "To help create a whole business proposal"}, {"t": "Create a video of my life journey"}, {"t": "Create websites and tik tok"}, {"t": "Create websites and creative content"}], "generate": [{"t": "Generate income"}, {"t": "Generate presentation deck and report"}, {"t": "Generate reply"}, {"t": "Help me create social media content that stands out from others and generates quality leads."}, {"t": "Generate a Live project schedule"}, {"t": "To generate attention getting EDM for new launch property sales."}, {"t": "Content generation"}], "video": [{"t": "Create video"}, {"t": "Make cat videos"}, {"t": "make it easier and faster for me to upload travel photos and create videos with photos to upload into my social media account"}, {"t": "AI videos"}, {"t": "videography"}, {"t": "Video"}, {"t": "create fact sheets and include photos of me or videos of me"}, {"t": "Listing video"}, {"t": "create video"}, {"t": "Create videos, pictures n PowerPoint decks"}, {"t": "Help create videos"}, {"t": "Video"}, {"t": "Edit a video"}, {"t": "Create a video of my life journey"}], "content": [{"t": "How to create content to make me the top gaming influencer?"}, {"t": "Research on content topics from people i follow for my own content creation automatically and come out for content that suit my niche, my tone so that i can be more productive , plug and play . Act like my social media manager - create , post and reply to DMs"}, {"t": "Create content"}, {"t": "Streamline workflow and automate tasks such as content creation"}, {"t": "Help me create social media content that stands out from others and generates quality leads."}, {"t": "Create websites and creative content"}, {"t": "Content generation"}], "social": [{"t": "Research on content topics from people i follow for my own content creation automatically and come out for content that suit my niche, my tone so that i can be more productive , plug and play . Act like my social media manager - create , post and reply to DMs"}, {"t": "Explore more tools for marketing like social media, website"}, {"t": "make it easier and faster for me to upload travel photos and create videos with photos to upload into my social media account"}, {"t": "Help me create social media content that stands out from others and generates quality leads."}, {"t": "Social media posting"}, {"t": "Social media posts"}], "media": [{"t": "Research on content topics from people i follow for my own content creation automatically and come out for content that suit my niche, my tone so that i can be more productive , plug and play . Act like my social media manager - create , post and reply to DMs"}, {"t": "Explore more tools for marketing like social media, website"}, {"t": "make it easier and faster for me to upload travel photos and create videos with photos to upload into my social media account"}, {"t": "Help me create social media content that stands out from others and generates quality leads."}, {"t": "Social media posting"}, {"t": "Social media posts"}], "design": [{"t": "Assist in design projects"}, {"t": "To automate and plan my design for my POD platform."}, {"t": "Design curriculum"}, {"t": "For design and workflow"}], "edit": [{"t": "Draft or edit documents"}, {"t": "Edit text"}, {"t": "Edit a video"}, {"t": "Animation edit travel stuff"}], "website": [{"t": "Able to build my portfolio website for me. I aldy have my own domain and access to WordPress. Would like to know if claude code is able to talk to WordPress and build the website for me."}, {"t": "Explore more tools for marketing like social media, website"}, {"t": "Create a personal website for me"}, {"t": "Website"}, {"t": "I want to create crystals website"}, {"t": "Branding and website"}, {"t": "Website"}, {"t": "Website with appointment schedule."}, {"t": "Create websites and tik tok"}, {"t": "Amend existing Website"}, {"t": "make a website"}, {"t": "Create websites and creative content"}], "build": [{"t": "Process automation and platform building"}, {"t": "Be my personal employees whom i can delegate work to safely and reliable. To build a CRM."}, {"t": "How to build workflow"}, {"t": "Able to build my portfolio website for me. I aldy have my own domain and access to WordPress. Would like to know if claude code is able to talk to WordPress and build the website for me."}, {"t": "Build my portfolio"}, {"t": "Build an Agent"}, {"t": "Find my niche, Build my online personal branding, Automate my marketing and bring in clients."}, {"t": "Build Functions to complete tasks"}, {"t": "build Robot for trading"}, {"t": "build agents"}, {"t": "I want it to build me a web application for building survey"}], "presentation": [{"t": "convert word/ pdf to powerpoint slides and excel information to analyze information"}, {"t": "Generate presentation deck and report"}, {"t": "PowerPoint presentation"}, {"t": "To do powerpoint slides that are professional"}, {"t": "Create presentation"}, {"t": "Create impressive presentations in excel and powerpoint"}, {"t": "Presentation"}, {"t": "Analyse, tabulate results or create presentation slides"}, {"t": "Help me do client presentation with proper formatting similar to ppts"}, {"t": "Presentation"}, {"t": "Presentation slides"}, {"t": "Create ppt"}, {"t": "email, chart, analysis, case management, presentation"}, {"t": "put all core info for business Presentation with impressive visuals yet clear n precise information , follow by analysis of data provided in all business opportunities studies"}, {"t": "Prepare sales presentation and replace with daily task."}, {"t": "Create slides"}, {"t": "Create videos, pictures n PowerPoint decks"}, {"t": "To automate my presentations and also help to monitor investments."}, {"t": "Presentations"}], "report": [{"t": "automation in ageing report"}, {"t": "Generate presentation deck and report"}, {"t": "Manage report writing and minutes taking"}, {"t": "Analyse business financial reports for Investment planning"}, {"t": "Automate work processes to analyse differences of data monthly and report for human to make decision"}, {"t": "Analytics report."}, {"t": "My reports"}], "business": [{"t": "Help me to improve my day to day business operations"}, {"t": "Help me start and run a business"}, {"t": "Analyse business financial reports for Investment planning"}, {"t": "Create business proposals for personal insurance"}, {"t": "Bring in customers for my business"}, {"t": "Help me get leads online and on LinkedIn for my business"}, {"t": "put all core info for business Presentation with impressive visuals yet clear n precise information , follow by analysis of data provided in all business opportunities studies"}, {"t": "To help create a whole business proposal"}, {"t": "Workflow for productivity for business operation"}, {"t": "Automate my business."}], "marketing": [{"t": "Suggest marketing and publicity captions for events"}, {"t": "Digital marketing."}, {"t": "Marketing and admin"}, {"t": "I want AI to help me start up my own independent digital marketing agency"}, {"t": "Explore more tools for marketing like social media, website"}, {"t": "Find my niche, Build my online personal branding, Automate my marketing and bring in clients."}, {"t": "Marketing"}, {"t": "Marketing"}], "money": [{"t": "Make money"}, {"t": "make money with Ai avatar characters"}, {"t": "Earn money"}, {"t": "Make money"}, {"t": "Earn passive income"}, {"t": "make money"}], "financial": [{"t": "Improve my use of AI on life and financial"}, {"t": "Help in Performance Management of by team of Financial Advisers."}, {"t": "Analyse business financial reports for Investment planning"}, {"t": "Advice me on financial planning"}, {"t": "automation - finance"}, {"t": "how to enhance my research for my personal usage (finance, documents records and work?"}], "analyse": [{"t": "convert word/ pdf to powerpoint slides and excel information to analyze information"}, {"t": "Analyse, tabulate results or create presentation slides"}, {"t": "Analyse business financial reports for Investment planning"}, {"t": "email, chart, analysis, case management, presentation"}, {"t": "Analysis results"}, {"t": "put all core info for business Presentation with impressive visuals yet clear n precise information , follow by analysis of data provided in all business opportunities studies"}, {"t": "Automate work processes to analyse differences of data monthly and report for human to make decision"}, {"t": "Do research and analyze."}, {"t": "Help me analyse Stocks"}, {"t": "Help me to analysis the charts, stat, provide summary of the documents"}], "research": [{"t": "Research work that is credible"}, {"t": "Research on content topics from people i follow for my own content creation automatically and come out for content that suit my niche, my tone so that i can be more productive , plug and play . Act like my social media manager - create , post and reply to DMs"}, {"t": "how to enhance my research for my personal usage (finance, documents records and work?"}, {"t": "Research, art work"}, {"t": "Do research and analyze."}, {"t": "Research"}, {"t": "Automation of time-consuming tasks such as research and synthesizing of the data"}, {"t": "Do research for an idea n comes out w a proposal."}], "data": [{"t": "put all core info for business Presentation with impressive visuals yet clear n precise information , follow by analysis of data provided in all business opportunities studies"}, {"t": "Automate work processes to analyse differences of data monthly and report for human to make decision"}, {"t": "Organise my data"}, {"t": "Automation of time-consuming tasks such as research and synthesizing of the data"}, {"t": "Create investment plans & auto pull in the data shares I bought or those in my watchlist. 😀y watchistr"}, {"t": "Automatically update of real time material cost data"}], "plan": [{"t": "Will like to learn what Ai could help in planning my daily activities and etc."}, {"t": "investment planning"}, {"t": "floor plan"}, {"t": "Analyse business financial reports for Investment planning"}, {"t": "To help in planning retirement"}, {"t": "Advice me on financial planning"}, {"t": "Travel Plan with images, flights and hotel recommendations."}, {"t": "to Plan for my trip"}, {"t": "Plan holiday"}, {"t": "To automate and plan my design for my POD platform."}, {"t": "Create investment plans & auto pull in the data shares I bought or those in my watchlist. 😀y watchistr"}], "personal": [{"t": "Be my personal employees whom i can delegate work to safely and reliable. To build a CRM."}, {"t": "Create a personal website for me"}, {"t": "Create business proposals for personal insurance"}, {"t": "how to enhance my research for my personal usage (finance, documents records and work?"}, {"t": "automate and execute personal workflows to improve productivity"}, {"t": "Find my niche, Build my online personal branding, Automate my marketing and bring in clients."}, {"t": "Automate my personal work flow"}], "life": [{"t": "Improve my use of AI on life and financial"}, {"t": "Make life better"}, {"t": "Creating tools to make my life easier."}, {"t": "Organise my life"}, {"t": "Create a video of my life journey"}, {"t": "help me with my daily life by compiling info for me so that I can make the best decision"}, {"t": "Make my life easier and fun"}], "email": [{"t": "Learn to streamline my processes and categorise my emails"}, {"t": "Automate my email and replies and clean up"}, {"t": "Automate emails"}, {"t": "email, chart, analysis, case management, presentation"}]};
+const data=[["automate", 41, "#3987e5"], ["work", 37, "#3987e5"], ["task", 14, "#3987e5"], ["workflow", 13, "#3987e5"], ["process", 13, "#3987e5"], ["improve", 12, "#3987e5"], ["productivity", 8, "#3987e5"], ["time", 6, "#3987e5"], ["daily", 8, "#3987e5"], ["create", 28, "#eb6834"], ["generate", 7, "#eb6834"], ["video", 14, "#eb6834"], ["content", 7, "#eb6834"], ["social", 6, "#eb6834"], ["media", 6, "#eb6834"], ["design", 4, "#eb6834"], ["edit", 4, "#eb6834"], ["website", 12, "#1baf7a"], ["build", 11, "#1baf7a"], ["presentation", 19, "#1baf7a"], ["report", 7, "#1baf7a"], ["business", 10, "#eda100"], ["marketing", 8, "#eda100"], ["money", 6, "#eda100"], ["financial", 6, "#eda100"], ["analyse", 10, "#8b7ff0"], ["research", 8, "#8b7ff0"], ["data", 6, "#8b7ff0"], ["plan", 11, "#8b7ff0"], ["personal", 7, "#7b8494"], ["life", 7, "#7b8494"], ["email", 4, "#7b8494"]];
+const chart=document.getElementById("chart");
+const panel=document.getElementById("panel");
+const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+let gsel=null, selected=null;
+function openPanel(word){
+  selected=word;
+  const items=VERB[word]||[];
+  document.getElementById("pword").textContent=word;
+  document.getElementById("pcnt").textContent="· "+items.length+(items.length===1?" person":" people");
+  document.getElementById("plist").innerHTML=items.map(o=>
+    `<div>&ldquo;${esc(o.t)}&rdquo;</div>`).join("");
+  panel.classList.add("open");
+  document.getElementById("plist").scrollTop=0;
+  highlight(word);
+}
+function closePanel(){panel.classList.remove("open");selected=null;clearHighlight();}
+document.getElementById("pclose").addEventListener("click",closePanel);
+function clearHighlight(){
+  if(!gsel) return;
+  gsel.selectAll(".ripple").remove();
+  gsel.selectAll("circle.main").classed("sel-circle",false).attr("filter",null);
+}
+function addAnim(parent,attr,from,to,dur,begin){
+  const a=document.createElementNS(SVGNS,"animate");
+  a.setAttribute("attributeName",attr);a.setAttribute("from",from);a.setAttribute("to",to);
+  a.setAttribute("dur",dur);a.setAttribute("begin",begin);
+  a.setAttribute("repeatCount","indefinite");a.setAttribute("calcMode","spline");
+  a.setAttribute("keySplines","0.3 0 0.3 1");a.setAttribute("keyTimes","0;1");
+  parent.appendChild(a);
+}
+function highlight(word){
+  clearHighlight();
+  const node=gsel.filter(d=>d.word===word);
+  node.raise();
+  const d=node.datum();
+  const rg=node.insert("g",":first-child").attr("class","ripple");
+  for(let i=0;i<3;i++){
+    const rc=document.createElementNS(SVGNS,"circle");
+    rc.setAttribute("r",d.rad);rc.setAttribute("fill","none");
+    rc.setAttribute("stroke",d.col);rc.setAttribute("stroke-width","2.5");rc.setAttribute("opacity","0");
+    addAnim(rc,"r",d.rad,d.rad+42,"1.9s",(i*0.63)+"s");
+    addAnim(rc,"opacity","0.55","0","1.9s",(i*0.63)+"s");
+    rg.node().appendChild(rc);
+  }
+  node.select("circle.main").classed("sel-circle",true).attr("filter","url(#glow)");
+}
+function draw(){
+  const W=Math.max(2,chart.clientWidth), H=Math.max(2,chart.clientHeight);
+  chart.innerHTML="";
+  const nodesData=data.map(d=>({word:d[0],n:d[1],col:d[2]}));
+  const total=d3.sum(nodesData,d=>d.n);
+  const fill=0.56;
+  let k=Math.sqrt(fill*W*H/(Math.PI*total));
+  const rMax=Math.min(W,H)*0.24, rMin=Math.max(12,Math.min(W,H)*0.04);
+  nodesData.forEach(d=>d.rad=Math.max(rMin,Math.min(rMax,k*Math.sqrt(d.n))));
+  const svg=d3.select(chart).append("svg")
+    .attr("viewBox",`0 0 ${W} ${H}`).attr("preserveAspectRatio","xMidYMid meet");
+  const defs=svg.append("defs");
+  defs.html('<filter id="glow" x="-70%" y="-70%" width="240%" height="240%">'+
+    '<feGaussianBlur stdDeviation="7" result="b"/>'+
+    '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>');
+  const g=svg.selectAll("g.node").data(nodesData).join("g").attr("class","node")
+    .style("cursor","pointer").on("click",(e,d)=>openPanel(d.word));
+  g.append("circle").attr("class","main").attr("r",d=>d.rad).attr("fill",d=>d.col).attr("opacity",.93);
+  g.append("text").attr("text-anchor","middle").attr("dy","-0.03em").attr("fill","#fff")
+    .style("pointer-events","none").style("font-weight",600)
+    .style("font-size",d=>{const byR=d.rad*0.5,byLen=(d.rad*1.85)/Math.max(4,d.word.length)*1.35;
+      return Math.max(9,Math.min(byR,byLen,26))+"px";})
+    .text(d=>d.rad>=Math.max(15,rMin)?d.word:"");
+  g.append("text").attr("text-anchor","middle").attr("dy","1.15em").attr("fill","#fff")
+    .attr("opacity",.9).style("pointer-events","none")
+    .style("font-size",d=>Math.max(9,Math.min(d.rad*0.34,18))+"px")
+    .text(d=>d.rad>Math.max(28,rMin*1.6)?d.n:"");
+  const sim=d3.forceSimulation(nodesData)
+    .force("x",d3.forceX(W/2).strength(.06)).force("y",d3.forceY(H/2).strength(.06))
+    .force("charge",d3.forceManyBody().strength(1.5))
+    .force("collide",d3.forceCollide().radius(d=>d.rad+2).strength(1).iterations(2)).stop();
+  for(let i=0;i<440;i++){
+    sim.tick();
+    nodesData.forEach(d=>{d.x=Math.max(d.rad,Math.min(W-d.rad,d.x));d.y=Math.max(d.rad,Math.min(H-d.rad,d.y));});
+  }
+  g.attr("transform",d=>`translate(${d.x},${d.y})`);
+  gsel=g;
+  if(selected) highlight(selected);
+}
+draw();
+let rt;
+addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(draw,180);});
+addEventListener("orientationchange",()=>{clearTimeout(rt);rt=setTimeout(draw,250);});
+</script>
+</body>
+</html>
