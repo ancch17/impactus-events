@@ -748,9 +748,30 @@ footer .brand em{color:var(--amber);font-style:italic}
 <audio id="demo" src="assets/demo-track.mp3" preload="metadata"></audio>
 
 <script>
-/* ---------- reveal on scroll ---------- */
-const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.14});
-document.querySelectorAll('.rv:not(.in)').forEach(el=>io.observe(el));
+/* ---------- reveal on scroll (robust) ---------- */
+(function(){
+  var els=[].slice.call(document.querySelectorAll('.rv'));
+  function reveal(el){var i=els.indexOf(el);if(i>-1){el.classList.add('in');els.splice(i,1);}}
+  function check(){
+    var vh=window.innerHeight||document.documentElement.clientHeight;
+    for(var i=els.length-1;i>=0;i--){
+      var r=els[i].getBoundingClientRect();
+      if(r.top<vh*0.92 && r.bottom>0) reveal(els[i]);
+    }
+  }
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){if(e.isIntersecting){reveal(e.target);io.unobserve(e.target);}});
+    },{threshold:0.01, rootMargin:'0px 0px -8% 0px'});
+    els.forEach(function(el){io.observe(el);});
+  }
+  window.addEventListener('scroll',check,{passive:true});
+  window.addEventListener('resize',check,{passive:true});
+  window.addEventListener('load',check);
+  check();
+  /* failsafe: never leave content stuck hidden */
+  setTimeout(function(){document.querySelectorAll('.rv').forEach(function(el){el.classList.add('in');});},2500);
+})();
 
 /* ---------- top bar + mobile bar ---------- */
 const bar=document.getElementById('bar'),mbar=document.getElementById('mbar');
@@ -840,29 +861,4 @@ function setPlay(on){
   document.getElementById('stage').classList.toggle('playing',on);
   icon.innerHTML=on?'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>':'<path d="M8 5v14l11-7z"/>';
 }
-async function startPlayback(){
-  /* plain element playback — no WebAudio, nothing between the file and the speakers */
-  if(typeof hideYt==='function')hideYt();
-  audio.muted=false;audio.volume=1;
-  try{
-    await audio.play();
-    setPlay(true);
-  }catch(e){
-    /* no demo track present — pulse the ambient wave instead */
-    setPlay(true);setTimeout(()=>setPlay(false),4000);
-  }
-}
-btn.addEventListener('click',()=>{
-  if(playing){audio.pause();setPlay(false)}else{startPlayback()}
-});
-
-/* track switching */
-const np=document.getElementById('npName');
-const coverArt=document.getElementById('coverArt');
-const sleeveBox=document.getElementById('sleeveBox');
-const ytWrap=document.getElementById('ytWrap');
-const ytFrame=document.getElementById('ytFrame');
-function showYt(id){
-  sleeveBox.style.display='none';
-  ytWrap.hidden=false;
-  ytFrame.
+async function startPlayback()
