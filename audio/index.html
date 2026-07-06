@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Audio Masterclass — Write Your First Real Song in One Evening | Impactus Learning</title>
+<meta name="description" content="For complete beginners: write and produce your first real song in one live, hands-on evening — no music theory, no instruments. Suno + ElevenLabs + Audacity, live on Zoom. SGD 120. 29 & 30 July.">
+<meta property="og:title" content="Write your first real song this evening — even if you've never made music in your life">
+<meta property="og:description" content="A live, hands-on 3-hour class for complete beginners and hobbyist creators. Leave with finished songs you made yourself. 29 & 30 July, 7–10pm SGT, SGD 120.">
+<meta property="og:image" content="assets/og.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300;1,9..144,400&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0b0714;
+  --panel:#150d24;
+  --panel-2:#1c1130;
+  --line:rgba(255,61,138,.2);
+  --line-soft:rgba(246,242,250,.1);
+  --amber:#ff3d8a;   /* primary accent — electric magenta (var name kept for legacy rules) */
+  --amber-hi:#ff6aa8;
+  --gold:#ffb84d;
+  --cyan:#3ee0ff;
+  --violet:#8b5cf6;
+  --grad:linear-gradient(92deg,var(--gold),var(--amber) 52%,var(--violet));
+  --cream:#f6f2fa;
+  --mute:#a89bb8;
+  --rec:#ff4438;
+  --teal:#3ee0ff;
+  --max:1200px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--ink);
+  color:var(--cream);
+  font-family:'Inter',system-ui,sans-serif;
+  font-size:17px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{background:var(--amber);color:#fff}
+
+/* ambient colour field */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(45% 38% at 12% 8%,rgba(139,92,246,.20),transparent 68%),
+    radial-gradient(42% 36% at 88% 18%,rgba(255,61,138,.16),transparent 68%),
+    radial-gradient(55% 45% at 50% 100%,rgba(62,224,255,.13),transparent 70%);
+}
+h1,h2,h3{font-family:'Fraunces',serif;font-weight:400;line-height:1.05}
+.mono{font-family:'Space Mono',monospace;font-size:.72rem;letter-spacing:.22em;text-transform:uppercase}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+a{color:inherit}
+
+/* film grain */
+body::after{
+  content:"";position:fixed;inset:-50%;pointer-events:none;z-index:9000;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='0.9'/%3E%3C/svg%3E");
+  animation:grain 7s steps(10) infinite;
+}
+@keyframes grain{0%,100%{transform:translate(0,0)}20%{transform:translate(-3%,2%)}40%{transform:translate(2%,-3%)}60%{transform:translate(-2%,-2%)}80%{transform:translate(3%,3%)}}
+
+/* ---------- top bar ---------- */
+.bar{
+  position:fixed;top:0;left:0;right:0;z-index:1000;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 28px;
+  background:linear-gradient(rgba(11,7,20,.92),rgba(11,7,20,.75));
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid transparent;
+  transform:translateY(-110%);transition:transform .5s cubic-bezier(.2,.8,.2,1),border-color .5s;
+}
+.bar.on{transform:translateY(0);border-bottom-color:var(--line-soft)}
+.logo{display:block;width:auto}
+.bar .logo{height:22px}
+.bar-left{display:flex;align-items:center;gap:38px}
+.nav-links{display:flex;align-items:center;gap:28px}
+.nav-links a{
+  font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;
+  color:#d8cfe6;text-decoration:none;transition:color .25s;
+  text-shadow:0 1px 10px rgba(11,7,20,.7);
+}
+.nav-links a:hover{color:var(--amber-hi)}
+.hero-top-row{display:flex;justify-content:space-between;align-items:center}
+.hero-top{position:absolute;top:0;left:0;right:0;z-index:5;padding-top:34px}
+.hero-brand{height:30px;filter:drop-shadow(0 2px 12px rgba(11,7,20,.8))}
+.foot-logo{height:20px;opacity:.9}
+.bar .dates{color:var(--mute)}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;
+  font-family:'Space Mono',monospace;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;
+  color:#fff;background:linear-gradient(92deg,#ff7a45,var(--amber) 55%,var(--violet));
+  padding:13px 26px;border-radius:100px;text-decoration:none;border:1px solid transparent;
+  transition:filter .25s,box-shadow .25s,transform .25s;
+  white-space:nowrap;
+}
+.btn:hover{filter:brightness(1.15);box-shadow:0 6px 34px rgba(255,61,138,.45);transform:translateY(-1px)}
+.btn.small{padding:9px 20px;font-size:.68rem}
+.btn.ghost{background:transparent;color:var(--cream);border-color:rgba(246,242,250,.28)}
+.btn.ghost:hover{background:rgba(246,242,250,.07);box-shadow:none;border-color:var(--cyan);filter:none}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:100svh;display:flex;align-items:flex-end;isolation:isolate}
+.hero-media{position:absolute;inset:0;z-index:-2;overflow:hidden}
+.hero-media img,.hero-media video{width:100%;height:100%;object-fit:cover;object-position:70% 30%;transform:scale(1.06);will-change:transform}
+.hero-shade{position:absolute;inset:0;z-index:-1;
+  background:
+    linear-gradient(100deg,rgba(11,7,20,.94) 0%,rgba(11,7,20,.72) 38%,rgba(11,7,20,.16) 68%,rgba(11,7,20,.45) 100%),
+    linear-gradient(rgba(11,7,20,.35),rgba(11,7,20,0) 30%,rgba(11,7,20,0) 55%,rgba(11,7,20,.97) 96%);
+}
+.hero-inner{width:100%;max-width:var(--max);margin:0 auto;padding:140px 24px 150px}
+.eyebrow{display:flex;align-items:center;gap:14px;color:var(--cyan);margin-bottom:34px}
+.eyebrow .rule{display:inline-block;width:44px;height:1px;background:linear-gradient(90deg,var(--cyan),var(--amber))}
+.hero h1{
+  font-size:clamp(3.1rem,8.2vw,7.2rem);
+  letter-spacing:-.02em;
+  max-width:11ch;
+}
+.hero h1 em{font-style:italic;color:var(--amber);font-weight:300}
+.hero p.lede{max-width:33rem;margin:34px 0 44px;color:#d8cfe6;font-size:clamp(1rem,1.4vw,1.18rem)}
+.hero-cta{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.hero-meta{margin-top:56px;display:flex;gap:34px;flex-wrap:wrap;color:var(--mute)}
+.hero-meta span b{color:var(--cream);font-weight:500}
+
+/* scroll hint */
+.scroll-hint{position:absolute;bottom:34px;right:38px;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--mute)}
+.scroll-hint .stem{width:1px;height:52px;background:linear-gradient(var(--amber),transparent);animation:stem 2.2s ease-in-out infinite}
+@keyframes stem{0%,100%{transform:scaleY(1);opacity:1}50%{transform:scaleY(.55);opacity:.4}}
+
+/* ---------- marquee ---------- */
+.marquee{border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);overflow:hidden;padding:18px 0;background:rgba(21,13,36,.55)}
+.marquee-track{display:flex;gap:0;width:max-content;animation:mar 30s linear infinite}
+.marquee span{font-family:'Space Mono',monospace;font-size:.74rem;letter-spacing:.3em;text-transform:uppercase;color:var(--mute);padding:0 28px;white-space:nowrap}
+.marquee span i{color:var(--amber);font-style:normal;padding-right:56px}
+@keyframes mar{to{transform:translateX(-50%)}}
+
+/* ---------- sections ---------- */
+section{padding:130px 0}
+.sec-head{display:flex;align-items:baseline;gap:26px;margin-bottom:70px;flex-wrap:wrap}
+.sec-head .num{font-family:'Space Mono',monospace;color:var(--amber);font-size:.8rem;letter-spacing:.2em}
+.sec-head h2{font-size:clamp(2.2rem,4.6vw,3.8rem);letter-spacing:-.015em}
+.sec-head h2 em{font-style:italic;color:var(--amber);font-weight:300}
+
+/* reveal */
+.rv{opacity:0;transform:translateY(36px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
+.rv.in{opacity:1;transform:none}
+.rv.d1{transition-delay:.08s}.rv.d2{transition-delay:.16s}.rv.d3{transition-delay:.24s}
+
+/* ---------- listen: vinyl stage ---------- */
+.stage{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:110px;align-items:center}
+.stage-right{position:relative;z-index:3}
+.sleeve{position:relative;width:100%;aspect-ratio:1}
+.cover{
+  position:relative;z-index:2;width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;display:block;
+  box-shadow:0 44px 100px rgba(0,0,0,.65), 0 0 90px rgba(255,61,138,.22);
+  transition:opacity .35s ease, transform .7s cubic-bezier(.2,.8,.2,1);
+  background:linear-gradient(135deg,var(--panel-2),var(--panel));
+}
+.stage.playing .cover{transform:rotate(-2.5deg) translateX(-4%)}
+
+/* glass-sleeve animation layer — keeps artwork and logo pixel-crisp */
+.fx{position:absolute;inset:0;z-index:3;border-radius:16px;overflow:hidden;pointer-events:none;transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.stage.playing .fx{transform:rotate(-2.5deg) translateX(-4%)}
+.fx::before{
+  content:"";position:absolute;top:-25%;bottom:-25%;left:-60%;width:42%;
+  background:linear-gradient(105deg,transparent,rgba(246,242,250,.10) 42%,rgba(246,242,250,.22) 50%,rgba(246,242,250,.10) 58%,transparent);
+  transform:skewX(-12deg);
+  animation:sheen 5s cubic-bezier(.45,.05,.3,1) infinite;
+}
+@keyframes sheen{0%{left:-60%}60%{left:135%}100%{left:135%}}
+.fx::after{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(62% 62% at 50% 40%,rgba(255,184,77,.14),transparent 72%);
+  animation:coverGlow 3.6s ease-in-out infinite;
+}
+@keyframes coverGlow{0%,100%{opacity:.35}50%{opacity:1}}
+.fx i{position:absolute;bottom:6%;width:4px;height:4px;border-radius:50%;background:rgba(255,196,110,.85);box-shadow:0 0 8px rgba(255,184,77,.7);animation:dust linear infinite;opacity:0}
+.fx i:nth-child(1){left:14%;animation-duration:6.5s;animation-delay:0s}
+.fx i:nth-child(2){left:32%;animation-duration:8s;animation-delay:1.8s;width:3px;height:3px}
+.fx i:nth-child(3){left:50%;animation-duration:7s;animation-delay:3.2s}
+.fx i:nth-child(4){left:64%;animation-duration:9s;animation-delay:.9s;width:3px;height:3px}
+.fx i:nth-child(5){left:78%;animation-duration:7.5s;animation-delay:2.4s}
+.fx i:nth-child(6){left:88%;animation-duration:8.5s;animation-delay:4.1s;width:3px;height:3px}
+@keyframes dust{
+  0%{transform:translateY(0) translateX(0);opacity:0}
+  12%{opacity:.9}
+  55%{opacity:.55}
+  100%{transform:translateY(-390px) translateX(14px);opacity:0}
+}
+
+/* youtube duet panel */
+.yt-wrap{width:100%}
+.yt-frame{
+  aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#000;
+  box-shadow:0 44px 100px rgba(0,0,0,.65), 0 0 90px rgba(62,224,255,.16);
+  border:1px solid rgba(246,242,250,.12);
+}
+.yt-frame iframe{width:100%;height:100%;border:0;display:block}
+.yt-cap{margin-top:18px;color:var(--mute);font-size:.9rem;line-height:1.6}
+.yt-cap a{color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(62,224,255,.35);transition:border-color .25s,color .25s}
+.yt-cap a:hover{color:var(--amber-hi);border-color:var(--amber-hi)}
+.disc{
+  position:absolute;top:2.5%;left:0;width:95%;aspect-ratio:1;z-index:1;
+  transform:translateX(7%);transition:transform 1s cubic-bezier(.2,.8,.2,1);
+}
+.stage.playing .disc{transform:translateX(23%)}
+.platter{
+  width:100%;height:100%;border-radius:50%;position:relative;display:grid;place-items:center;
+  background:repeating-radial-gradient(circle at 50% 50%, #0d0a12 0 3px, #191220 3px 4.5px);
+  box-shadow:0 26px 70px rgba(0,0,0,.65), inset 0 0 50px rgba(0,0,0,.85);
+}
+.platter::before{
+  content:"";position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 210deg, transparent 0 38%, rgba(246,242,250,.08) 46%, transparent 54%, transparent 76%, rgba(246,242,250,.06) 84%, transparent 92%);
+}
+.stage.playing .platter{animation:spin 3s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.disc-label{width:32%;aspect-ratio:1;border-radius:50%;background:#5C2D44 url('assets/label-mark.png') center/50% no-repeat;position:relative;z-index:2;display:grid;place-items:center;box-shadow:0 0 26px rgba(0,0,0,.55), inset 0 0 0 2px rgba(246,242,250,.14)}
+.disc-label::after{content:"";width:9%;aspect-ratio:1;border-radius:50%;background:#0d0a12;box-shadow:0 0 0 3px rgba(246,242,250,.1)}
+@media (max-width:960px){
+  .stage{grid-template-columns:1fr;gap:54px}
+  .sleeve{max-width:340px;margin:0 auto}
+  .stage.playing .disc{transform:translateX(16%)}
+}
+
+.deck{
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:44px 46px 38px;
+  box-shadow:0 40px 90px rgba(0,0,0,.5), inset 0 1px 0 rgba(244,239,230,.05);
+  position:relative;overflow:hidden;
+}
+.deck::before{content:"";position:absolute;top:0;left:8%;right:8%;height:1px;background:linear-gradient(90deg,transparent,rgba(62,224,255,.55) 30%,rgba(255,61,138,.6) 70%,transparent)}
+.deck-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px;gap:16px;flex-wrap:wrap}
+.deck-top .label{display:flex;align-items:center;gap:12px;color:var(--mute)}
+.recdot{width:9px;height:9px;border-radius:50%;background:var(--rec);box-shadow:0 0 12px rgba(255,68,56,.8);animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.deck-body{display:flex;align-items:center;gap:30px}
+.play{
+  flex:0 0 auto;width:76px;height:76px;border-radius:50%;cursor:pointer;
+  background:linear-gradient(135deg,#ff7a45,var(--amber) 55%,var(--violet));border:none;display:grid;place-items:center;
+  transition:transform .25s,box-shadow .25s,filter .25s;
+  box-shadow:0 0 0 1px rgba(255,61,138,.45), 0 10px 40px rgba(255,61,138,.3);
+}
+.play:hover{transform:scale(1.06);filter:brightness(1.15);box-shadow:0 0 0 8px rgba(255,61,138,.14), 0 10px 46px rgba(255,61,138,.45)}
+.play svg{width:26px;height:26px;fill:#fff;margin-left:3px}
+.play.playing svg{margin-left:0}
+canvas#wave{width:100%;height:130px;display:block}
+.deck-note{margin-top:26px;color:var(--mute);font-size:.92rem;display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.deck-note b{color:var(--amber);font-weight:600}
+
+/* track list */
+.tracks{margin-top:28px;display:flex;flex-direction:column;gap:10px}
+.trk{
+  display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;text-align:left;
+  background:rgba(246,242,250,.03);border:1px solid var(--line-soft);border-radius:12px;
+  padding:16px 22px;cursor:pointer;color:var(--cream);font-family:'Inter',sans-serif;font-size:1rem;
+  transition:border-color .3s,background .3s,transform .3s;
+}
+.trk:hover{border-color:rgba(255,61,138,.4);transform:translateX(4px)}
+.trk.active{background:rgba(255,61,138,.08);border-color:rgba(255,61,138,.5)}
+.trk .tno{color:var(--cyan)}
+.trk.active .tno{color:var(--amber)}
+.trk .ttitle{display:block;font-weight:600;font-size:.98rem}
+.trk .tdesc{display:block;color:var(--mute);font-size:.85rem;margin-top:3px;line-height:1.5}
+.trk .ttag{border:1px solid var(--line-soft);border-radius:100px;padding:7px 15px;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
+.trk.active .ttag{color:#fff;background:linear-gradient(92deg,#ff7a45,var(--amber) 55%,var(--violet));border-color:transparent}
+
+/* ---------- curriculum / console ---------- */
+.lanes{display:flex;flex-direction:column;gap:18px}
+.lane{
+  display:grid;grid-template-columns:150px 1fr 250px;gap:36px;align-items:center;
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:1px solid var(--line-soft);border-radius:16px;
+  padding:38px 42px;position:relative;overflow:hidden;
+  transition:border-color .35s,transform .35s,box-shadow .35s;
+}
+.lane:hover{border-color:var(--line);transform:translateY(-3px);box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.lane::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--cyan),var(--amber) 60%,var(--violet))}
+.lane .hour{font-family:'Space Mono',monospace;color:var(--cyan);font-size:.75rem;letter-spacing:.2em;text-transform:uppercase}
+.lane .hour b{display:block;font-family:'Fraunces',serif;font-weight:400;font-size:2.6rem;color:var(--cream);letter-spacing:0;line-height:1.1;margin-top:8px}
+.lane h3{font-size:1.55rem;margin-bottom:10px;letter-spacing:-.01em}
+.lane p{color:var(--mute);font-size:.98rem;max-width:46rem}
+.lane .tag{justify-self:end;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--mute);border:1px solid var(--line-soft);border-radius:100px;padding:8px 16px;white-space:nowrap}
+.lane.premium .tag{color:#fff;background:linear-gradient(92deg,#ff7a45,var(--amber) 55%,var(--violet));border-color:transparent}
+.lane .fader{justify-self:end;display:flex;gap:7px;align-items:flex-end;height:44px;margin-top:14px}
+.lane .fader i{width:4px;border-radius:2px;animation:eq 1.5s ease-in-out infinite}
+.lane .fader i:nth-child(1){height:40%;animation-delay:0s;background:rgba(62,224,255,.6)}
+.lane .fader i:nth-child(2){height:75%;animation-delay:.18s;background:rgba(255,61,138,.6)}
+.lane .fader i:nth-child(3){height:55%;animation-delay:.36s;background:rgba(255,184,77,.6)}
+.lane .fader i:nth-child(4){height:90%;animation-delay:.1s;background:rgba(139,92,246,.7)}
+.lane .fader i:nth-child(5){height:35%;animation-delay:.28s;background:rgba(62,224,255,.6)}
+@keyframes eq{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.15)}}
+.lane-side{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+
+/* takeaway chips */
+.chips{margin-top:56px;display:flex;gap:14px;flex-wrap:wrap}
+.chip{font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:#d8cfe6;border:1px solid rgba(139,92,246,.3);padding:12px 22px;border-radius:100px;background:rgba(21,13,36,.6)}
+.chip b{color:var(--amber);font-weight:400}
+.notice{margin-top:36px;display:flex;gap:26px;align-items:flex-start;border:1px solid rgba(255,184,77,.4);background:linear-gradient(90deg,rgba(255,184,77,.09),rgba(255,61,138,.05));border-radius:14px;padding:24px 28px}
+.notice .mono{color:var(--gold);white-space:nowrap;padding-top:4px}
+.notice p{color:#d8cfe6;font-size:.96rem;margin:0;max-width:60rem}
+.notice b{color:var(--gold);font-weight:600}
+@media (max-width:720px){.notice{flex-direction:column;gap:10px}}
+
+/* ---------- instructor ---------- */
+.inst{display:grid;grid-template-columns:minmax(300px,460px) 1fr;gap:80px;align-items:center}
+.inst-photo{position:relative;border-radius:18px;overflow:hidden;box-shadow:0 50px 110px rgba(0,0,0,.6)}
+.inst-photo img,.inst-photo video{width:100%;display:block;transform:scale(1.02)}
+.inst-photo::after{content:"";position:absolute;inset:0;border:1px solid rgba(244,239,230,.1);border-radius:18px;pointer-events:none}
+.inst-photo .plate{
+  position:absolute;left:18px;bottom:18px;right:18px;
+  background:rgba(11,7,20,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--line-soft);border-radius:12px;padding:14px 20px;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+}
+.inst-photo .plate .mono{color:var(--amber)}
+.inst h2{font-size:clamp(2rem,3.6vw,3.1rem);margin-bottom:26px;letter-spacing:-.015em}
+.inst h2 em{font-style:italic;color:var(--amber);font-weight:300}
+.inst p{color:#d8cfe6;margin-bottom:20px;max-width:36rem}
+.inst p.dim{color:var(--mute);font-size:.95rem}
+
+/* ---------- sessions ---------- */
+#sessions{position:relative}
+#sessions::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 50% at 30% 0%,rgba(255,61,138,.1),transparent 70%),radial-gradient(50% 45% at 80% 10%,rgba(62,224,255,.08),transparent 70%);pointer-events:none}
+.sess-grid{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+.sess{
+  position:relative;display:block;text-decoration:none;
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:1px solid var(--line-soft);border-radius:20px;
+  padding:46px 46px 42px;overflow:hidden;
+  transition:transform .4s cubic-bezier(.2,.8,.2,1),border-color .4s,box-shadow .4s;
+}
+.sess:hover{transform:translateY(-6px);border-color:rgba(255,61,138,.5);box-shadow:0 34px 80px rgba(0,0,0,.55),0 0 70px rgba(255,61,138,.13)}
+.sess::after{
+  content:"";position:absolute;top:0;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(62,224,255,.6) 30%,rgba(255,61,138,.65) 70%,transparent);
+  opacity:0;transition:opacity .4s;
+}
+.sess:hover::after{opacity:1}
+.sess-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:36px}
+.sess-top .live{display:flex;align-items:center;gap:10px;color:var(--mute)}
+.sess .day{font-family:'Fraunces',serif;font-size:clamp(2rem,3.4vw,2.9rem);letter-spacing:-.015em;line-height:1.12;margin-bottom:8px}
+.sess .day em{font-style:italic;color:var(--amber);font-weight:300}
+.sess .time{color:#d8cfe6;margin-bottom:34px}
+.sess-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line-soft);padding-top:26px;flex-wrap:wrap;gap:14px}
+.sess-foot .price{font-family:'Fraunces',serif;font-size:1.5rem}
+.sess-foot .price span{font-size:.85rem;color:var(--mute);font-family:'Inter',sans-serif}
+.sess-foot .go{display:flex;align-items:center;gap:10px;font-family:'Space Mono',monospace;font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;color:var(--amber)}
+.sess-foot .go svg{width:17px;height:17px;transition:transform .3s}
+.sess:hover .go svg{transform:translateX(6px)}
+.sess-note{margin-top:34px;text-align:center;color:var(--mute);font-size:.95rem}
+.sess-note b{color:var(--cream);font-weight:500}
+
+/* ---------- faq ---------- */
+.faq{max-width:760px;margin:0 auto}
+details{border-bottom:1px solid var(--line-soft)}
+summary{
+  cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:24px;
+  padding:30px 6px;font-family:'Fraunces',serif;font-size:1.3rem;letter-spacing:-.01em;
+  transition:color .25s;
+}
+summary::-webkit-details-marker{display:none}
+summary:hover{color:var(--amber-hi)}
+summary .ix{flex:0 0 auto;width:30px;height:30px;border:1px solid var(--line-soft);border-radius:50%;display:grid;place-items:center;transition:transform .35s,background .35s,border-color .35s}
+summary .ix::before{content:"+";font-family:'Inter',sans-serif;font-weight:400;color:var(--mute);line-height:1}
+details[open] .ix{transform:rotate(45deg);background:linear-gradient(135deg,#ff7a45,var(--amber) 60%,var(--violet));border-color:transparent}
+details[open] .ix::before{color:#fff}
+details p{padding:0 6px 30px;color:var(--mute);max-width:60ch}
+details p b{color:var(--cream);font-weight:500}
+
+/* ---------- finale ---------- */
+.finale{text-align:center;padding:170px 24px 150px;position:relative;overflow:hidden}
+.finale::before{content:"";position:absolute;inset:0;background:radial-gradient(50% 60% at 35% 100%,rgba(255,61,138,.14),transparent 70%),radial-gradient(45% 55% at 75% 100%,rgba(62,224,255,.11),transparent 70%),radial-gradient(40% 50% at 55% 0%,rgba(139,92,246,.1),transparent 70%);pointer-events:none}
+.finale h2{font-size:clamp(2.6rem,6vw,5rem);letter-spacing:-.02em;max-width:16ch;margin:0 auto 26px}
+.finale h2 em{font-style:italic;color:var(--amber);font-weight:300}
+.finale p{color:var(--mute);max-width:34rem;margin:0 auto 46px}
+.finale .hero-cta{justify-content:center}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid var(--line-soft);padding:38px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;color:var(--mute);font-size:.85rem}
+footer .brand{font-family:'Fraunces',serif;font-size:1rem;color:var(--cream)}
+footer .brand em{color:var(--amber);font-style:italic}
+
+/* ---------- mobile booking bar ---------- */
+.mbar{
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:1200;
+  background:rgba(11,7,20,.9);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-top:1px solid var(--line-soft);
+  padding:12px 18px calc(12px + env(safe-area-inset-bottom));
+  align-items:center;justify-content:space-between;gap:14px;
+  transform:translateY(110%);transition:transform .45s cubic-bezier(.2,.8,.2,1);
+}
+.mbar.on{transform:none}
+.mbar .m-info{line-height:1.3}
+.mbar .m-info .d{font-size:.86rem;font-weight:600}
+.mbar .m-info .p{font-size:.76rem;color:var(--mute)}
+
+@media (max-width:960px){
+  .lane{grid-template-columns:1fr;gap:18px;padding:32px 28px}
+  .lane .fader{display:none}
+  .lane-side{flex-direction:row;align-items:center;justify-content:flex-start}
+  .lane .tag{justify-self:start}
+  .inst{grid-template-columns:1fr;gap:48px}
+  .sess-grid{grid-template-columns:1fr}
+  .bar .dates{display:none}
+}
+@media (max-width:720px){
+  section{padding:90px 0}
+  .hero-inner{padding:120px 24px 120px}
+  .hero-media img,.hero-media video{object-position:68% 25%}
+  .deck{padding:30px 24px 26px}
+  .deck-body{flex-direction:column;gap:22px}
+  .play{width:64px;height:64px}
+  .scroll-hint{display:none}
+  .trk{grid-template-columns:auto 1fr;gap:14px}
+  .trk .ttag{display:none}
+  .hero-brand{height:24px}
+  .hero-top{padding-top:26px}
+  .mbar{display:flex}
+  .bar .btn{display:none}
+  footer{padding-bottom:110px}
+}
+/* spectrum headline accents */
+.hero h1 em,.sec-head h2 em,.inst h2 em,.finale h2 em,.sess .day em{
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.bar .brand em,footer .brand em{color:var(--amber)}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .rv{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<!-- top bar -->
+<nav class="bar" id="bar">
+  <div class="bar-left">
+    <a href="#top"><img class="logo" src="assets/logo.png" alt="Impactus Learning — Empowering Minds"></a>
+    <span class="nav-links">
+      <a href="https://impactuslearning.com/" target="_blank" rel="noopener">Home</a>
+      <a href="https://events.impactuslearning.com/" target="_blank" rel="noopener">Events</a>
+    </span>
+  </div>
+  <div class="dates mono">29 &amp; 30 July · 7–10pm SGT · SGD 120</div>
+  <a class="btn small" href="#sessions">Book a seat</a>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header class="hero" id="top">
+  <div class="hero-top"><div class="wrap hero-top-row">
+    <img class="logo hero-brand" src="assets/logo.png" alt="Impactus Learning — Empowering Minds">
+    <span class="nav-links">
+      <a href="https://impactuslearning.com/" target="_blank" rel="noopener">Home</a>
+      <a href="https://events.impactuslearning.com/" target="_blank" rel="noopener">Events</a>
+    </span>
+  </div></div>
+  <div class="hero-media" id="heroMedia">
+    <video autoplay muted loop playsinline poster="assets/hero.jpg" aria-label="Dr Andrew Chew DJing under club lights" id="heroVid">
+      <source src="assets/hero-loop.mp4" type="video/mp4">
+    </video>
+  </div>
+  <div class="hero-shade"></div>
+  <div class="hero-inner">
+    <div class="eyebrow mono rv in"><span class="rule"></span>The AI Audio Masterclass · Live on Zoom · Built for complete beginners</div>
+    <h1 class="rv in">Your first real song. <em>Tonight.</em></h1>
+    <p class="lede rv in d1">Even if you've never made music in your life. A live, three-hour, hands-on evening for complete beginners and hobbyist creators — the people with songs stuck in their head and no way to get them out. You'll write and produce finished songs with <b>Suno</b>, add sound effects with <b>ElevenLabs</b>, and blend it all into one clean mix with <b>Audacity</b>. No theory. No instruments. Just the song you've been carrying around.</p>
+    <div class="hero-cta rv in d2">
+      <a class="btn" href="#sessions">Make my first song · SGD 120</a>
+      <a class="btn ghost" href="#listen">◉&nbsp; Hear what you'll make</a>
+    </div>
+    <div class="hero-meta mono rv in d3">
+      <span><b>3 hours</b>&nbsp; hands-on</span>
+      <span><b>7–10pm</b>&nbsp; SGT</span>
+      <span><b>Zero experience</b>&nbsp; needed</span>
+    </div>
+  </div>
+  <div class="scroll-hint mono"><span>Scroll</span><span class="stem"></span></div>
+</header>
+
+<!-- marquee -->
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track" id="marq">
+    <span>Your first song <i>·</i> A whole EP in one voice <i>·</i> Your own voice, singing <i>·</i> Hum it, Suno finishes it <i>·</i> Sound effects <i>·</i> A clean final mix <i>·</i> Live on Zoom <i>·</i></span>
+    <span>Your first song <i>·</i> A whole EP in one voice <i>·</i> Your own voice, singing <i>·</i> Hum it, Suno finishes it <i>·</i> Sound effects <i>·</i> A clean final mix <i>·</i> Live on Zoom <i>·</i></span>
+  </div>
+</div>
+
+<!-- ================= LISTEN ================= -->
+<section id="listen">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="num">TRK 01</span><h2>Hear what <em>you'll make.</em></h2></div>
+    <div class="stage rv d1" id="stage">
+      <div class="sleeve-zone">
+        <div class="sleeve" id="sleeveBox">
+          <div class="disc"><div class="platter"><div class="disc-label"></div></div></div>
+          <video class="cover" id="coverArt" src="assets/cover-1.mp4" poster="assets/cover-1.jpg" autoplay muted loop playsinline aria-label="Now playing — album artwork"></video>
+          <div class="fx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="yt-wrap" id="ytWrap" hidden>
+          <div class="yt-frame" id="ytFrame"></div>
+          <p class="yt-cap">A Suno duet, taken all the way to a full music video. Animation isn't covered in this class — if that's your jam, <a href="http://events.impactuslearning.com/animation" target="_blank" rel="noopener">check out the Animation Masterclass&nbsp;→</a></p>
+        </div>
+      </div>
+      <div class="stage-right">
+      <div class="deck-top">
+        <div class="label mono"><span class="recdot"></span>Now playing · <span id="npName">Impactus Learning jingle</span></div>
+        <div class="label mono">Stereo · Made in Suno</div>
+      </div>
+      <div class="deck-body">
+        <button class="play" id="playBtn" aria-label="Play demo track">
+          <svg viewBox="0 0 24 24" id="playIcon"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <canvas id="wave"></canvas>
+      </div>
+      <div class="tracks">
+        <button class="trk active" data-src="assets/demo-track.mp3" data-name="Impactus Learning jingle" data-cover="assets/cover-1.jpg" data-vid="assets/cover-1.mp4">
+          <span class="tno mono">01</span>
+          <span class="tinfo">
+            <span class="ttitle">Impactus Learning jingle</span>
+            <span class="tdesc">Our real jingle — made in Suno by your trainer, no studio, no musicians. By the end of hour one, you'll have made something like this yourself.</span>
+          </span>
+          <span class="ttag mono">Brand marketing</span>
+        </button>
+        <button class="trk" data-src="assets/demo-track-2.mp3" data-name="Finding Love in Winter" data-cover="assets/cover-2.jpg" data-vid="assets/cover-2.mp4">
+          <span class="tno mono">02</span>
+          <span class="tinfo">
+            <span class="ttitle">Finding Love in Winter</span>
+            <span class="tdesc">A complete song, sung in another language. Your songs won't be limited to English — write in whatever language you dream in.</span>
+          </span>
+          <span class="ttag mono">Other languages</span>
+        </button>
+        <button class="trk" data-src="assets/demo-track-3.mp3" data-name="Song With Birds" data-cover="assets/cover-3.jpg" data-vid="assets/cover-3.mp4">
+          <span class="tno mono">03</span>
+          <span class="tinfo">
+            <span class="ttitle">Song With Birds</span>
+            <span class="tdesc">Hear the birds? You'll generate them yourself as a sound effect, then blend them into your track — the exact finishing move from hour three.</span>
+          </span>
+          <span class="ttag mono">Sound effects</span>
+        </button>
+        <button class="trk" data-yt="3fXBMFfxAeM" data-name="Create Your Own Duet">
+          <span class="tno mono">04</span>
+          <span class="tinfo">
+            <span class="ttitle">Create Your Own Duet</span>
+            <span class="tdesc">Two AI voices singing one song — you'll be able to make your own duet. This one went even further and became a full music video.</span>
+          </span>
+          <span class="ttag mono">Duet · Music video</span>
+        </button>
+      </div>
+      <div class="deck-note">
+        <span>Tracks 01–04: all made in <b>Suno</b> — no studio, no musicians, no musical training. That's the point.</span>
+        <span class="mono" id="timecode">00:00</span>
+      </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CURRICULUM ================= -->
+<section id="session">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="num">TRK 02</span><h2>What you'll walk out <em>able to do.</em></h2></div>
+    <div class="lanes">
+      <div class="lane rv">
+        <div class="hour">Hour <b>01</b></div>
+        <div>
+          <h3>Turn a sentence into a finished song</h3>
+          <p>Type one line about the song in your head, and Suno writes and performs it — melody, vocals, production, all of it. Within the first hour you'll have complete songs that are genuinely yours, plus the prompt patterns that make them sound intended, not generated. No theory. No instruments.</p>
+        </div>
+        <div class="lane-side">
+          <span class="tag">Your first song</span>
+          <span class="fader"><i></i><i></i><i></i><i></i><i></i></span>
+        </div>
+      </div>
+      <div class="lane rv d1">
+        <div class="hour">Hour <b>02</b></div>
+        <div>
+          <h3>Make it unmistakably yours</h3>
+          <p>Rework a lucky draft like a producer — extend it, rewrite a verse, swap the style mid-song. Then the moves nobody expects from a beginner: hum or sing a fragment and let Suno finish the rest, put <b style="color:var(--cream)">your own singing voice</b> into the track, and save your sound as a <b style="color:var(--cream)">Persona</b> — one consistent AI artist that could carry a whole EP.</p>
+        </div>
+        <div class="lane-side">
+          <span class="tag">Your voice · Personas</span>
+          <span class="fader"><i></i><i></i><i></i><i></i><i></i></span>
+        </div>
+      </div>
+      <div class="lane premium rv d2">
+        <div class="hour">Hour <b>03</b></div>
+        <div>
+          <h3>Finish it so it sounds finished</h3>
+          <p>The difference between "AI demo" and "my song" is the finishing. Generate lifelike sound effects in ElevenLabs — birdsong, rain, a crowd — and blend everything into one clean, polished mix in Audacity. You leave with tracks that are done, not almost-done.</p>
+        </div>
+        <div class="lane-side">
+          <span class="tag">★ Premium segment</span>
+          <span class="fader"><i></i><i></i><i></i><i></i><i></i></span>
+        </div>
+      </div>
+      <div class="lane rv d3">
+        <div class="hour">Bonus <b>+</b></div>
+        <div>
+          <h3>The door: your song, out in the world</h3>
+          <p>A short walkthrough of how creators put their songs on Spotify and Apple Music with DistroKid, and how streaming royalties actually work. Not a promise you'll get rich — just the door, and the key. Whether you walk through it is entirely up to you.</p>
+        </div>
+        <div class="lane-side">
+          <span class="tag">Optional path</span>
+          <span class="fader"><i></i><i></i><i></i><i></i><i></i></span>
+        </div>
+      </div>
+    </div>
+    <div class="chips rv d2">
+      <span class="chip"><b>No</b> music theory needed</span>
+      <span class="chip"><b>No</b> production experience</span>
+      <span class="chip">Bring a laptop <b>+</b> headphones</span>
+      <span class="chip">Paid Suno plan <b>strongly recommended</b></span>
+      <span class="chip">Leave with songs <b>you're proud of</b></span>
+    </div>
+    <div class="notice rv d3">
+      <span class="mono">Go hands-on</span>
+      <p>A <b>paid Suno plan</b> is strongly recommended for the full hands-on experience. On the free tier you'll mostly watch and listen — with a paid plan you build every song yourself, live, and unlock the hour-two magic: your own voice in a track, hum-and-extend, and Personas.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= INSTRUCTOR ================= -->
+<section id="instructor">
+  <div class="wrap inst">
+    <div class="inst-photo rv">
+      <video src="assets/portrait-loop.mp4" poster="assets/portrait.jpg" autoplay muted loop playsinline aria-label="Dr Andrew Chew, AI trainer, Impactus Learning"></video>
+      <div class="plate">
+        <span class="mono">Your trainer</span>
+        <span class="mono" style="color:var(--mute)">Impactus Learning</span>
+      </div>
+    </div>
+    <div class="rv d1">
+      <h2>Learn from someone who <em>teaches this for a living.</em></h2>
+      <p><b>Dr Andrew Chew</b> is the trainer behind Impactus Learning's AI masterclass series, teaching working professionals across Singapore how to put AI tools to real use — clearly, hands-on, and without the hype.</p>
+      <p>His classes are built around one rule: you don't watch, you make. And here's the honest part — Andrew isn't a musician and has never released an album. Every track on this page was made in Suno, exactly the way you'll make yours. If he can, you can. By 10pm, the work on screen is yours.</p>
+      <p class="dim">Corporate AI training delivered for organisations across logistics, FMCG and the public sector, alongside national AI upskilling cohorts.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SESSIONS ================= -->
+<section id="sessions">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="num">TRK 03</span><h2>Pick the evening <em>your song gets made.</em></h2></div>
+    <div class="sess-grid">
+      <a class="sess rv" href="https://luma.com/y2zc1igf" target="_blank" rel="noopener">
+        <div class="sess-top">
+          <span class="mono" style="color:var(--amber)">Session 01</span>
+          <span class="live mono"><span class="recdot"></span>Live on Zoom</span>
+        </div>
+        <div class="day">Wednesday<br><em>29 July 2026</em></div>
+        <div class="time">7:00 – 10:00 PM SGT</div>
+        <div class="sess-foot">
+          <div class="price">SGD 120 <span>/ seat</span></div>
+          <div class="go">Reserve on Luma
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </div>
+        </div>
+      </a>
+      <a class="sess rv d1" href="https://luma.com/j67udfka" target="_blank" rel="noopener">
+        <div class="sess-top">
+          <span class="mono" style="color:var(--amber)">Session 02</span>
+          <span class="live mono"><span class="recdot"></span>Live on Zoom</span>
+        </div>
+        <div class="day">Thursday<br><em>30 July 2026</em></div>
+        <div class="time">7:00 – 10:00 PM SGT</div>
+        <div class="sess-foot">
+          <div class="price">SGD 120 <span>/ seat</span></div>
+          <div class="go">Reserve on Luma
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </div>
+        </div>
+      </a>
+    </div>
+    <p class="sess-note rv d2">The same 3-hour class, run twice — <b>pick the evening that suits you</b>. Seats are limited to keep it hands-on.</p>
+  </div>
+</section>
+
+<!-- ================= FAQ ================= -->
+<section id="faq">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="num">TRK 04</span><h2>Before you <em>ask.</em></h2></div>
+    <div class="faq rv d1">
+      <details>
+        <summary>Do I need any music background?<span class="ix"></span></summary>
+        <p>None at all — not a note. If you can describe the song you want in a sentence, you can make it. The class is built for <b>complete beginners and hobbyist creators</b>; we start from zero and you build up live.</p>
+      </details>
+      <details>
+        <summary>What do I need to bring?<span class="ix"></span></summary>
+        <p>A laptop, headphones, a <b>Suno</b> account (see the next question about going paid), a free <b>ElevenLabs</b> account, and the free <b>Audacity</b> app. Set-up instructions are sent after you register.</p>
+      </details>
+      <details>
+        <summary>Do I need the paid version of Suno?<span class="ix"></span></summary>
+        <p><b>Strongly recommended.</b> This is a hands-on class, and the free tier's limits mean you'd largely be listening in rather than building. A paid plan lets you make every song yourself live — and unlocks the best parts of hour two: putting your own singing voice into a track, hum-and-extend, and Personas.</p>
+      </details>
+      <details>
+        <summary>Is this live or recorded?<span class="ix"></span></summary>
+        <p><b>Live on Zoom</b>, 7–10pm Singapore time. It's hands-on — you'll be making tracks alongside the class, with time for questions as you go.</p>
+      </details>
+      <details>
+        <summary>What's the difference between the two dates?<span class="ix"></span></summary>
+        <p>Nothing — it's the <b>same class on two evenings</b>. Choose Wednesday 29 July or Thursday 30 July, whichever fits your week.</p>
+      </details>
+      <details>
+        <summary>What will I walk away with?<span class="ix"></span></summary>
+        <p>Finished songs you wrote and produced yourself — plus custom sound effects, a clean final mix, and a repeatable workflow you can use again the very next morning. And if you're ever curious about releasing your music, you'll know exactly how that door opens (DistroKid, streaming royalties) — with zero pressure to walk through it.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FINALE ================= -->
+<div class="finale">
+  <h2 class="rv">That song in your head? <em>It's three hours from real.</em></h2>
+  <p class="rv d1">One evening. Zero experience needed. Limited seats — and a song with your name on it by 10pm.</p>
+  <div class="hero-cta rv d2">
+    <a class="btn" href="https://luma.com/y2zc1igf" target="_blank" rel="noopener">Wed 29 July · Book</a>
+    <a class="btn ghost" href="https://luma.com/j67udfka" target="_blank" rel="noopener">Thu 30 July · Book</a>
+  </div>
+</div>
+
+<footer>
+  <img class="logo foot-logo" src="assets/logo.png" alt="Impactus Learning — Empowering Minds">
+  <div>AI Audio Masterclass · Live on Zoom · SGD 120</div>
+  <div>© 2026 Impactus Learning Pte Ltd</div>
+</footer>
+
+<!-- mobile booking bar -->
+<div class="mbar" id="mbar">
+  <div class="m-info">
+    <div class="d">AI Audio Masterclass</div>
+    <div class="p">29 &amp; 30 Jul · 7–10pm · SGD 120</div>
+  </div>
+  <a class="btn small" href="#sessions">Book</a>
+</div>
+
+<audio id="demo" src="assets/demo-track.mp3" preload="metadata"></audio>
+
+<script>
+/* ---------- reveal on scroll ---------- */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.14});
+document.querySelectorAll('.rv:not(.in)').forEach(el=>io.observe(el));
+
+/* ---------- top bar + mobile bar ---------- */
+const bar=document.getElementById('bar'),mbar=document.getElementById('mbar');
+addEventListener('scroll',()=>{
+  const y=scrollY,past=y>innerHeight*.7;
+  bar.classList.toggle('on',past);
+  mbar.classList.toggle('on',past && !inSessions());
+},{passive:true});
+function inSessions(){
+  const s=document.getElementById('sessions').getBoundingClientRect();
+  return s.top<innerHeight*.8 && s.bottom>0;
+}
+
+/* ---------- hero media: still image on small screens / reduced motion ---------- */
+(()=>{
+  const v=document.getElementById('heroVid');
+  if(v && (innerWidth<720 || matchMedia('(prefers-reduced-motion: reduce)').matches)){
+    const img=document.createElement('img');
+    img.src=v.getAttribute('poster');
+    img.alt=v.getAttribute('aria-label')||'';
+    img.id='heroImg';
+    v.replaceWith(img);
+  }
+})();
+
+/* ---------- hero parallax ---------- */
+const heroImg=document.querySelector('#heroMedia img,#heroMedia video');
+addEventListener('scroll',()=>{
+  const y=Math.min(scrollY,innerHeight);
+  if(heroImg)heroImg.style.transform=`scale(1.06) translateY(${y*.12}px)`;
+},{passive:true});
+
+/* ---------- waveform deck ---------- */
+const cv=document.getElementById('wave'),ctx=cv.getContext('2d');
+const audio=document.getElementById('demo');
+const btn=document.getElementById('playBtn'),icon=document.getElementById('playIcon');
+const tc=document.getElementById('timecode');
+let playing=false,t=0;
+
+function sizeCanvas(){
+  const r=cv.getBoundingClientRect();
+  cv.width=r.width*devicePixelRatio;cv.height=130*devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+addEventListener('resize',sizeCanvas);sizeCanvas();
+
+const BARS=64;
+function draw(){
+  requestAnimationFrame(draw);
+  t+=playing?.055:.016;
+  const w=cv.width/devicePixelRatio,h=130,gap=w/BARS;
+  ctx.clearRect(0,0,w,h);
+  for(let i=0;i<BARS;i++){
+    let v;
+    if(playing){
+      const ct=audio.currentTime||t;
+      v=.34+.24*Math.sin(i*.31+ct*7.3)+.18*Math.sin(i*.11-ct*4.1+1.7)+.12*Math.sin(i*.53+ct*11.7)+.1*Math.sin(ct*2.2)*Math.sin(i*.07);
+      v=Math.max(.08,Math.min(1,Math.abs(v)));
+    }else{
+      v=.24+.16*Math.sin(i*.35+t)+.11*Math.sin(i*.13-t*1.7)+.08*Math.sin(i*.71+t*.6);
+      v=Math.max(.08,v);
+    }
+    const bh=v*h*.92;
+    const x=i*gap+gap*.19,bw=gap*.62;
+    const hue=198+(i/BARS)*138; /* cyan → violet → magenta sweep */
+    const g=ctx.createLinearGradient(0,h/2-bh/2,0,h/2+bh/2);
+    g.addColorStop(0,`hsla(${hue},95%,70%,${playing?.98:.75}`+')');
+    g.addColorStop(1,`hsla(${hue},90%,52%,${playing?.6:.35}`+')');
+    ctx.shadowColor=`hsla(${hue},95%,62%,.55)`;
+    ctx.shadowBlur=playing?14:7;
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.roundRect(x,h/2-bh/2,bw,bh,bw/2);
+    ctx.fill();
+  }
+  ctx.shadowBlur=0;
+}
+draw();
+
+function fmt(s){s=Math.floor(s||0);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+audio.addEventListener('timeupdate',()=>tc.textContent=fmt(audio.currentTime));
+audio.addEventListener('ended',()=>setPlay(false));
+
+function setPlay(on){
+  playing=on;
+  btn.classList.toggle('playing',on);
+  document.getElementById('stage').classList.toggle('playing',on);
+  icon.innerHTML=on?'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>':'<path d="M8 5v14l11-7z"/>';
+}
+async function startPlayback(){
+  /* plain element playback — no WebAudio, nothing between the file and the speakers */
+  if(typeof hideYt==='function')hideYt();
+  audio.muted=false;audio.volume=1;
+  try{
+    await audio.play();
+    setPlay(true);
+  }catch(e){
+    /* no demo track present — pulse the ambient wave instead */
+    setPlay(true);setTimeout(()=>setPlay(false),4000);
+  }
+}
+btn.addEventListener('click',()=>{
+  if(playing){audio.pause();setPlay(false)}else{startPlayback()}
+});
+
+/* track switching */
+const np=document.getElementById('npName');
+const coverArt=document.getElementById('coverArt');
+const sleeveBox=document.getElementById('sleeveBox');
+const ytWrap=document.getElementById('ytWrap');
+const ytFrame=document.getElementById('ytFrame');
+function showYt(id){
+  sleeveBox.style.display='none';
+  ytWrap.hidden=false;
+  ytFrame.
