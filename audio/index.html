@@ -862,4 +862,76 @@ audio.addEventListener('ended',()=>setPlay(false));
 function setPlay(on){
   playing=on;
   btn.classList.toggle('playing',on);
-  docume
+  document.getElementById('stage').classList.toggle('playing',on);
+  icon.innerHTML=on?'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>':'<path d="M8 5v14l11-7z"/>';
+}
+async function startPlayback(){
+  /* plain element playback — no WebAudio, nothing between the file and the speakers */
+  if(typeof hideYt==='function')hideYt();
+  audio.muted=false;audio.volume=1;
+  try{
+    await audio.play();
+    setPlay(true);
+  }catch(e){
+    /* no demo track present — pulse the ambient wave instead */
+    setPlay(true);setTimeout(()=>setPlay(false),4000);
+  }
+}
+btn.addEventListener('click',()=>{
+  if(playing){audio.pause();setPlay(false)}else{startPlayback()}
+});
+
+/* track switching */
+const np=document.getElementById('npName');
+const coverArt=document.getElementById('coverArt');
+const sleeveBox=document.getElementById('sleeveBox');
+const ytWrap=document.getElementById('ytWrap');
+const ytFrame=document.getElementById('ytFrame');
+function showYt(id){
+  sleeveBox.style.display='none';
+  ytWrap.hidden=false;
+  ytFrame.innerHTML='<iframe src="https://www.youtube.com/embed/'+id+'?autoplay=1&rel=0" title="Duet music video demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+}
+function hideYt(){
+  if(ytWrap.hidden)return;
+  ytFrame.innerHTML='';
+  ytWrap.hidden=true;
+  sleeveBox.style.display='';
+}
+document.querySelectorAll('.trk').forEach(trk=>{
+  trk.addEventListener('click',()=>{
+    if(trk.dataset.yt){
+      if(trk.classList.contains('active'))return;
+      document.querySelectorAll('.trk').forEach(x=>x.classList.remove('active'));
+      trk.classList.add('active');
+      audio.pause();setPlay(false);
+      np.textContent=trk.dataset.name;
+      tc.textContent='—';
+      showYt(trk.dataset.yt);
+      return;
+    }
+    if(trk.classList.contains('active')){btn.click();return}
+    hideYt();
+    document.querySelectorAll('.trk').forEach(x=>x.classList.remove('active'));
+    trk.classList.add('active');
+    audio.pause();setPlay(false);
+    audio.src=trk.dataset.src;
+    np.textContent=trk.dataset.name;
+    tc.textContent='00:00';
+    coverArt.style.opacity=0;
+    setTimeout(()=>{
+      coverArt.poster=trk.dataset.cover;
+      if(trk.dataset.vid){
+        coverArt.src=trk.dataset.vid;
+        coverArt.onloadeddata=()=>{coverArt.style.opacity=1;coverArt.play().catch(()=>{})};
+      }else{
+        coverArt.removeAttribute('src');coverArt.load();
+      }
+      setTimeout(()=>{coverArt.style.opacity=1},900);
+    },300);
+    startPlayback();
+  });
+});
+</script>
+</body>
+</html>
