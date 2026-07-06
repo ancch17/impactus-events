@@ -148,10 +148,14 @@ section{padding:130px 0}
 .sec-head h2{font-size:clamp(2.2rem,4.6vw,3.8rem);letter-spacing:-.015em}
 .sec-head h2 em{font-style:italic;color:var(--amber);font-weight:300}
 
-/* reveal */
-.rv{opacity:0;transform:translateY(36px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
+/* reveal — visible by default; fade-in is a pure-CSS enhancement that can never hide content */
+.rv{opacity:1;transform:none}
+@media (prefers-reduced-motion:no-preference){
+  .rv{animation:rvIn .9s cubic-bezier(.2,.7,.2,1) both}
+  .rv.d1{animation-delay:.08s}.rv.d2{animation-delay:.16s}.rv.d3{animation-delay:.24s}
+  @keyframes rvIn{from{opacity:0;transform:translateY(36px)}to{opacity:1;transform:none}}
+}
 .rv.in{opacity:1;transform:none}
-.rv.d1{transition-delay:.08s}.rv.d2{transition-delay:.16s}.rv.d3{transition-delay:.24s}
 
 /* ---------- listen: vinyl stage ---------- */
 .stage{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:110px;align-items:center}
@@ -858,7 +862,4 @@ audio.addEventListener('ended',()=>setPlay(false));
 function setPlay(on){
   playing=on;
   btn.classList.toggle('playing',on);
-  document.getElementById('stage').classList.toggle('playing',on);
-  icon.innerHTML=on?'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>':'<path d="M8 5v14l11-7z"/>';
-}
-async function startPlayback()
+  docume
