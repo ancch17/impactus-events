@@ -278,6 +278,61 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </section>
 
+<!-- ============ PROMO VIDEO ============ -->
+<style>
+  .vid{position:relative;padding:clamp(66px,8vw,104px) 0;overflow:hidden;}
+  .vid__grid{display:grid;grid-template-columns:1fr .6fr;gap:56px;align-items:center;}
+  .vid__h{font-family:var(--serif);font-size:clamp(30px,4vw,52px);line-height:1.05;letter-spacing:-.015em;margin:18px 0 16px;}
+  .vid__h em{font-style:italic;color:var(--brand);}
+  .vid__d{font-size:17px;color:var(--ink-soft);line-height:1.66;max-width:460px;margin-bottom:26px;}
+  .vid__player{position:relative;width:100%;max-width:320px;margin:0 auto;aspect-ratio:9/16;border-radius:var(--r-xl);overflow:hidden;background:#000;cursor:pointer;border:1px solid var(--line);box-shadow:var(--shadow-lg);}
+  .vid__player img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease);}
+  .vid__player:hover img{transform:scale(1.05);}
+  .vid__player iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+  .vid__overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.12) 0%,transparent 38%,rgba(0,0,0,.42));z-index:1;pointer-events:none;}
+  .vid__play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;}
+  .vid__play span{width:72px;height:72px;border-radius:50%;background:rgba(122,59,16,.92);display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.4);transition:transform .3s var(--ease),background .3s;}
+  .vid__player:hover .vid__play span{transform:scale(1.09);background:var(--brand);}
+  .vid__tag{position:absolute;left:14px;bottom:14px;z-index:2;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);padding:6px 12px;border-radius:50px;pointer-events:none;}
+  @media(max-width:820px){.vid__grid{grid-template-columns:1fr;gap:32px;text-align:center;}.vid__copy .eyebrow{justify-content:center;}.vid__d{margin-left:auto;margin-right:auto;}}
+</style>
+<section class="vid" id="video">
+  <div class="wrap">
+    <div class="vid__grid">
+      <div class="vid__copy reveal">
+        <span class="eyebrow">Watch &middot; 60 seconds</span>
+        <h2 class="vid__h">See the masterclass <em>in action.</em></h2>
+        <p class="vid__d">A quick look at what three hands-on hours with Claude actually feel like &mdash; real building, no theory. Then reserve the date that suits you.</p>
+        <a href="#sessions" class="btn btn--primary btn--lg btn--shine" data-ga-event="cta_click" data-ga-label="reserve_seat" data-ga-location="video">Reserve your seat
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+      <div class="vid__player reveal reveal--sc" id="ytPlayer" data-ytid="0UKXvAxNhJA">
+        <div class="vid__overlay"></div>
+        <div class="vid__play"><span><svg width="25" height="25" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span></div>
+        <span class="vid__tag">Play promo</span>
+        <img src="https://i.ytimg.com/vi/0UKXvAxNhJA/maxresdefault.jpg" alt="Watch the Master Claude promo" loading="lazy" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/0UKXvAxNhJA/hqdefault.jpg'">
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+(function(){
+  var p=document.getElementById('ytPlayer');
+  if(!p)return;
+  p.addEventListener('click',function(){
+    var id=p.getAttribute('data-ytid');
+    var f=document.createElement('iframe');
+    f.src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&playsinline=1';
+    f.title='Master Claude promo';
+    f.setAttribute('allow','autoplay; encrypted-media; picture-in-picture; fullscreen');
+    f.setAttribute('allowfullscreen','');
+    p.innerHTML='';
+    p.appendChild(f);
+  },{once:true});
+})();
+</script>
+
 <!-- ============ PROOF BAND ============ -->
 <section class="proof">
   <div class="wrap">
