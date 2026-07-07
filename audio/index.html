@@ -269,6 +269,7 @@ section{padding:130px 0}
     transition:opacity .4s ease;
   }
   .np-art.np-art--on{display:block}
+  #ytWrap:not([hidden]){margin:14px 0 18px}
   .deck-top{justify-content:center;text-align:center}
 }
 
@@ -948,6 +949,8 @@ const ytWrap=document.getElementById('ytWrap');
 const ytFrame=document.getElementById('ytFrame');
 const npArt=document.getElementById('npArt');
 const stageEl=document.getElementById('stage');
+const ytHome=ytWrap.parentNode;
+function ytIsMobile(){return window.matchMedia('(max-width:960px)').matches;}
 /* mobile: pop the animated cover video in directly above the tapped track */
 function popArt(trk){
   if(!npArt)return;
@@ -962,18 +965,24 @@ function popArt(trk){
     try{npArt.pause();}catch(e){}
   }
 }
-function showYt(id){
-  sleeveBox.style.display='none';
-  ytWrap.hidden=false;
-  stageEl.classList.add('yt-on');
+function showYt(id,trk){
   if(npArt){npArt.classList.remove('np-art--on');try{npArt.pause();}catch(e){}}
   ytFrame.innerHTML='<iframe src="https://www.youtube.com/embed/'+id+'?autoplay=1&rel=0" title="Duet music video demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+  ytWrap.hidden=false;
+  if(ytIsMobile() && trk){
+    trk.parentNode.insertBefore(ytWrap,trk);            /* inline, directly above the tapped track */
+  }else{
+    if(ytWrap.parentNode!==ytHome)ytHome.appendChild(ytWrap);
+    sleeveBox.style.display='none';
+    stageEl.classList.add('yt-on');
+  }
 }
 function hideYt(){
   stageEl.classList.remove('yt-on');
   if(ytWrap.hidden)return;
   ytFrame.innerHTML='';
   ytWrap.hidden=true;
+  if(ytWrap.parentNode!==ytHome)ytHome.appendChild(ytWrap);   /* restore to top artwork area */
   sleeveBox.style.display='';
 }
 document.querySelectorAll('.trk').forEach(trk=>{
@@ -985,7 +994,7 @@ document.querySelectorAll('.trk').forEach(trk=>{
       audio.pause();setPlay(false);
       np.textContent=trk.dataset.name;
       tc.textContent='—';
-      showYt(trk.dataset.yt);
+      showYt(trk.dataset.yt,trk);
       return;
     }
     /* tapping the already-selected track toggles play/pause directly —
