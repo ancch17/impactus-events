@@ -852,7 +852,7 @@ function inSessions(){
 /* ---------- hero media: still image on small screens / reduced motion ---------- */
 (()=>{
   const v=document.getElementById('heroVid');
-  if(v && (innerWidth<720 || matchMedia('(prefers-reduced-motion: reduce)').matches)){
+  if(v && matchMedia('(prefers-reduced-motion: reduce)').matches){
     const img=document.createElement('img');
     img.src=v.getAttribute('poster');
     img.alt=v.getAttribute('aria-label')||'';
