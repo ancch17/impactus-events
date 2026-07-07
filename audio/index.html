@@ -185,6 +185,8 @@ section{padding:130px 0}
 /* ---------- listen: vinyl stage ---------- */
 .stage{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:110px;align-items:center}
 .stage-right{position:relative;z-index:3}
+/* mobile now-playing thumbnail (shown only on small screens, above the play button) */
+.np-thumb{display:none}
 .sleeve{position:relative;width:100%;aspect-ratio:1}
 .cover{
   position:relative;z-index:2;width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;display:block;
@@ -257,6 +259,17 @@ section{padding:130px 0}
   .stage{grid-template-columns:1fr;gap:54px}
   .sleeve{max-width:340px;margin:0 auto}
   .stage.playing .disc{transform:translateX(16%)}
+  /* hide the top vinyl artwork on mobile; show a live thumbnail above the play button instead */
+  .sleeve-zone{display:none}
+  .stage.yt-on .sleeve-zone{display:block;margin-bottom:26px}
+  .np-thumb{
+    display:block;width:100%;max-width:300px;aspect-ratio:1;object-fit:cover;
+    border-radius:16px;margin:0 auto 26px;
+    box-shadow:0 30px 70px rgba(0,0,0,.6),0 0 60px rgba(255,61,138,.18);
+    transition:opacity .4s ease;
+  }
+  .stage.yt-on .np-thumb{display:none}
+  .deck-top{justify-content:center;text-align:center}
 }
 
 .deck{
@@ -588,6 +601,7 @@ footer .brand em{color:var(--amber);font-style:italic}
         <div class="label mono"><span class="recdot"></span>Now playing · <span id="npName">Impactus Learning jingle</span></div>
         <div class="label mono">Stereo · Made in Suno</div>
       </div>
+      <img class="np-thumb" id="npThumb" src="assets/cover-1.jpg" alt="Now playing artwork">
       <div class="deck-body">
         <button class="play" id="playBtn" aria-label="Play demo track">
           <svg viewBox="0 0 24 24" id="playIcon"><path d="M8 5v14l11-7z"/></svg>
@@ -811,4 +825,185 @@ footer .brand em{color:var(--amber);font-style:italic}
   if('IntersectionObserver' in window){
     var io=new IntersectionObserver(function(es){
       es.forEach(function(e){if(e.isIntersecting){reveal(e.target);io.unobserve(e.target);}});
-    },{threshold:0.01, root
+    },{threshold:0.01, rootMargin:'0px 0px -8% 0px'});
+    els.forEach(function(el){io.observe(el);});
+  }
+  window.addEventListener('scroll',check,{passive:true});
+  window.addEventListener('resize',check,{passive:true});
+  window.addEventListener('load',check);
+  check();
+  /* failsafe: never leave content stuck hidden */
+  setTimeout(function(){document.querySelectorAll('.rv').forEach(function(el){el.classList.add('in');});},2500);
+})();
+
+/* ---------- top bar + mobile bar ---------- */
+const bar=document.getElementById('bar'),mbar=document.getElementById('mbar');
+addEventListener('scroll',()=>{
+  const y=scrollY,past=y>innerHeight*.7;
+  bar.classList.toggle('on',past);
+  mbar.classList.toggle('on',past && !inSessions());
+},{passive:true});
+function inSessions(){
+  const s=document.getElementById('sessions').getBoundingClientRect();
+  return s.top<innerHeight*.8 && s.bottom>0;
+}
+
+/* ---------- hero media: still image on small screens / reduced motion ---------- */
+(()=>{
+  const v=document.getElementById('heroVid');
+  if(v && (innerWidth<720 || matchMedia('(prefers-reduced-motion: reduce)').matches)){
+    const img=document.createElement('img');
+    img.src=v.getAttribute('poster');
+    img.alt=v.getAttribute('aria-label')||'';
+    img.id='heroImg';
+    v.replaceWith(img);
+  }
+})();
+
+/* ---------- hero parallax ---------- */
+const heroImg=document.querySelector('#heroMedia img,#heroMedia video');
+addEventListener('scroll',()=>{
+  const y=Math.min(scrollY,innerHeight);
+  if(heroImg)heroImg.style.transform=`scale(1.06) translateY(${y*.12}px)`;
+},{passive:true});
+
+/* ---------- waveform deck ---------- */
+const cv=document.getElementById('wave'),ctx=cv.getContext('2d');
+const audio=document.getElementById('demo');
+const btn=document.getElementById('playBtn'),icon=document.getElementById('playIcon');
+const tc=document.getElementById('timecode');
+let playing=false,t=0;
+
+function sizeCanvas(){
+  const r=cv.getBoundingClientRect();
+  cv.width=r.width*devicePixelRatio;cv.height=130*devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+addEventListener('resize',sizeCanvas);sizeCanvas();
+
+const BARS=64;
+function draw(){
+  requestAnimationFrame(draw);
+  t+=playing?.055:.016;
+  const w=cv.width/devicePixelRatio,h=130,gap=w/BARS;
+  ctx.clearRect(0,0,w,h);
+  for(let i=0;i<BARS;i++){
+    let v;
+    if(playing){
+      const ct=audio.currentTime||t;
+      v=.34+.24*Math.sin(i*.31+ct*7.3)+.18*Math.sin(i*.11-ct*4.1+1.7)+.12*Math.sin(i*.53+ct*11.7)+.1*Math.sin(ct*2.2)*Math.sin(i*.07);
+      v=Math.max(.08,Math.min(1,Math.abs(v)));
+    }else{
+      v=.24+.16*Math.sin(i*.35+t)+.11*Math.sin(i*.13-t*1.7)+.08*Math.sin(i*.71+t*.6);
+      v=Math.max(.08,v);
+    }
+    const bh=v*h*.92;
+    const x=i*gap+gap*.19,bw=gap*.62;
+    const hue=198+(i/BARS)*138; /* cyan → violet → magenta sweep */
+    const g=ctx.createLinearGradient(0,h/2-bh/2,0,h/2+bh/2);
+    g.addColorStop(0,`hsla(${hue},95%,70%,${playing?.98:.75}`+')');
+    g.addColorStop(1,`hsla(${hue},90%,52%,${playing?.6:.35}`+')');
+    ctx.shadowColor=`hsla(${hue},95%,62%,.55)`;
+    ctx.shadowBlur=playing?14:7;
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.roundRect(x,h/2-bh/2,bw,bh,bw/2);
+    ctx.fill();
+  }
+  ctx.shadowBlur=0;
+}
+draw();
+
+function fmt(s){s=Math.floor(s||0);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+audio.addEventListener('timeupdate',()=>tc.textContent=fmt(audio.currentTime));
+audio.addEventListener('ended',()=>setPlay(false));
+
+function setPlay(on){
+  playing=on;
+  btn.classList.toggle('playing',on);
+  document.getElementById('stage').classList.toggle('playing',on);
+  icon.innerHTML=on?'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>':'<path d="M8 5v14l11-7z"/>';
+}
+async function startPlayback(){
+  /* plain element playback — no WebAudio, nothing between the file and the speakers */
+  if(typeof hideYt==='function')hideYt();
+  audio.muted=false;audio.volume=1;
+  try{
+    await audio.play();
+    setPlay(true);
+  }catch(e){
+    /* no demo track present — pulse the ambient wave instead */
+    setPlay(true);setTimeout(()=>setPlay(false),4000);
+  }
+}
+btn.addEventListener('click',()=>{
+  if(playing){audio.pause();setPlay(false)}else{startPlayback()}
+});
+
+/* track switching */
+const np=document.getElementById('npName');
+const coverArt=document.getElementById('coverArt');
+const sleeveBox=document.getElementById('sleeveBox');
+const ytWrap=document.getElementById('ytWrap');
+const ytFrame=document.getElementById('ytFrame');
+const npThumb=document.getElementById('npThumb');
+const stageEl=document.getElementById('stage');
+function showYt(id){
+  sleeveBox.style.display='none';
+  ytWrap.hidden=false;
+  stageEl.classList.add('yt-on');
+  ytFrame.innerHTML='<iframe src="https://www.youtube.com/embed/'+id+'?autoplay=1&rel=0" title="Duet music video demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+}
+function hideYt(){
+  stageEl.classList.remove('yt-on');
+  if(ytWrap.hidden)return;
+  ytFrame.innerHTML='';
+  ytWrap.hidden=true;
+  sleeveBox.style.display='';
+}
+document.querySelectorAll('.trk').forEach(trk=>{
+  trk.addEventListener('click',()=>{
+    if(trk.dataset.yt){
+      if(trk.classList.contains('active'))return;
+      document.querySelectorAll('.trk').forEach(x=>x.classList.remove('active'));
+      trk.classList.add('active');
+      audio.pause();setPlay(false);
+      np.textContent=trk.dataset.name;
+      tc.textContent='—';
+      showYt(trk.dataset.yt);
+      return;
+    }
+    /* tapping the already-selected track toggles play/pause directly —
+       calling startPlayback() in the real tap keeps iOS audio unlocked (no synthetic click) */
+    if(trk.classList.contains('active')){
+      if(playing){audio.pause();setPlay(false);}else{startPlayback();}
+      return;
+    }
+    hideYt();
+    document.querySelectorAll('.trk').forEach(x=>x.classList.remove('active'));
+    trk.classList.add('active');
+    audio.pause();setPlay(false);
+    audio.src=trk.dataset.src;
+    np.textContent=trk.dataset.name;
+    tc.textContent='00:00';
+    /* start audio inside the tap (before async cover swap) so mobile plays reliably */
+    startPlayback();
+    coverArt.style.opacity=0;
+    if(npThumb && trk.dataset.cover){npThumb.style.opacity=0;}
+    setTimeout(()=>{
+      coverArt.poster=trk.dataset.cover;
+      if(npThumb && trk.dataset.cover){npThumb.src=trk.dataset.cover;npThumb.style.opacity=1;}
+      if(trk.dataset.vid){
+        coverArt.src=trk.dataset.vid;
+        coverArt.onloadeddata=()=>{coverArt.style.opacity=1;coverArt.play().catch(()=>{})};
+      }else{
+        coverArt.removeAttribute('src');coverArt.load();
+      }
+      setTimeout(()=>{coverArt.style.opacity=1},900);
+    },300);
+  });
+});
+</script>
+</body>
+</html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
