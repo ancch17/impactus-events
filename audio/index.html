@@ -334,10 +334,12 @@ canvas#wave{width:100%;height:130px;display:block}
 .chips{margin-top:56px;display:flex;gap:14px;flex-wrap:wrap}
 .chip{font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:#d8cfe6;border:1px solid rgba(139,92,246,.3);padding:12px 22px;border-radius:100px;background:rgba(21,13,36,.6)}
 .chip b{color:var(--amber);font-weight:400}
-.notice{margin-top:36px;display:flex;gap:26px;align-items:flex-start;border:1px solid rgba(255,184,77,.4);background:linear-gradient(90deg,rgba(255,184,77,.09),rgba(255,61,138,.05));border-radius:14px;padding:24px 28px}
+.notice{margin-top:36px;display:flex;gap:26px;align-items:flex-start;border:1px solid rgba(255,184,77,.6);background:linear-gradient(90deg,rgba(255,184,77,.16),rgba(255,61,138,.08));border-radius:18px;padding:32px 36px;box-shadow:0 22px 64px rgba(255,184,77,.12),inset 0 1px 0 rgba(255,255,255,.05)}
 .notice .mono{color:var(--gold);white-space:nowrap;padding-top:4px}
-.notice p{color:#d8cfe6;font-size:.96rem;margin:0;max-width:60rem}
+.notice p{color:var(--cream);font-size:1.08rem;line-height:1.72;margin:0;max-width:60rem}
 .notice b{color:var(--gold);font-weight:600}
+.notice .hl{background:linear-gradient(92deg,rgba(255,184,77,.3),rgba(255,61,138,.22));color:#fff;font-weight:700;padding:2px 10px;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(255,184,77,.55)}
+@media (max-width:720px){.notice{padding:24px 22px}.notice p{font-size:1rem}}
 @media (max-width:720px){.notice{flex-direction:column;gap:10px}}
 
 /* ---------- instructor ---------- */
@@ -678,12 +680,12 @@ footer .brand em{color:var(--amber);font-style:italic}
       <span class="chip"><b>No</b> music theory needed</span>
       <span class="chip">Beginner to <b>intermediate</b></span>
       <span class="chip">Mostly <b>watch &amp; learn</b>, light hands-on</span>
-      <span class="chip">Bring a laptop <b>+</b> headphones</span>
+      <span class="chip">Bring a laptop <b>+</b> speakers</span>
       <span class="chip">Paid Suno plan <b>recommended</b></span>
     </div>
     <div class="notice rv d3">
       <span class="mono">How it runs</span>
-      <p>This is a <b>live mass class</b> — most of the two hours is demo, so you can see exactly how every move is done, with a light hands-on stretch where you make a song of your own. A <b>paid Suno plan</b> is recommended if you want to build along in real time and unlock the hour-two features (your own voice in a track, hum-and-extend, and Personas); on the free tier you'll still follow everything clearly.</p>
+      <p>This is a <b>live mass class</b> — most of the two hours is demo, so you can see exactly how every move is done, with a light hands-on stretch where you make a song of your own. A <span class="hl">paid Suno plan</span> is strongly recommended if you want to build along in real time and unlock the hour-two features — <b>your own voice in a track, hum-and-extend, and Personas</b>. On the free tier you'll still follow everything clearly.</p>
     </div>
   </div>
 </section>
@@ -746,7 +748,7 @@ footer .brand em{color:var(--amber);font-style:italic}
       </details>
       <details>
         <summary>What do I need to bring?<span class="ix"></span></summary>
-        <p>A laptop, headphones, a <b>Suno</b> account (see the next question about going paid), a free <b>ElevenLabs</b> account, and the free <b>Audacity</b> app. Set-up instructions are sent after you register.</p>
+        <p>A laptop with working speakers (built-in is fine), a <b>Suno</b> account (see the next question about going paid), a free <b>ElevenLabs</b> account, and the free <b>Audacity</b> app. Set-up instructions are sent after you register.</p>
       </details>
       <details>
         <summary>Do I need the paid version of Suno?<span class="ix"></span></summary>
@@ -809,15 +811,4 @@ footer .brand em{color:var(--amber);font-style:italic}
   if('IntersectionObserver' in window){
     var io=new IntersectionObserver(function(es){
       es.forEach(function(e){if(e.isIntersecting){reveal(e.target);io.unobserve(e.target);}});
-    },{threshold:0.01, rootMargin:'0px 0px -8% 0px'});
-    els.forEach(function(el){io.observe(el);});
-  }
-  window.addEventListener('scroll',check,{passive:true});
-  window.addEventListener('resize',check,{passive:true});
-  window.addEventListener('load',check);
-  check();
-  /* failsafe: never leave content stuck hidden */
-  setTimeout(function(){document.querySelectorAll('.rv').forEach(function(el){el.classList.add('in');});},2500);
-})();
-
-/* ---------- top bar 
+    },{threshold:0.01, root
