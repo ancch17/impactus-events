@@ -141,13 +141,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
   /* ---------- Proof / stats band ---------- */
   .proof{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--paper);}
-  .proof__grid{display:grid;grid-template-columns:repeat(4,1fr);}
+  .proof__grid{display:grid;grid-template-columns:repeat(3,1fr);}
   .proof__cell{padding:38px 24px;text-align:center;border-left:1px solid var(--line);}
   .proof__cell:first-child{border-left:none;}
   .proof__num{font-family:var(--serif);font-size:clamp(40px,5vw,60px);line-height:1;color:var(--brand);font-weight:340;}
   .proof__num sup{font-size:.5em;vertical-align:super;}
   .proof__lbl{margin-top:10px;font-size:12.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);}
-  @media(max-width:720px){.proof__grid{grid-template-columns:repeat(2,1fr);}.proof__cell:nth-child(3){border-left:none;}.proof__cell:nth-child(3),.proof__cell:nth-child(4){border-top:1px solid var(--line);}}
+  @media(max-width:720px){.proof__cell{padding:30px 12px;}.proof__num{font-size:clamp(34px,10vw,50px);}.proof__lbl{font-size:11px;letter-spacing:.08em;}}
 
   /* ---------- Generic section ---------- */
   .section{position:relative;padding:clamp(84px,10vw,150px) 0;}
@@ -283,7 +283,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="wrap">
     <div class="proof__grid">
       <div class="proof__cell reveal"><div class="proof__num" data-count="3">3</div><div class="proof__lbl">Focused hours</div></div>
-      <div class="proof__cell reveal" style="--d:90ms;"><div class="proof__num" data-count="3">3</div><div class="proof__lbl">Platforms mastered</div></div>
       <div class="proof__cell reveal" style="--d:180ms;"><div class="proof__num" data-count="100">100<sup>%</sup></div><div class="proof__lbl">Hands-on, no theory</div></div>
       <div class="proof__cell reveal" style="--d:270ms;"><div class="proof__num"><span data-count="5" data-decimals="1">5.0</span></div><div class="proof__lbl">Google rating</div></div>
     </div>
