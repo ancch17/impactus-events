@@ -185,8 +185,8 @@ section{padding:130px 0}
 /* ---------- listen: vinyl stage ---------- */
 .stage{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:110px;align-items:center}
 .stage-right{position:relative;z-index:3}
-/* mobile now-playing thumbnail (shown only on small screens, above the play button) */
-.np-thumb{display:none}
+/* mobile now-playing artwork — animated, injected just above the tapped track */
+.np-art{display:none}
 .sleeve{position:relative;width:100%;aspect-ratio:1}
 .cover{
   position:relative;z-index:2;width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;display:block;
@@ -262,13 +262,13 @@ section{padding:130px 0}
   /* hide the top vinyl artwork on mobile; show a live thumbnail above the play button instead */
   .sleeve-zone{display:none}
   .stage.yt-on .sleeve-zone{display:block;margin-bottom:26px}
-  .np-thumb{
-    display:block;width:100%;max-width:300px;aspect-ratio:1;object-fit:cover;
-    border-radius:16px;margin:0 auto 26px;
+  .np-art{
+    width:100%;max-width:300px;aspect-ratio:1;object-fit:cover;
+    border-radius:16px;margin:14px auto 18px;
     box-shadow:0 30px 70px rgba(0,0,0,.6),0 0 60px rgba(255,61,138,.18);
     transition:opacity .4s ease;
   }
-  .stage.yt-on .np-thumb{display:none}
+  .np-art.np-art--on{display:block}
   .deck-top{justify-content:center;text-align:center}
 }
 
@@ -601,13 +601,13 @@ footer .brand em{color:var(--amber);font-style:italic}
         <div class="label mono"><span class="recdot"></span>Now playing · <span id="npName">Impactus Learning jingle</span></div>
         <div class="label mono">Stereo · Made in Suno</div>
       </div>
-      <img class="np-thumb" id="npThumb" src="assets/cover-1.jpg" alt="Now playing artwork">
       <div class="deck-body">
         <button class="play" id="playBtn" aria-label="Play demo track">
           <svg viewBox="0 0 24 24" id="playIcon"><path d="M8 5v14l11-7z"/></svg>
         </button>
         <canvas id="wave"></canvas>
       </div>
+      <video class="np-art" id="npArt" muted loop playsinline aria-hidden="true"></video>
       <div class="tracks">
         <button class="trk active" data-src="assets/demo-track.mp3" data-name="Impactus Learning jingle" data-cover="assets/cover-1.jpg" data-vid="assets/cover-1.mp4">
           <span class="tno mono">01</span>
@@ -946,12 +946,27 @@ const coverArt=document.getElementById('coverArt');
 const sleeveBox=document.getElementById('sleeveBox');
 const ytWrap=document.getElementById('ytWrap');
 const ytFrame=document.getElementById('ytFrame');
-const npThumb=document.getElementById('npThumb');
+const npArt=document.getElementById('npArt');
 const stageEl=document.getElementById('stage');
+/* mobile: pop the animated cover video in directly above the tapped track */
+function popArt(trk){
+  if(!npArt)return;
+  if(trk.dataset.vid){
+    trk.parentNode.insertBefore(npArt,trk);
+    npArt.poster=trk.dataset.cover||'';
+    if(npArt.getAttribute('src')!==trk.dataset.vid){npArt.src=trk.dataset.vid;npArt.load();}
+    npArt.classList.add('np-art--on');
+    npArt.play().catch(()=>{});
+  }else{
+    npArt.classList.remove('np-art--on');
+    try{npArt.pause();}catch(e){}
+  }
+}
 function showYt(id){
   sleeveBox.style.display='none';
   ytWrap.hidden=false;
   stageEl.classList.add('yt-on');
+  if(npArt){npArt.classList.remove('np-art--on');try{npArt.pause();}catch(e){}}
   ytFrame.innerHTML='<iframe src="https://www.youtube.com/embed/'+id+'?autoplay=1&rel=0" title="Duet music video demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
 }
 function hideYt(){
@@ -976,7 +991,7 @@ document.querySelectorAll('.trk').forEach(trk=>{
     /* tapping the already-selected track toggles play/pause directly —
        calling startPlayback() in the real tap keeps iOS audio unlocked (no synthetic click) */
     if(trk.classList.contains('active')){
-      if(playing){audio.pause();setPlay(false);}else{startPlayback();}
+      if(playing){audio.pause();setPlay(false);}else{startPlayback();popArt(trk);}
       return;
     }
     hideYt();
@@ -988,11 +1003,10 @@ document.querySelectorAll('.trk').forEach(trk=>{
     tc.textContent='00:00';
     /* start audio inside the tap (before async cover swap) so mobile plays reliably */
     startPlayback();
+    popArt(trk);
     coverArt.style.opacity=0;
-    if(npThumb && trk.dataset.cover){npThumb.style.opacity=0;}
     setTimeout(()=>{
       coverArt.poster=trk.dataset.cover;
-      if(npThumb && trk.dataset.cover){npThumb.src=trk.dataset.cover;npThumb.style.opacity=1;}
       if(trk.dataset.vid){
         coverArt.src=trk.dataset.vid;
         coverArt.onloadeddata=()=>{coverArt.style.opacity=1;coverArt.play().catch(()=>{})};
