@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Audio Masterclass — Write Your First Real Song in One Evening | Impactus Learning</title>
-<meta name="description" content="For beginners to intermediates: see how to write and produce a real song in one live 2-hour evening — no music theory, no instruments. Suno + ElevenLabs + Audacity, live on Zoom. SGD 50. 30 July.">
-<meta property="og:title" content="Write your first real song this evening — even if you've never made music in your life">
-<meta property="og:description" content="A live 2-hour class for beginners and intermediate creators. See how finished songs get made, and try it yourself. 30 July, 7.30–9.30pm SGT, SGD 50.">
+<meta name="description" content="For beginners to intermediates: make music for your videos, a business jingle, a team anthem, your own album — even the door to Spotify. One live 2-hour evening with Suno + ElevenLabs + Audacity. Live on Zoom. SGD 50. 30 July.">
+<meta property="og:title" content="Make music for your videos, jingles, team anthems, your own album — in one evening">
+<meta property="og:description" content="A live 2-hour class for beginners and intermediate creators. Video background music, business jingles, team &amp; camp anthems, your own album, and the door to Spotify. 30 July, 7.30–9.30pm SGT, SGD 50.">
 <meta property="og:image" content="assets/og.jpg">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
@@ -156,6 +156,31 @@ section{padding:130px 0}
   @keyframes rvIn{from{opacity:0;transform:translateY(36px)}to{opacity:1;transform:none}}
 }
 .rv.in{opacity:1;transform:none}
+
+/* ---------- use cases ---------- */
+.uses{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.use{
+  position:relative;background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:1px solid var(--line-soft);border-radius:16px;padding:32px 30px;overflow:hidden;
+  transition:border-color .35s,transform .35s,box-shadow .35s;
+}
+.use:hover{border-color:var(--line);transform:translateY(-4px);box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.use::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--cyan),var(--amber) 60%,var(--violet))}
+.use .ic{
+  width:54px;height:54px;border-radius:14px;display:grid;place-items:center;margin-bottom:22px;
+  background:radial-gradient(120% 120% at 30% 20%,rgba(62,224,255,.18),rgba(139,92,246,.14));
+  border:1px solid var(--line-soft);
+}
+.use .ic svg{width:26px;height:26px;stroke:var(--cyan);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.use h3{font-size:1.28rem;margin-bottom:10px;letter-spacing:-.01em}
+.use p{color:var(--mute);font-size:.95rem;line-height:1.62}
+.use.door{border-color:rgba(255,184,77,.42);background:linear-gradient(180deg,rgba(255,184,77,.07),var(--panel))}
+.use.door::before{background:linear-gradient(var(--gold),var(--amber))}
+.use.door .ic{background:radial-gradient(120% 120% at 30% 20%,rgba(255,184,77,.22),rgba(255,61,138,.12))}
+.use.door .ic svg{stroke:var(--gold)}
+.use .tagline{display:inline-block;margin-top:15px;font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(255,184,77,.4);border-radius:100px;padding:6px 13px}
+@media (max-width:960px){.uses{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:600px){.uses{grid-template-columns:1fr}}
 
 /* ---------- listen: vinyl stage ---------- */
 .stage{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:110px;align-items:center}
@@ -478,7 +503,7 @@ footer .brand em{color:var(--amber);font-style:italic}
   <div class="hero-inner">
     <div class="eyebrow mono rv in"><span class="rule"></span>The AI Audio Masterclass · Live on Zoom · Beginner to intermediate</div>
     <h1 class="rv in">Your first real song. <em>Tonight.</em></h1>
-    <p class="lede rv in d1">Even if you've never made music in your life. A live, two-hour evening for beginners and intermediate creators — the people with songs stuck in their head and no way to get them out. See exactly how finished songs get made with <b>Suno</b>, sound effects with <b>ElevenLabs</b>, and a clean mix in <b>Audacity</b> — then follow along and make one yourself. No theory. No instruments. Just the song you've been carrying around.</p>
+    <p class="lede rv in d1">Even if you've never made music in your life. A live, two-hour evening for beginners and intermediate creators. See exactly how to make finished music with <b>Suno</b>, sound effects with <b>ElevenLabs</b>, and a clean mix in <b>Audacity</b> — then follow along and make your own. Background music for your <b>videos</b>, a <b>jingle</b> for your business, an <b>anthem</b> for your team, your own <b>album</b> — even the door to <b>Spotify</b>. No theory. No instruments.</p>
     <div class="hero-cta rv in d2">
       <a class="btn" href="#sessions">Make my first song · SGD 50</a>
       <a class="btn ghost" href="#listen">◉&nbsp; Hear what you'll make</a>
@@ -495,10 +520,45 @@ footer .brand em{color:var(--amber);font-style:italic}
 <!-- marquee -->
 <div class="marquee" aria-hidden="true">
   <div class="marquee-track" id="marq">
-    <span>Your first song <i>·</i> A whole EP in one voice <i>·</i> Your own voice, singing <i>·</i> Hum it, Suno finishes it <i>·</i> Sound effects <i>·</i> A clean final mix <i>·</i> Live on Zoom <i>·</i></span>
-    <span>Your first song <i>·</i> A whole EP in one voice <i>·</i> Your own voice, singing <i>·</i> Hum it, Suno finishes it <i>·</i> Sound effects <i>·</i> A clean final mix <i>·</i> Live on Zoom <i>·</i></span>
+    <span>Music for your videos <i>·</i> Business jingles <i>·</i> Team &amp; camp anthems <i>·</i> Your own album <i>·</i> Release on Spotify <i>·</i> Your voice, singing <i>·</i> Sound effects <i>·</i> A clean final mix <i>·</i></span>
+    <span>Music for your videos <i>·</i> Business jingles <i>·</i> Team &amp; camp anthems <i>·</i> Your own album <i>·</i> Release on Spotify <i>·</i> Your voice, singing <i>·</i> Sound effects <i>·</i> A clean final mix <i>·</i></span>
   </div>
 </div>
+
+<!-- ================= USE CASES ================= -->
+<section id="uses">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="num">TRK 00</span><h2>What you'll actually <em>make.</em></h2></div>
+    <div class="uses">
+      <div class="use rv">
+        <span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/></svg></span>
+        <h3>Music for your videos</h3>
+        <p>Score your reels, ads and YouTube videos with background music that matches the mood, pace and exact length you need — and learn how to brief Suno so it fits the picture instead of fighting it. No more copyright-strike stock tracks.</p>
+      </div>
+      <div class="use rv d1">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
+        <h3>A jingle for your business</h3>
+        <p>Craft a catchy, on-brand jingle in minutes — exactly like the real Impactus jingle playing on this page. Ready for ads, intros, hold music and social.</p>
+      </div>
+      <div class="use rv d2">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <h3>Team &amp; event anthems</h3>
+        <p>Write a song for a company tour, camp, retreat or birthday that gets the whole group singing along — the kind of moment people actually remember.</p>
+      </div>
+      <div class="use rv d1">
+        <span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg></span>
+        <h3>Your own album</h3>
+        <p>Build one consistent artist voice with Suno <b style="color:var(--cream)">Personas</b> and produce a whole EP or album — your songs, your sound, from first line to final track.</p>
+      </div>
+      <div class="use door rv d2">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></span>
+        <h3>The door to Spotify</h3>
+        <p>See how creators release to Spotify and Apple Music with DistroKid, and how streaming royalties actually work — <b style="color:var(--gold)">not a promise you'll get rich</b>, just the door and the key. Whether you walk through it is up to you.</p>
+        <span class="tagline">Optional path · No income promise</span>
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- ================= LISTEN ================= -->
 <section id="listen">
@@ -782,131 +842,4 @@ addEventListener('scroll',()=>{
   if(heroImg)heroImg.style.transform=`scale(1.06) translateY(${y*.12}px)`;
 },{passive:true});
 
-/* ---------- waveform deck ---------- */
-const cv=document.getElementById('wave'),ctx=cv.getContext('2d');
-const audio=document.getElementById('demo');
-const btn=document.getElementById('playBtn'),icon=document.getElementById('playIcon');
-const tc=document.getElementById('timecode');
-let playing=false,t=0;
-
-function sizeCanvas(){
-  const r=cv.getBoundingClientRect();
-  cv.width=r.width*devicePixelRatio;cv.height=130*devicePixelRatio;
-  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
-}
-addEventListener('resize',sizeCanvas);sizeCanvas();
-
-const BARS=64;
-function draw(){
-  requestAnimationFrame(draw);
-  t+=playing?.055:.016;
-  const w=cv.width/devicePixelRatio,h=130,gap=w/BARS;
-  ctx.clearRect(0,0,w,h);
-  for(let i=0;i<BARS;i++){
-    let v;
-    if(playing){
-      const ct=audio.currentTime||t;
-      v=.34+.24*Math.sin(i*.31+ct*7.3)+.18*Math.sin(i*.11-ct*4.1+1.7)+.12*Math.sin(i*.53+ct*11.7)+.1*Math.sin(ct*2.2)*Math.sin(i*.07);
-      v=Math.max(.08,Math.min(1,Math.abs(v)));
-    }else{
-      v=.24+.16*Math.sin(i*.35+t)+.11*Math.sin(i*.13-t*1.7)+.08*Math.sin(i*.71+t*.6);
-      v=Math.max(.08,v);
-    }
-    const bh=v*h*.92;
-    const x=i*gap+gap*.19,bw=gap*.62;
-    const hue=198+(i/BARS)*138; /* cyan → violet → magenta sweep */
-    const g=ctx.createLinearGradient(0,h/2-bh/2,0,h/2+bh/2);
-    g.addColorStop(0,`hsla(${hue},95%,70%,${playing?.98:.75}`+')');
-    g.addColorStop(1,`hsla(${hue},90%,52%,${playing?.6:.35}`+')');
-    ctx.shadowColor=`hsla(${hue},95%,62%,.55)`;
-    ctx.shadowBlur=playing?14:7;
-    ctx.fillStyle=g;
-    ctx.beginPath();
-    ctx.roundRect(x,h/2-bh/2,bw,bh,bw/2);
-    ctx.fill();
-  }
-  ctx.shadowBlur=0;
-}
-draw();
-
-function fmt(s){s=Math.floor(s||0);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
-audio.addEventListener('timeupdate',()=>tc.textContent=fmt(audio.currentTime));
-audio.addEventListener('ended',()=>setPlay(false));
-
-function setPlay(on){
-  playing=on;
-  btn.classList.toggle('playing',on);
-  document.getElementById('stage').classList.toggle('playing',on);
-  icon.innerHTML=on?'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>':'<path d="M8 5v14l11-7z"/>';
-}
-async function startPlayback(){
-  /* plain element playback — no WebAudio, nothing between the file and the speakers */
-  if(typeof hideYt==='function')hideYt();
-  audio.muted=false;audio.volume=1;
-  try{
-    await audio.play();
-    setPlay(true);
-  }catch(e){
-    /* no demo track present — pulse the ambient wave instead */
-    setPlay(true);setTimeout(()=>setPlay(false),4000);
-  }
-}
-btn.addEventListener('click',()=>{
-  if(playing){audio.pause();setPlay(false)}else{startPlayback()}
-});
-
-/* track switching */
-const np=document.getElementById('npName');
-const coverArt=document.getElementById('coverArt');
-const sleeveBox=document.getElementById('sleeveBox');
-const ytWrap=document.getElementById('ytWrap');
-const ytFrame=document.getElementById('ytFrame');
-function showYt(id){
-  sleeveBox.style.display='none';
-  ytWrap.hidden=false;
-  ytFrame.innerHTML='<iframe src="https://www.youtube.com/embed/'+id+'?autoplay=1&rel=0" title="Duet music video demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
-}
-function hideYt(){
-  if(ytWrap.hidden)return;
-  ytFrame.innerHTML='';
-  ytWrap.hidden=true;
-  sleeveBox.style.display='';
-}
-document.querySelectorAll('.trk').forEach(trk=>{
-  trk.addEventListener('click',()=>{
-    if(trk.dataset.yt){
-      if(trk.classList.contains('active'))return;
-      document.querySelectorAll('.trk').forEach(x=>x.classList.remove('active'));
-      trk.classList.add('active');
-      audio.pause();setPlay(false);
-      np.textContent=trk.dataset.name;
-      tc.textContent='—';
-      showYt(trk.dataset.yt);
-      return;
-    }
-    if(trk.classList.contains('active')){btn.click();return}
-    hideYt();
-    document.querySelectorAll('.trk').forEach(x=>x.classList.remove('active'));
-    trk.classList.add('active');
-    audio.pause();setPlay(false);
-    audio.src=trk.dataset.src;
-    np.textContent=trk.dataset.name;
-    tc.textContent='00:00';
-    coverArt.style.opacity=0;
-    setTimeout(()=>{
-      coverArt.poster=trk.dataset.cover;
-      if(trk.dataset.vid){
-        coverArt.src=trk.dataset.vid;
-        coverArt.onloadeddata=()=>{coverArt.style.opacity=1;coverArt.play().catch(()=>{})};
-      }else{
-        coverArt.removeAttribute('src');coverArt.load();
-      }
-      setTimeout(()=>{coverArt.style.opacity=1},900);
-    },300);
-    startPlayback();
-  });
-});
-</script>
-</body>
-</html>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+/* ---------- 
