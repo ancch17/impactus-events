@@ -216,19 +216,55 @@ async function showApp(session) {
   loadCourses(); loadHistory();
 }
 
+let courseGroups = {};
+const SLUGS = { claude: 'Master Claude: Agentic AI Masterclass', claudemasterclass: 'Master Claude: Agentic AI Masterclass', animation: 'AI Animation Masterclass', automation: 'AI Animation Automation', animationautomation: 'AI Animation Automation' };
+
 async function loadCourses() {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await sb.from('courses').select('*').eq('is_open', true).gte('cohort_date', today).order('cohort_date');
-  courses = data || [];
-  if (!courses.length) { $('courselist').textContent = 'No classes open for booking right now — watch this space!'; return; }
-  $('courselist').innerHTML = courses.map((c, i) =>
-    `<label style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink)">
-      <input type="radio" name="course" value="${i}" style="width:auto;margin:0">
-      <span style="flex:1"><span class="hist-course">${c.name}</span><span class="pill upcoming">${fdate(c.cohort_date)}</span>
-      <div class="hist-sub">${c.details || ''}</div></span>
-      <strong>${fmt$(c.price_sgd)}</strong>
-    </label>`).join('');
-  document.querySelectorAll('input[name=course]').forEach(r => r.onchange = () => selectCourse(courses[r.value]));
+  const rows = data || [];
+  if (!rows.length) { $('courselist').textContent = 'No classes open for booking right now — watch this space!'; return; }
+  courseGroups = {};
+  rows.forEach(c => { (courseGroups[c.name] = courseGroups[c.name] || []).push(c); });
+  $('courselist').innerHTML = Object.entries(courseGroups).map(([name, list], gi) => {
+    const next = list[0];
+    const dates = list.map(c =>
+      `<label style="display:flex;gap:10px;align-items:center;padding:9px 0 9px 4px;border-top:1px solid var(--line);cursor:pointer">
+        <input type="radio" name="course" value="${c.id}" style="width:auto;margin:0">
+        <span style="flex:1"><strong>${fdate(c.cohort_date)}</strong>${c.session_time ? ' <span class="hist-sub">· ' + c.session_time + '</span>' : ''}</span>
+        <span>${fmt$(c.price_sgd)}</span></label>`).join('');
+    return `<div style="border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden">
+      <div class="course-head" data-g="${gi}" style="padding:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div><div class="hist-course">${name}</div>
+        <div class="hist-sub">${next.details || ''}</div>
+        <div class="hist-sub" style="margin-top:4px">Next: <strong>${fdate(next.cohort_date)}</strong>${list.length > 1 ? ` · +${list.length - 1} more date${list.length > 2 ? 's' : ''}` : ''}</div></div>
+        <div style="text-align:right;white-space:nowrap"><strong>${fmt$(next.price_sgd)}</strong><div class="hist-sub">▾ choose date</div></div>
+      </div>
+      <div class="course-dates hidden" data-gd="${gi}" style="padding:0 14px 10px">${dates}</div></div>`;
+  }).join('');
+  document.querySelectorAll('.course-head').forEach(h => h.onclick = () => {
+    document.querySelectorAll('.course-dates').forEach(d => { if (d.dataset.gd !== h.dataset.g) d.classList.add('hidden'); });
+    document.querySelector(`.course-dates[data-gd="${h.dataset.g}"]`).classList.toggle('hidden');
+  });
+  const all = Object.values(courseGroups).flat();
+  document.querySelectorAll('input[name=course]').forEach(r => r.onchange = () => selectCourse(all.find(c => c.id === r.value)));
+  // deep link: ?course=automation&date=2026-08-13&time=am|pm
+  const want = SLUGS[(params.get('course') || '').toLowerCase()];
+  if (want && courseGroups[want]) {
+    const gi = Object.keys(courseGroups).indexOf(want);
+    const panel = document.querySelector(`.course-dates[data-gd="${gi}"]`);
+    if (panel) panel.classList.remove('hidden');
+    const d = params.get('date');
+    const t = (params.get('time') || '').toLowerCase();
+    let target = d ? courseGroups[want].find(c => c.cohort_date === d && (!t || (c.session_time || '').toLowerCase().startsWith(t === 'am' ? '9' : '7'))) : null;
+    if (!target && d) target = courseGroups[want].find(c => c.cohort_date === d);
+    if (!target) target = courseGroups[want][0];
+    if (target) {
+      const radio = document.querySelector(`input[name=course][value="${target.id}"]`);
+      if (radio) { radio.checked = true; selectCourse(target); }
+      $('bookcard').scrollIntoView({ behavior: 'smooth' });
+    }
+  }
 }
 
 function selectCourse(c) {
