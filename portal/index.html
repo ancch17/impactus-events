@@ -61,6 +61,19 @@
   <button class="signout hidden" id="signout">Sign out</button>
 </div></header>
 
+<!-- PRE-LAUNCH GATE (blocks students until payments are live) -->
+<div class="wrap hidden" id="view-soon">
+  <div class="banner">
+    <h1>Your rewards portal is almost ready</h1>
+    <p class="muted" style="color:#cfd6e4;margin-top:6px">We're putting the finishing touches on the Impactus Learning student portal — where every class earns you 10% back in rebate points.</p>
+  </div>
+  <div class="card">
+    <h2>Opening very soon</h2>
+    <p class="muted">Your points are already waiting — nothing to do yet. We'll email every student a sign-in link the moment it's live. Thanks for your patience!</p>
+    <p class="muted" style="margin-top:14px">Questions in the meantime? <a href="mailto:andrew@impactuslearning.com">andrew@impactuslearning.com</a></p>
+  </div>
+</div>
+
 <!-- SIGNED OUT -->
 <div class="wrap hidden" id="view-login">
   <div class="banner">
@@ -146,6 +159,28 @@ const $ = (id) => document.getElementById(id);
 const fmt$ = (n) => 'S$' + Number(n).toFixed(2).replace(/\.00$/, '');
 const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
 
+// ── PRE-LAUNCH SWITCHES ──────────────────────────────────────────────
+// PAYMENTS_LIVE: flip to true once HitPay keys are set in Supabase edge-function secrets.
+//   While false, balance-due bookings are blocked; full-points bookings still work for testing.
+// PREVIEW_TOKEN: append ?preview=<token> to the URL to unlock the portal (sticks in this browser).
+//   To relock: clear it, or bump the token. To launch to everyone: set GATE_OPEN = true.
+const PAYMENTS_LIVE = false;
+const GATE_OPEN = false;
+const PREVIEW_TOKEN = 'il2026-preview-7q9k';
+(function gate() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('preview') === PREVIEW_TOKEN) {
+    try { localStorage.setItem('ilPreview', PREVIEW_TOKEN); } catch (e) {}
+    p.delete('preview');
+    history.replaceState({}, '', location.pathname + (p.toString() ? '?' + p : '') + location.hash);
+  }
+  let ok = false;
+  try { ok = localStorage.getItem('ilPreview') === PREVIEW_TOKEN; } catch (e) {}
+  if (GATE_OPEN || ok) return;              // authorised → normal portal
+  $('view-soon').classList.remove('hidden'); // otherwise show "coming soon" and stop
+  window.__gated = true;
+})();
+
 let student = null, balance = 0, courses = [], selCourse = null;
 
 // referral code from ?ref=
@@ -175,7 +210,7 @@ async function init() {
   }
 }
 
-function show(id) { ['view-login', 'view-app'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+function show(id) { ['view-soon', 'view-login', 'view-app'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; }
 
 $('sendlink').onclick = async () => {
@@ -307,11 +342,19 @@ function updateBreakdown() {
   $('bd-price').textContent = fmt$(price);
   $('bd-pts').textContent = '− ' + fmt$(pts);
   $('bd-total').textContent = fmt$(pay);
-  $('paybtn').textContent = pay === 0 ? 'Book with points — pay S$0' : `Pay ${fmt$(pay)} with PayNow / card`;
+  const cardNeeded = pay > 0 && !PAYMENTS_LIVE;
+  $('paybtn').disabled = cardNeeded;
+  $('paybtn').textContent = cardNeeded
+    ? 'Card payment — coming soon'
+    : (pay === 0 ? 'Book with points — pay S$0' : `Pay ${fmt$(pay)} with PayNow / card`);
+  $('bookmsg').className = 'msg';
+  if (cardNeeded) msg('bookmsg', 'ok', 'Card / PayNow checkout goes live shortly. For now you can book any class fully covered by points — slide up to use them.');
 }
 
 $('paybtn').onclick = async () => {
   if (!selCourse) return;
+  const payNow = Number(selCourse.price_sgd) - Number($('ptsrange').value);
+  if (payNow > 0 && !PAYMENTS_LIVE) return;   // card checkout not live yet
   $('paybtn').disabled = true;
   msg('bookmsg', 'ok', 'Preparing your booking…');
   try {
@@ -358,7 +401,7 @@ async function loadHistory() {
 
 $('copyref').onclick = () => { navigator.clipboard.writeText($('reflink').value); $('copyref').textContent = 'Copied!'; setTimeout(() => $('copyref').textContent = 'Copy', 1500); };
 
-init();
+if (!window.__gated) init();
 </script>
 </body>
 </html>
