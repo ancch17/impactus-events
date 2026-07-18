@@ -35,6 +35,7 @@
   .pill.early { background:#fdf3d7; color:var(--amber-d); }
   .pill.free { background:#e3f4ea; color:var(--green); }
   .pill.upcoming { background:#e8edfb; color:#3c5bd2; }
+  .pill.again { background:#f0e9fb; color:#6b3fc4; }
   .pts { color:var(--green); font-weight:700; white-space:nowrap; }
   .neg { color:#c0392b; font-weight:700; }
   .hist-course { font-weight:600; }
@@ -217,17 +218,38 @@ async function showApp(session) {
 }
 
 let courseGroups = {};
-const SLUGS = { claude: 'Master Claude: Agentic AI Masterclass', claudemasterclass: 'Master Claude: Agentic AI Masterclass', animation: 'AI Animation Masterclass', automation: 'AI Animation Automation', animationautomation: 'AI Animation Automation' };
+
+// Which course families has this student already sat in? Drives the "come back" badge.
+async function attendedFamilies() {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await sb.from('student_history').select('family_slug,cohort_date,status');
+  const seen = {};
+  (data || []).forEach(r => {
+    if (!r.family_slug || r.status !== 'confirmed' || r.cohort_date >= today) return;
+    if (!seen[r.family_slug] || r.cohort_date > seen[r.family_slug]) seen[r.family_slug] = r.cohort_date;
+  });
+  return seen;
+}
 
 async function loadCourses() {
-  const today = new Date().toISOString().slice(0, 10);
-  const { data } = await sb.from('courses').select('*').eq('is_open', true).gte('cohort_date', today).order('cohort_date');
+  // open_cohorts = bookable cohorts already joined to their course family (active families only)
+  const [{ data }, done] = await Promise.all([
+    sb.from('open_cohorts').select('*').order('sort_order').order('cohort_date'),
+    attendedFamilies(),
+  ]);
   const rows = data || [];
   if (!rows.length) { $('courselist').textContent = 'No classes open for booking right now — watch this space!'; return; }
   courseGroups = {};
-  rows.forEach(c => { (courseGroups[c.name] = courseGroups[c.name] || []).push(c); });
-  $('courselist').innerHTML = Object.entries(courseGroups).map(([name, list], gi) => {
+  rows.forEach(c => { (courseGroups[c.family_slug] = courseGroups[c.family_slug] || []).push(c); });
+  $('courselist').innerHTML = Object.entries(courseGroups).map(([slug, list], gi) => {
     const next = list[0];
+    const been = done[slug];
+    const badge = been
+      ? `<span class="pill again">${balance > 0 ? 'Come back — use your ' + balance + ' pts' : 'You’ve taken this'}</span>`
+      : '';
+    const sub = been
+      ? `You attended ${fdate(been)}.${balance > 0 ? ` Your ${balance} pts come off the price — repeats welcome.` : ' Repeats welcome.'}`
+      : (next.family_tagline || next.details || '');
     const dates = list.map(c =>
       `<label style="display:flex;gap:10px;align-items:center;padding:9px 0 9px 4px;border-top:1px solid var(--line);cursor:pointer">
         <input type="radio" name="course" value="${c.id}" style="width:auto;margin:0">
@@ -235,8 +257,8 @@ async function loadCourses() {
         <span>${fmt$(c.price_sgd)}</span></label>`).join('');
     return `<div style="border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden">
       <div class="course-head" data-g="${gi}" style="padding:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <div><div class="hist-course">${name}</div>
-        <div class="hist-sub">${next.details || ''}</div>
+        <div><div class="hist-course">${next.family_name}${badge}</div>
+        <div class="hist-sub">${sub}</div>
         <div class="hist-sub" style="margin-top:4px">Next: <strong>${fdate(next.cohort_date)}</strong>${list.length > 1 ? ` · +${list.length - 1} more date${list.length > 2 ? 's' : ''}` : ''}</div></div>
         <div style="text-align:right;white-space:nowrap"><strong>${fmt$(next.price_sgd)}</strong><div class="hist-sub">▾ choose date</div></div>
       </div>
@@ -248,9 +270,11 @@ async function loadCourses() {
   });
   const all = Object.values(courseGroups).flat();
   document.querySelectorAll('input[name=course]').forEach(r => r.onchange = () => selectCourse(all.find(c => c.id === r.value)));
-  // deep link: ?course=automation&date=2026-08-13&time=am|pm
-  const want = SLUGS[(params.get('course') || '').toLowerCase()];
-  if (want && courseGroups[want]) {
+  // deep link: ?course=automation&date=2026-08-13&time=am|pm — matches family slug or any alt_slug
+  const asked = (params.get('course') || '').toLowerCase();
+  const want = asked && Object.keys(courseGroups).find(s =>
+    s === asked || (courseGroups[s][0].alt_slugs || []).includes(asked));
+  if (want) {
     const gi = Object.keys(courseGroups).indexOf(want);
     const panel = document.querySelector(`.course-dates[data-gd="${gi}"]`);
     if (panel) panel.classList.remove('hidden');
