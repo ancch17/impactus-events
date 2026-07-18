@@ -64,7 +64,7 @@
 <div class="wrap hidden" id="view-login">
   <div class="banner">
     <h1>Your classes. Your rebates.</h1>
-    <p class="muted" style="color:#cfd6e4;margin-top:6px">Earn 10% back in rebate points on every class — 1 point = S$1 off your next one.</p>
+    <p class="muted" style="color:#cfd6e4;margin-top:6px">Earn 10% back in rebate points on every class — 1 point = S$1 off your next one. Joining through a friend's link? You start with 5 welcome points (S$5).</p>
   </div>
   <div class="card">
     <h2>Sign in / Create account</h2>
@@ -118,7 +118,7 @@
 
   <div class="card">
     <h2>Refer a friend, earn 10%</h2>
-    <p class="muted">When a friend signs up through you and books their first class, you get 10% of what they pay — in points. No codes to remember: they just tap your link or scan your QR.</p>
+    <p class="muted">When a friend signs up through you, <strong>they get 5 welcome points (S$5)</strong> — and when they book their first class, <strong>you get 10% of what they pay</strong> in points. No codes to remember: they just tap your link or scan your QR.</p>
     <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:14px">
       <div id="refqr" style="background:#fff;padding:10px;border:1px solid var(--line);border-radius:12px"></div>
       <div style="flex:1;min-width:230px">
@@ -151,7 +151,7 @@ let student = null, balance = 0, courses = [], selCourse = null;
 const params = new URLSearchParams(location.search);
 if (params.get('ref')) {
   $('refcode').value = params.get('ref').toUpperCase();
-  setTimeout(() => msg('loginmsg', 'ok', "Your friend's referral is attached ✓ — just sign up above."), 300);
+  setTimeout(() => msg('loginmsg', 'ok', "Your friend's referral is attached ✓ — sign up above and get 5 welcome points (S$5 off your first class)."), 300);
 }
 
 async function init() {
@@ -205,7 +205,7 @@ async function showApp(session) {
   $('refqr').innerHTML = '';
   new QRCode($('refqr'), { text: reflink, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
   $('waref').onclick = () => window.open('https://wa.me/?text=' + encodeURIComponent(
-    "I've been taking Impactus Learning's AI masterclasses — sign up with my link: " + reflink), '_blank');
+    "I've been taking Impactus Learning's AI masterclasses — sign up with my link and get S$5 off your first class: " + reflink), '_blank');
   loadCourses(); loadHistory();
 }
 
