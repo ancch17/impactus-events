@@ -109,9 +109,8 @@
     <div class="card">
       <h2 id="formtitle">Add a new cohort</h2>
       <div class="formgrid">
-        <div><label>Course name</label>
-          <input id="f-name" list="coursenames" placeholder="e.g. Master Claude: Agentic AI Masterclass">
-          <datalist id="coursenames"></datalist></div>
+        <div><label>Course</label>
+          <select id="f-family"></select></div>
         <div><label>Date</label><input type="date" id="f-date"></div>
         <div><label>Session time (shown to students)</label><input id="f-time" placeholder="e.g. 9:00am – 5:00pm"></div>
         <div><label>Price (SGD)</label><input type="number" id="f-price" min="0" step="1" placeholder="180"></div>
@@ -150,7 +149,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok' && id !== 'loginmsg') setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 
-let students = [], courses = [], bookings = [], ledger = [];
+let students = [], courses = [], bookings = [], ledger = [], families = [];
 let byStudent = {}, byCourse = {};
 let editingCourse = null, rosterCourse = null;
 
@@ -186,13 +185,15 @@ $('signout').onclick = () => sb.auth.signOut();
 $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
-  const [s, c, b, l] = await Promise.all([
+  const [s, c, b, l, f] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select('*').order('cohort_date'),
     sb.from('bookings').select('*'),
     sb.from('points_ledger').select('*'),
+    sb.from('course_families').select('*').order('sort_order'),
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || []; ledger = l.data || [];
+  families = f.data || [];
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
   renderKPIs(); renderCohorts(); renderForm(); renderRefBoard();
@@ -315,23 +316,27 @@ $('copymobiles').onclick = () => rosterExport('mobiles');
 
 // ---------- Cohort form ----------
 function renderForm() {
-  $('coursenames').innerHTML = [...new Set(courses.map(c => c.name))].map(n => `<option value="${n}">`).join('');
+  // Cohorts must belong to a course family, or they won't show on the student portal.
+  $('f-family').innerHTML = '<option value="">— choose a course —</option>' + families.map(f =>
+    `<option value="${f.id}">${f.name}${f.status !== 'active' ? ' (' + f.status + ')' : ''}</option>`).join('');
 }
 window.editCohort = function (cid) {
   const c = byCourse[cid];
   editingCourse = cid;
   $('formtitle').textContent = 'Edit cohort — ' + c.name + ' · ' + fdate(c.cohort_date);
-  $('f-name').value = c.name; $('f-date').value = c.cohort_date;
+  $('f-family').value = c.family_id || ''; $('f-date').value = c.cohort_date;
   $('f-time').value = c.session_time || ''; $('f-price').value = c.price_sgd;
   $('f-details').value = c.details || ''; $('f-open').checked = c.is_open;
   $('f-cancel').classList.remove('hidden');
   $('f-save').scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
-$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-name','f-date','f-time','f-price','f-details'].forEach(i => $(i).value = ''); $('f-open').checked = false; $('f-cancel').classList.add('hidden'); };
+$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-time','f-price','f-details'].forEach(i => $(i).value = ''); $('f-open').checked = false; $('f-cancel').classList.add('hidden'); };
 $('f-save').onclick = async () => {
-  const rec = { name: $('f-name').value.trim(), cohort_date: $('f-date').value, session_time: $('f-time').value.trim() || null,
+  const fam = families.find(f => f.id === $('f-family').value);
+  if (!fam) return msg('formmsg', 'err', 'Pick a course — cohorts without one never reach the student portal.');
+  const rec = { family_id: fam.id, name: fam.name, cohort_date: $('f-date').value, session_time: $('f-time').value.trim() || null,
     price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, is_open: $('f-open').checked };
-  if (!rec.name || !rec.cohort_date || !(rec.price_sgd >= 0)) return msg('formmsg', 'err', 'Name, date and price are required.');
+  if (!rec.cohort_date || !(rec.price_sgd >= 0)) return msg('formmsg', 'err', 'Date and price are required.');
   let error;
   if (editingCourse) ({ error } = await sb.from('courses').update(rec).eq('id', editingCourse));
   else ({ error } = await sb.from('courses').insert(rec));
