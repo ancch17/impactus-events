@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Impactus Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --navy:#101a2d; --navy2:#1b2942; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --red:#c93b3b; --line:#e6e9f0; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:1080px; margin:0 auto; padding:16px; }
+  header { background:var(--navy); color:#fff; position:sticky; top:0; z-index:5; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:12px; padding-bottom:12px; }
+  .logo { font-weight:800; font-size:16px; } .logo span { color:var(--amber); }
+  .signout { background:none; border:1px solid rgba(255,255,255,.3); color:#fff; padding:6px 12px; border-radius:8px; font-size:13px; cursor:pointer; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; }
+  h1 { font-size:20px; font-weight:800; }
+  h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
+  .muted { color:var(--mut); font-size:13px; }
+  .hidden { display:none !important; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:16px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .kpi .v { font-size:21px; font-weight:800; } .kpi .l { font-size:11.5px; color:var(--mut); margin-top:2px; }
+  .kpi .sub { font-size:11.5px; color:var(--green); margin-top:2px; font-weight:600; }
+  .gauge { height:8px; background:#eee; border-radius:99px; margin-top:8px; overflow:hidden; }
+  .gauge i { display:block; height:100%; background:var(--green); border-radius:99px; }
+  .gauge i.warn { background:var(--amber-d); } .gauge i.danger { background:var(--red); }
+  input, select, textarea { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; font-family:inherit; background:#fff; }
+  label { font-size:12px; font-weight:600; color:var(--mut); display:block; margin-top:10px; margin-bottom:4px; }
+  .btn { display:inline-block; padding:9px 16px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .btn.sm { padding:5px 10px; font-size:12px; }
+  .btn.wa { background:#25D366; color:#fff; }
+  .msg { margin-top:10px; font-size:13.5px; font-weight:600; min-height:18px; }
+  .msg.ok { color:var(--green); } .msg.err { color:var(--red); }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); padding:8px 8px 6px 0; border-bottom:1px solid var(--line); }
+  td { padding:9px 8px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  .pill { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:99px; }
+  .pill.open { background:#e3f4ea; color:var(--green); }
+  .pill.closed { background:#eee; color:#888; }
+  .pill.cancelled { background:#fde8e8; color:var(--red); }
+  .pill.pending { background:#fdf3d7; color:var(--amber-d); }
+  .cohort-row { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:11px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .cohort-row:last-child { border-bottom:none; }
+  .cohort-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .formgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0 14px; }
+  .transfer-box { background:#f2f5fb; border-radius:10px; padding:10px; margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .transfer-box select { width:auto; flex:1; min-width:220px; }
+  footer { text-align:center; padding:26px 0 34px; }
+  @media (max-width:640px){ th:nth-child(4),td:nth-child(4){display:none;} }
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="logo">Impactus <span>Admin</span></div>
+  <button class="signout hidden" id="signout">Sign out</button>
+</div></header>
+
+<div class="wrap">
+
+  <!-- LOGIN -->
+  <div id="view-login" class="card hidden" style="max-width:420px;margin:40px auto">
+    <h1>Admin sign in</h1>
+    <p class="muted" style="margin-top:6px">A magic link will be sent to the admin email.</p>
+    <label>Admin email</label>
+    <input type="email" id="email" value="andrew@impactuslearning.com" readonly>
+    <button class="btn" id="sendlink" style="width:100%;margin-top:14px">Send sign-in link</button>
+    <div class="msg" id="loginmsg"></div>
+  </div>
+
+  <!-- NOT AUTHORIZED -->
+  <div id="view-noauth" class="card hidden" style="max-width:420px;margin:40px auto">
+    <h1>Not authorized</h1>
+    <p class="muted" style="margin-top:6px">This account doesn't have admin access.</p>
+    <button class="btn ghost" id="noauth-out" style="margin-top:14px">Sign out</button>
+  </div>
+
+  <!-- APP -->
+  <div id="view-app" class="hidden">
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">Cohorts
+        <span><label style="display:inline;font-weight:400;margin:0"><input type="checkbox" id="showpast" style="width:auto;vertical-align:-2px"> show past</label></span>
+      </h2>
+      <div id="cohortlist" class="muted">Loading…</div>
+    </div>
+
+    <div class="card" id="rostercard" style="display:none">
+      <h2 id="rostertitle">Roster</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn wa sm" id="copywa">Copy WhatsApp list</button>
+        <button class="btn ghost sm" id="copyemails">Copy emails</button>
+        <button class="btn ghost sm" id="copymobiles">Copy mobiles</button>
+      </div>
+      <div id="roster"></div>
+      <div class="msg" id="rostermsg"></div>
+    </div>
+
+    <div class="card">
+      <h2 id="formtitle">Add a new cohort</h2>
+      <div class="formgrid">
+        <div><label>Course name</label>
+          <input id="f-name" list="coursenames" placeholder="e.g. Master Claude: Agentic AI Masterclass">
+          <datalist id="coursenames"></datalist></div>
+        <div><label>Date</label><input type="date" id="f-date"></div>
+        <div><label>Session time (shown to students)</label><input id="f-time" placeholder="e.g. 9:00am – 5:00pm"></div>
+        <div><label>Price (SGD)</label><input type="number" id="f-price" min="0" step="1" placeholder="180"></div>
+      </div>
+      <label>Details (one-liner shown on portal)</label>
+      <input id="f-details" placeholder="Optional description">
+      <label style="margin-top:12px"><input type="checkbox" id="f-open" style="width:auto;vertical-align:-2px"> Open for booking on the student portal</label>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn" id="f-save">Save cohort</button>
+        <button class="btn ghost hidden" id="f-cancel">Cancel edit</button>
+      </div>
+      <div class="msg" id="formmsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Referral leaderboard</h2>
+      <div id="refboard" class="muted">Loading…</div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="muted">Impactus Learning Pte Ltd · Admin console</footer>
+
+<script>
+const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+const ADMIN_URL = 'https://events.impactuslearning.com/portal/admin/';
+const ADMIN_EMAIL = 'andrew@impactuslearning.com';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
+
+const $ = (id) => document.getElementById(id);
+const fmt$ = (n) => 'S$' + Number(n).toLocaleString('en-SG', { maximumFractionDigits: 0 });
+const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+const today = () => new Date().toISOString().slice(0, 10);
+function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok' && id !== 'loginmsg') setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
+
+let students = [], courses = [], bookings = [], ledger = [];
+let byStudent = {}, byCourse = {};
+let editingCourse = null, rosterCourse = null;
+
+// surface auth errors from the magic link
+const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+if (hashParams.get('error_description') || hashParams.get('error')) {
+  const desc = hashParams.get('error_description') || 'This sign-in link has expired or was already used.';
+  setTimeout(() => msg('loginmsg', 'err', desc.replace(/\+/g, ' ') + ' — send a fresh link.'), 300);
+  history.replaceState({}, '', location.pathname);
+}
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  route(session);
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') route(s); });
+}
+function route(session) {
+  if (!session) { show('view-login'); $('signout').classList.add('hidden'); return; }
+  if ((session.user.email || '').toLowerCase() !== ADMIN_EMAIL) { show('view-noauth'); return; }
+  $('signout').classList.remove('hidden');
+  show('view-app');
+  loadAll();
+}
+
+$('sendlink').onclick = async () => {
+  $('sendlink').disabled = true;
+  const { error } = await sb.auth.signInWithOtp({ email: ADMIN_EMAIL, options: { emailRedirectTo: ADMIN_URL } });
+  $('sendlink').disabled = false;
+  if (error) return msg('loginmsg', 'err', error.message);
+  msg('loginmsg', 'ok', 'Check your email (from noreply@impactuslearning.com). If the link opens the student portal, just come back to this page — you’ll be signed in.');
+};
+$('signout').onclick = () => sb.auth.signOut();
+$('noauth-out').onclick = () => sb.auth.signOut();
+
+async function loadAll() {
+  const [s, c, b, l] = await Promise.all([
+    sb.from('students').select('*'),
+    sb.from('courses').select('*').order('cohort_date'),
+    sb.from('bookings').select('*'),
+    sb.from('points_ledger').select('*'),
+  ]);
+  students = s.data || []; courses = c.data || []; bookings = b.data || []; ledger = l.data || [];
+  byStudent = Object.fromEntries(students.map(x => [x.id, x]));
+  byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
+  renderKPIs(); renderCohorts(); renderForm(); renderRefBoard();
+  if (rosterCourse) openRoster(rosterCourse);
+}
+
+function renderKPIs() {
+  const confirmed = bookings.filter(b => b.status === 'confirmed');
+  const cash = confirmed.reduce((t, b) => t + Number(b.cash_paid_sgd || 0), 0);
+  const mo = new Date().toISOString().slice(0, 7);
+  const cashMo = confirmed.filter(b => (b.created_at || '').slice(0, 7) === mo).reduce((t, b) => t + Number(b.cash_paid_sgd || 0), 0);
+  const bookMo = confirmed.filter(b => (b.created_at || '').slice(0, 7) === mo).length;
+  const liability = ledger.reduce((t, l) => t + l.points, 0);
+  const cap = Math.round(cash * 0.20);
+  const pct = cap ? Math.min(100, Math.round(liability / cap * 100)) : 0;
+  const gcls = pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : '';
+  const newMo = students.filter(x => (x.created_at || '').slice(0, 7) === mo).length;
+  const refMo = students.filter(x => x.referred_by && (x.created_at || '').slice(0, 7) === mo).length;
+  const upcoming = courses.filter(c => c.cohort_date >= today());
+  const seats = bookings.filter(b => b.status === 'confirmed' && upcoming.some(c => c.id === b.course_id)).length;
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="v">${fmt$(cash)}</div><div class="l">Cash revenue (all-time)</div><div class="sub">${fmt$(cashMo)} this month</div></div>
+    <div class="kpi"><div class="v">${confirmed.length}</div><div class="l">Confirmed bookings</div><div class="sub">${bookMo} this month</div></div>
+    <div class="kpi"><div class="v">${liability.toLocaleString()} pts</div><div class="l">Points liability (S$${liability.toLocaleString()}) — ${pct}% of 20% cap (${fmt$(cap)})</div>
+      <div class="gauge"><i class="${gcls}" style="width:${pct}%"></i></div></div>
+    <div class="kpi"><div class="v">${students.length}</div><div class="l">Students</div><div class="sub">+${newMo} this month · ${refMo} via referral</div></div>
+    <div class="kpi"><div class="v">${seats}</div><div class="l">Seats booked, upcoming classes (${upcoming.filter(c=>c.is_open||bookings.some(b=>b.course_id===c.id)).length} cohorts)</div></div>`;
+}
+
+function cohortCount(cid) { return bookings.filter(b => b.course_id === cid && b.status === 'confirmed').length; }
+
+function renderCohorts() {
+  const showPast = $('showpast').checked;
+  let list = courses.slice().sort((a, b) => a.cohort_date < b.cohort_date ? -1 : 1);
+  if (!showPast) list = list.filter(c => c.cohort_date >= today());
+  else list = list.slice().reverse();
+  if (!list.length) { $('cohortlist').textContent = 'No cohorts.'; return; }
+  $('cohortlist').innerHTML = list.map(c => `
+    <div class="cohort-row">
+      <div style="flex:1;min-width:220px">
+        <strong>${c.name}</strong> <span class="pill ${c.is_open ? 'open' : 'closed'}">${c.is_open ? 'OPEN' : 'closed'}</span><br>
+        <span class="muted">${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''} · ${fmt$(c.price_sgd)} · <strong>${cohortCount(c.id)}</strong> confirmed</span>
+      </div>
+      <div class="cohort-actions">
+        <button class="btn sm" onclick="openRoster('${c.id}')">Roster</button>
+        <button class="btn ghost sm" onclick="editCohort('${c.id}')">Edit</button>
+        <button class="btn ghost sm" onclick="toggleOpen('${c.id}', ${c.is_open})">${c.is_open ? 'Close' : 'Open'}</button>
+      </div>
+    </div>`).join('');
+}
+$('showpast').onchange = renderCohorts;
+
+// ---------- Roster + transfers ----------
+window.openRoster = function (cid) {
+  rosterCourse = cid;
+  const c = byCourse[cid];
+  const rows = bookings.filter(b => b.course_id === cid).sort((a, b) => (a.status === b.status ? 0 : a.status === 'confirmed' ? -1 : 1));
+  $('rostercard').style.display = '';
+  $('rostertitle').textContent = `Roster — ${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''}`;
+  if (!rows.length) { $('roster').innerHTML = '<p class="muted">No bookings yet.</p>'; return; }
+  const futureOthers = courses.filter(x => x.cohort_date >= today() && x.id !== cid)
+    .map(x => `<option value="${x.id}">${x.name} — ${fdate(x.cohort_date)}${x.session_time ? ' (' + x.session_time + ')' : ''}</option>`).join('');
+  $('roster').innerHTML = `<table><thead><tr><th>#</th><th>Student</th><th>Contact</th><th>Paid / Pts</th><th>Status</th><th></th></tr></thead><tbody>` +
+    rows.map((b, i) => {
+      const s = byStudent[b.student_id] || { name: '?', email: '', mobile: '' };
+      return `<tr>
+        <td>${i + 1}</td>
+        <td><strong>${s.name}</strong>${b.note ? `<br><span class="muted">${b.note}</span>` : ''}</td>
+        <td>${s.email}<br><span class="muted">${s.mobile || '—'}</span></td>
+        <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}</td>
+        <td><span class="pill ${b.status === 'confirmed' ? 'open' : b.status}">${b.status}</span></td>
+        <td><button class="btn ghost sm" onclick="showTransfer('${b.id}')">Transfer</button>
+          <div class="transfer-box hidden" id="tf-${b.id}">
+            <select id="tfsel-${b.id}">${futureOthers}</select>
+            <button class="btn sm" onclick="doTransfer('${b.id}')">Move</button>
+            <button class="btn ghost sm" onclick="$('tf-${b.id}').classList.add('hidden')">✕</button>
+          </div></td>
+      </tr>`;
+    }).join('') + '</tbody></table>';
+  $('rostercard').scrollIntoView({ behavior: 'smooth' });
+};
+
+window.showTransfer = (bid) => $('tf-' + bid).classList.toggle('hidden');
+
+window.doTransfer = async function (bid) {
+  const b = bookings.find(x => x.id === bid);
+  const target = $('tfsel-' + bid).value;
+  if (!target) return;
+  const from = byCourse[b.course_id], to = byCourse[target];
+  const s = byStudent[b.student_id];
+  if (Number(to.price_sgd) !== Number(from.price_sgd) &&
+      !confirm(`Price differs: ${from.name} is ${fmt$(from.price_sgd)}, ${to.name} is ${fmt$(to.price_sgd)}. Cash paid stays as recorded (${fmt$(b.cash_paid_sgd)}). Continue?`)) return;
+  if (!confirm(`Move ${s.name} to ${to.name} — ${fdate(to.cohort_date)}?`)) return;
+  const note = (b.note ? b.note + ' | ' : '') + `Transferred from ${from.name} ${from.cohort_date} on ${today()}`;
+  const { error } = await sb.from('bookings').update({ course_id: target, note }).eq('id', bid);
+  if (error) return msg('rostermsg', 'err', error.message);
+  msg('rostermsg', 'ok', `${s.name} moved to ${to.name} ${fdate(to.cohort_date)}.`);
+  await loadAll();
+};
+
+function rosterExport(kind) {
+  const c = byCourse[rosterCourse];
+  const rows = bookings.filter(b => b.course_id === rosterCourse && b.status === 'confirmed');
+  const list = rows.map(b => byStudent[b.student_id]).filter(Boolean);
+  let text = '';
+  if (kind === 'wa') {
+    text = `*${c.name}*\n${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''}\nConfirmed: ${list.length}\n\n` +
+      list.map((s, i) => `${i + 1}. ${s.name}${s.mobile ? ' — ' + s.mobile : ''}`).join('\n');
+  } else if (kind === 'emails') {
+    text = list.map(s => s.email).join(', ');
+  } else {
+    text = list.map(s => s.mobile).filter(Boolean).join('\n');
+  }
+  navigator.clipboard.writeText(text);
+  msg('rostermsg', 'ok', 'Copied to clipboard (' + list.length + ' confirmed students).');
+}
+$('copywa').onclick = () => rosterExport('wa');
+$('copyemails').onclick = () => rosterExport('emails');
+$('copymobiles').onclick = () => rosterExport('mobiles');
+
+// ---------- Cohort form ----------
+function renderForm() {
+  $('coursenames').innerHTML = [...new Set(courses.map(c => c.name))].map(n => `<option value="${n}">`).join('');
+}
+window.editCohort = function (cid) {
+  const c = byCourse[cid];
+  editingCourse = cid;
+  $('formtitle').textContent = 'Edit cohort — ' + c.name + ' · ' + fdate(c.cohort_date);
+  $('f-name').value = c.name; $('f-date').value = c.cohort_date;
+  $('f-time').value = c.session_time || ''; $('f-price').value = c.price_sgd;
+  $('f-details').value = c.details || ''; $('f-open').checked = c.is_open;
+  $('f-cancel').classList.remove('hidden');
+  $('f-save').scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-name','f-date','f-time','f-price','f-details'].forEach(i => $(i).value = ''); $('f-open').checked = false; $('f-cancel').classList.add('hidden'); };
+$('f-save').onclick = async () => {
+  const rec = { name: $('f-name').value.trim(), cohort_date: $('f-date').value, session_time: $('f-time').value.trim() || null,
+    price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, is_open: $('f-open').checked };
+  if (!rec.name || !rec.cohort_date || !(rec.price_sgd >= 0)) return msg('formmsg', 'err', 'Name, date and price are required.');
+  let error;
+  if (editingCourse) ({ error } = await sb.from('courses').update(rec).eq('id', editingCourse));
+  else ({ error } = await sb.from('courses').insert(rec));
+  if (error) return msg('formmsg', 'err', error.message);
+  msg('formmsg', 'ok', editingCourse ? 'Cohort updated.' : 'Cohort created' + (rec.is_open ? ' and live on the student portal.' : ' (closed — open it when ready).'));
+  $('f-cancel').onclick();
+  await loadAll();
+};
+window.toggleOpen = async function (cid, cur) {
+  const { error } = await sb.from('courses').update({ is_open: !cur }).eq('id', cid);
+  if (error) return alert(error.message);
+  await loadAll();
+};
+
+// ---------- Referral leaderboard ----------
+function renderRefBoard() {
+  const refEarn = {};
+  ledger.filter(l => l.type === 'earn_referral').forEach(l => refEarn[l.student_id] = (refEarn[l.student_id] || 0) + l.points);
+  const referrers = {};
+  students.filter(s => s.referred_by).forEach(s => {
+    const r = referrers[s.referred_by] = referrers[s.referred_by] || { signups: 0, converted: 0 };
+    r.signups++;
+    if (bookings.some(b => b.student_id === s.id && b.status === 'confirmed')) r.converted++;
+  });
+  const ids = new Set([...Object.keys(referrers), ...Object.keys(refEarn)]);
+  const rows = [...ids].map(id => ({ s: byStudent[id], ...(referrers[id] || { signups: 0, converted: 0 }), pts: refEarn[id] || 0 }))
+    .filter(r => r.s).sort((a, b) => b.pts - a.pts || b.signups - a.signups);
+  if (!rows.length) { $('refboard').textContent = 'No referrals yet.'; return; }
+  $('refboard').innerHTML = `<table><thead><tr><th>Referrer</th><th>Code</th><th>Sign-ups</th><th>Booked a class</th><th>Points earned</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td><strong>${r.s.name}</strong><br><span class="muted">${r.s.email}</span></td>
+      <td>${r.s.referral_code}</td><td>${r.signups}</td><td>${r.converted}</td>
+      <td class="pts" style="color:var(--green);font-weight:700">${r.pts ? '+' + r.pts : '—'}</td></tr>`).join('') + '</tbody></table>';
+}
+
+init();
+</script>
+</body>
+</html>
