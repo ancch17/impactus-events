@@ -187,7 +187,7 @@ $('sendlink').onclick = async () => {
   });
   $('sendlink').disabled = false;
   if (error) return msg('loginmsg', 'err', error.message);
-  msg('loginmsg', 'ok', 'Check your email — your sign-in link is on the way.');
+  msg('loginmsg', 'ok', 'Check your email — the sign-in link comes from "Supabase Auth". Not there within a minute? Check your Spam/Junk folder (and Promotions tab in Gmail).');
 };
 
 $('signout').onclick = () => sb.auth.signOut();
