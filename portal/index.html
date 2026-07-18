@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root { --navy:#101a2d; --navy2:#1b2942; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --line:#e6e9f0; }
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -74,8 +75,8 @@
       <input type="text" id="fullname" placeholder="Your name" autocomplete="name">
       <label>Mobile <span style="font-weight:400">(optional)</span></label>
       <input type="tel" id="mobile" placeholder="+65 9xxx xxxx" autocomplete="tel">
-      <label>Referral code <span style="font-weight:400">(optional — a friend's code)</span></label>
-      <input type="text" id="refcode" placeholder="e.g. JANE384">
+      <label id="reflabel">Have a friend's referral code? <span style="font-weight:400">(optional — fills in automatically if you used their link or QR)</span></label>
+      <input type="text" id="refcode" placeholder="Only needed if your friend told you a code">
     </div>
     <button class="btn" id="sendlink">Email me a sign-in link</button>
     <div class="msg" id="loginmsg"></div>
@@ -117,10 +118,17 @@
 
   <div class="card">
     <h2>Refer a friend, earn 10%</h2>
-    <p class="muted">Share your personal link. When a friend books their first class, you get 10% of what they pay — in points.</p>
-    <div class="reflink">
-      <input type="text" id="reflink" readonly>
-      <button class="btn" id="copyref">Copy</button>
+    <p class="muted">When a friend signs up through you and books their first class, you get 10% of what they pay — in points. No codes to remember: they just tap your link or scan your QR.</p>
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:14px">
+      <div id="refqr" style="background:#fff;padding:10px;border:1px solid var(--line);border-radius:12px"></div>
+      <div style="flex:1;min-width:230px">
+        <button class="btn" id="waref" style="margin-top:0;background:#25D366;color:#fff">Share via WhatsApp</button>
+        <div class="reflink">
+          <input type="text" id="reflink" readonly>
+          <button class="btn" id="copyref">Copy</button>
+        </div>
+        <p class="muted" style="margin-top:8px">In class? Let your neighbour scan the QR with their phone camera.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -141,7 +149,10 @@ let student = null, balance = 0, courses = [], selCourse = null;
 
 // referral code from ?ref=
 const params = new URLSearchParams(location.search);
-if (params.get('ref')) { $('refcode').value = params.get('ref').toUpperCase(); }
+if (params.get('ref')) {
+  $('refcode').value = params.get('ref').toUpperCase();
+  setTimeout(() => msg('loginmsg', 'ok', "Your friend's referral is attached ✓ — just sign up above."), 300);
+}
 
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -189,7 +200,12 @@ async function showApp(session) {
   balance = student.balance_points;
   $('hello').textContent = 'Welcome back, ' + student.name.split(' ')[0];
   $('balline').textContent = balance > 0 ? `You've earned S$${balance} toward your next class` : 'Book your first class to start earning rebates';
-  $('reflink').value = PORTAL_URL + '?ref=' + student.referral_code;
+  const reflink = PORTAL_URL + '?ref=' + student.referral_code;
+  $('reflink').value = reflink;
+  $('refqr').innerHTML = '';
+  new QRCode($('refqr'), { text: reflink, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
+  $('waref').onclick = () => window.open('https://wa.me/?text=' + encodeURIComponent(
+    "I've been taking Impactus Learning's AI masterclasses — sign up with my link: " + reflink), '_blank');
   loadCourses(); loadHistory();
 }
 
