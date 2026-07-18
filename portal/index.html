@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Impactus Learning — Student Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --navy:#101a2d; --navy2:#1b2942; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --line:#e6e9f0; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:760px; margin:0 auto; padding:16px; }
+  header { background:var(--navy); color:#fff; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:14px; padding-bottom:14px; }
+  .logo { font-weight:800; font-size:17px; letter-spacing:.2px; }
+  .logo span { color:var(--amber); }
+  .signout { background:none; border:1px solid rgba(255,255,255,.3); color:#fff; padding:6px 12px; border-radius:8px; font-size:13px; cursor:pointer; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; margin-top:16px; }
+  h1 { font-size:22px; font-weight:800; }
+  h2 { font-size:16px; font-weight:700; margin-bottom:12px; }
+  .muted { color:var(--mut); font-size:13.5px; }
+  .banner { background:linear-gradient(120deg,var(--navy),var(--navy2)); color:#fff; border-radius:14px; padding:22px; margin-top:16px; }
+  .banner .big { font-size:28px; font-weight:800; color:var(--amber); }
+  input, select { width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:10px; font-size:15px; font-family:inherit; margin-top:8px; background:#fff; }
+  label { font-size:13px; font-weight:600; color:var(--mut); display:block; margin-top:12px; }
+  .btn { display:inline-block; width:100%; margin-top:16px; padding:13px; background:var(--amber); color:var(--navy); border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn:disabled { opacity:.55; cursor:default; }
+  .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .row { display:flex; justify-content:space-between; align-items:baseline; padding:9px 0; border-bottom:1px solid var(--line); font-size:14.5px; }
+  .row:last-child { border-bottom:none; }
+  .pill { display:inline-block; font-size:11px; font-weight:700; padding:2.5px 9px; border-radius:99px; margin-left:6px; vertical-align:middle; }
+  .pill.early { background:#fdf3d7; color:var(--amber-d); }
+  .pill.free { background:#e3f4ea; color:var(--green); }
+  .pill.upcoming { background:#e8edfb; color:#3c5bd2; }
+  .pts { color:var(--green); font-weight:700; white-space:nowrap; }
+  .neg { color:#c0392b; font-weight:700; }
+  .hist-course { font-weight:600; }
+  .hist-sub { font-size:12.5px; color:var(--mut); margin-top:2px; }
+  .slider-row { display:flex; align-items:center; gap:12px; margin-top:10px; }
+  input[type=range] { flex:1; accent-color:var(--amber-d); padding:0; }
+  .breakdown { background:var(--bg); border-radius:10px; padding:14px; margin-top:14px; font-size:14.5px; }
+  .breakdown .row { border-bottom:none; padding:4px 0; }
+  .total { font-size:18px; font-weight:800; }
+  .msg { margin-top:12px; padding:12px 14px; border-radius:10px; font-size:14px; display:none; }
+  .msg.ok { background:#e3f4ea; color:var(--green); display:block; }
+  .msg.err { background:#fdeaea; color:#c0392b; display:block; }
+  .reflink { display:flex; gap:8px; margin-top:10px; }
+  .reflink input { margin-top:0; font-size:13px; color:var(--mut); }
+  .reflink button { white-space:nowrap; width:auto; margin-top:0; padding:0 16px; }
+  .hidden { display:none !important; }
+  footer { text-align:center; padding:26px 0 34px; }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="logo">Impactus <span>Learning</span> · Student Portal</div>
+  <button class="signout hidden" id="signout">Sign out</button>
+</div></header>
+
+<!-- SIGNED OUT -->
+<div class="wrap hidden" id="view-login">
+  <div class="banner">
+    <h1>Your classes. Your rebates.</h1>
+    <p class="muted" style="color:#cfd6e4;margin-top:6px">Earn 10% back in rebate points on every class — 1 point = S$1 off your next one.</p>
+  </div>
+  <div class="card">
+    <h2>Sign in / Create account</h2>
+    <label>Email</label>
+    <input type="email" id="email" placeholder="you@email.com" autocomplete="email">
+    <div id="newFields">
+      <label>Full name <span style="font-weight:400">(new students)</span></label>
+      <input type="text" id="fullname" placeholder="Your name" autocomplete="name">
+      <label>Mobile <span style="font-weight:400">(optional)</span></label>
+      <input type="tel" id="mobile" placeholder="+65 9xxx xxxx" autocomplete="tel">
+      <label>Referral code <span style="font-weight:400">(optional — a friend's code)</span></label>
+      <input type="text" id="refcode" placeholder="e.g. JANE384">
+    </div>
+    <button class="btn" id="sendlink">Email me a sign-in link</button>
+    <div class="msg" id="loginmsg"></div>
+    <p class="muted" style="margin-top:14px">No password needed — we email you a secure link. Existing students: use the same email you registered with, your points are already waiting.</p>
+  </div>
+</div>
+
+<!-- SIGNED IN -->
+<div class="wrap hidden" id="view-app">
+  <div class="banner">
+    <p style="font-size:14px;color:#cfd6e4" id="hello">Welcome back</p>
+    <p class="big" id="balline">…</p>
+    <p class="muted" style="color:#cfd6e4;margin-top:4px">Points never expire. Use them on any class — or keep collecting.</p>
+  </div>
+
+  <div class="card" id="bookcard">
+    <h2>Book a class</h2>
+    <div id="courselist" class="muted">Loading classes…</div>
+    <div id="bookform" class="hidden">
+      <div class="slider-row">
+        <span class="muted" style="font-size:13px">Use points:</span>
+        <input type="range" id="ptsrange" min="0" value="0" step="1">
+        <strong id="ptsval" style="min-width:52px;text-align:right">0 pts</strong>
+      </div>
+      <div class="breakdown">
+        <div class="row"><span>Class price</span><span id="bd-price"></span></div>
+        <div class="row"><span>Points applied</span><span class="pts" id="bd-pts">− S$0</span></div>
+        <div class="row total"><span>You pay</span><span id="bd-total"></span></div>
+      </div>
+      <button class="btn" id="paybtn">Continue</button>
+    </div>
+    <div class="msg" id="bookmsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Your transaction history</h2>
+    <div id="history" class="muted">Loading…</div>
+  </div>
+
+  <div class="card">
+    <h2>Refer a friend, earn 10%</h2>
+    <p class="muted">Share your personal link. When a friend books their first class, you get 10% of what they pay — in points.</p>
+    <div class="reflink">
+      <input type="text" id="reflink" readonly>
+      <button class="btn" id="copyref">Copy</button>
+    </div>
+  </div>
+</div>
+
+<footer class="muted">Impactus Learning Pte Ltd · Points are non-transferable and not exchangeable for cash.<br>Questions? andrew@impactuslearning.com</footer>
+
+<script>
+const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+const PORTAL_URL = 'https://events.impactuslearning.com/portal/';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = (id) => document.getElementById(id);
+const fmt$ = (n) => 'S$' + Number(n).toFixed(2).replace(/\.00$/, '');
+const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+
+let student = null, balance = 0, courses = [], selCourse = null;
+
+// referral code from ?ref=
+const params = new URLSearchParams(location.search);
+if (params.get('ref')) { $('refcode').value = params.get('ref').toUpperCase(); }
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { await showApp(session); } else { show('view-login'); }
+  sb.auth.onAuthStateChange(async (ev, s) => {
+    if (ev === 'SIGNED_IN' && s) await showApp(s);
+    if (ev === 'SIGNED_OUT') { show('view-login'); $('signout').classList.add('hidden'); }
+  });
+  if (params.get('payment') === 'done') {
+    history.replaceState({}, '', location.pathname);
+    setTimeout(() => msg('bookmsg', 'ok', 'Payment received! Your booking is confirmed and points are updated. (Refresh if you don\'t see it yet.)'), 800);
+  }
+}
+
+function show(id) { ['view-login', 'view-app'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; }
+
+$('sendlink').onclick = async () => {
+  const email = $('email').value.trim().toLowerCase();
+  if (!email || !email.includes('@')) return msg('loginmsg', 'err', 'Please enter a valid email.');
+  $('sendlink').disabled = true;
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: PORTAL_URL,
+      data: {
+        full_name: $('fullname').value.trim(),
+        mobile: $('mobile').value.trim(),
+        referral_code: $('refcode').value.trim().toUpperCase(),
+      },
+    },
+  });
+  $('sendlink').disabled = false;
+  if (error) return msg('loginmsg', 'err', error.message);
+  msg('loginmsg', 'ok', 'Check your email — your sign-in link is on the way.');
+};
+
+$('signout').onclick = () => sb.auth.signOut();
+
+async function showApp(session) {
+  show('view-app'); $('signout').classList.remove('hidden');
+  const { data: me } = await sb.from('points_balances').select('*').limit(1);
+  student = me && me[0];
+  if (!student) { $('hello').textContent = 'Welcome!'; $('balline').textContent = 'Setting up your account…'; setTimeout(() => showApp(session), 1500); return; }
+  balance = student.balance_points;
+  $('hello').textContent = 'Welcome back, ' + student.name.split(' ')[0];
+  $('balline').textContent = balance > 0 ? `You've earned S$${balance} toward your next class` : 'Book your first class to start earning rebates';
+  $('reflink').value = PORTAL_URL + '?ref=' + student.referral_code;
+  loadCourses(); loadHistory();
+}
+
+async function loadCourses() {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await sb.from('courses').select('*').eq('is_open', true).gte('cohort_date', today).order('cohort_date');
+  courses = data || [];
+  if (!courses.length) { $('courselist').textContent = 'No classes open for booking right now — watch this space!'; return; }
+  $('courselist').innerHTML = courses.map((c, i) =>
+    `<label style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink)">
+      <input type="radio" name="course" value="${i}" style="width:auto;margin:0">
+      <span style="flex:1"><span class="hist-course">${c.name}</span><span class="pill upcoming">${fdate(c.cohort_date)}</span>
+      <div class="hist-sub">${c.details || ''}</div></span>
+      <strong>${fmt$(c.price_sgd)}</strong>
+    </label>`).join('');
+  document.querySelectorAll('input[name=course]').forEach(r => r.onchange = () => selectCourse(courses[r.value]));
+}
+
+function selectCourse(c) {
+  selCourse = c;
+  $('bookform').classList.remove('hidden');
+  const max = Math.min(balance, Math.floor(Number(c.price_sgd)));
+  const rng = $('ptsrange'); rng.max = max; rng.value = 0;
+  rng.oninput = updateBreakdown; updateBreakdown();
+}
+
+function updateBreakdown() {
+  const pts = Number($('ptsrange').value);
+  const price = Number(selCourse.price_sgd);
+  const pay = price - pts;
+  $('ptsval').textContent = pts + ' pts';
+  $('bd-price').textContent = fmt$(price);
+  $('bd-pts').textContent = '− ' + fmt$(pts);
+  $('bd-total').textContent = fmt$(pay);
+  $('paybtn').textContent = pay === 0 ? 'Book with points — pay S$0' : `Pay ${fmt$(pay)} with PayNow / card`;
+}
+
+$('paybtn').onclick = async () => {
+  if (!selCourse) return;
+  $('paybtn').disabled = true;
+  msg('bookmsg', 'ok', 'Preparing your booking…');
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ course_id: selCourse.id, points_to_redeem: Number($('ptsrange').value) }),
+    });
+    const out = await res.json();
+    if (!res.ok) throw new Error(out.error || 'Something went wrong');
+    if (out.status === 'confirmed_free') {
+      msg('bookmsg', 'ok', 'Booked! Fully paid with your points. See you in class!');
+      const { data: { session: s2 } } = await sb.auth.getSession(); await showApp(s2);
+    } else if (out.url) {
+      location.href = out.url;
+    }
+  } catch (e) { msg('bookmsg', 'err', e.message); }
+  $('paybtn').disabled = false;
+};
+
+async function loadHistory() {
+  const { data } = await sb.from('student_history').select('*').order('cohort_date', { ascending: false });
+  const rows = (data || []).filter(r => r.status !== 'pending');
+  if (!rows.length) { $('history').textContent = 'No transactions yet.'; return; }
+  $('history').innerHTML = rows.map(r => {
+    const paid = Number(r.cash_paid_sgd);
+    const isFuture = r.cohort_date >= new Date().toISOString().slice(0, 10);
+    let badge = '';
+    if (r.status === 'cancelled') badge = '<span class="pill" style="background:#eee;color:#888">Postponed / cancelled</span>';
+    else if (paid === 0 && r.points_redeemed > 0) badge = '<span class="pill free">Paid with points</span>';
+    else if (paid === 0) badge = '<span class="pill free">Complimentary</span>';
+    else if (paid === 90) badge = '<span class="pill early">Introductory price — early supporter</span>';
+    if (isFuture && r.status === 'confirmed') badge += '<span class="pill upcoming">Upcoming</span>';
+    const right = [];
+    if (paid > 0) right.push(`<div><strong>${fmt$(paid)}</strong> paid</div>`);
+    if (r.points_earned > 0) right.push(`<div class="pts">+${r.points_earned} pts</div>`);
+    if (r.points_redeemed > 0 && r.status === 'confirmed') right.push(`<div class="neg">−${r.points_redeemed} pts</div>`);
+    return `<div class="row"><div><div class="hist-course">${r.course}${badge}</div>
+      <div class="hist-sub">${fdate(r.cohort_date)}${r.note && r.status !== 'confirmed' ? ' · ' + r.note : ''}</div></div>
+      <div style="text-align:right">${right.join('') || '<span class="muted">—</span>'}</div></div>`;
+  }).join('');
+}
+
+$('copyref').onclick = () => { navigator.clipboard.writeText($('reflink').value); $('copyref').textContent = 'Copied!'; setTimeout(() => $('copyref').textContent = 'Copy', 1500); };
+
+init();
+</script>
+</body>
+</html>
