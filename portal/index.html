@@ -139,7 +139,7 @@
 const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
 const PORTAL_URL = 'https://events.impactuslearning.com/portal/';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
 
 const $ = (id) => document.getElementById(id);
 const fmt$ = (n) => 'S$' + Number(n).toFixed(2).replace(/\.00$/, '');
@@ -148,6 +148,13 @@ const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day
 let student = null, balance = 0, courses = [], selCourse = null;
 
 // referral code from ?ref=
+// Surface auth errors from the magic link (expired / already used)
+const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+if (hashParams.get('error_description') || hashParams.get('error')) {
+  const desc = hashParams.get('error_description') || 'This sign-in link has expired or was already used.';
+  setTimeout(() => msg('loginmsg', 'err', desc.replace(/\+/g, ' ') + ' — enter your email above for a fresh link (always use the newest email).'), 300);
+  history.replaceState({}, '', location.pathname + location.search);
+}
 const params = new URLSearchParams(location.search);
 if (params.get('ref')) {
   $('refcode').value = params.get('ref').toUpperCase();
