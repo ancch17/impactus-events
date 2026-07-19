@@ -60,7 +60,7 @@
 <body>
 
 <header><div class="wrap">
-  <div class="logo">Impactus <span>Admin</span></div>
+  <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
   <button class="signout hidden" id="signout">Sign out</button>
 </div></header>
 
@@ -126,6 +126,28 @@
     </div>
 
     <div class="card">
+      <h2>Discounts &amp; free passes</h2>
+      <p class="muted" style="margin-top:-6px;margin-bottom:12px">A code students type at checkout. The discount comes off first, then their points apply to the remainder. Rebate is always earned on cash actually paid — a free pass earns nothing.</p>
+      <div class="formgrid">
+        <div><label>Code</label><input id="c-code" placeholder="e.g. LAUNCH20" style="text-transform:uppercase"></div>
+        <div><label>Type</label><select id="c-kind">
+          <option value="percent">% off</option>
+          <option value="fixed">S$ off</option>
+          <option value="free">Free pass (100%)</option>
+        </select></div>
+        <div><label id="c-vallabel">Value (%)</label><input type="number" id="c-value" min="0" step="1" placeholder="20"></div>
+        <div><label>Course scope</label><select id="c-family"></select></div>
+        <div><label>One specific date only (optional)</label><select id="c-course"></select></div>
+        <div><label>Max uses (blank = unlimited)</label><input type="number" id="c-max" min="1" step="1" placeholder="e.g. 50"></div>
+        <div><label>Expires (optional)</label><input type="date" id="c-exp"></div>
+        <div><label>Note (internal only)</label><input id="c-note" placeholder="e.g. July WhatsApp promo"></div>
+      </div>
+      <div style="margin-top:14px"><button class="btn" id="c-save">Create code</button></div>
+      <div class="msg" id="c-msg"></div>
+      <div id="couponlist" class="muted" style="margin-top:16px">Loading…</div>
+    </div>
+
+    <div class="card">
       <h2>Referral leaderboard</h2>
       <div id="refboard" class="muted">Loading…</div>
     </div>
@@ -149,7 +171,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok' && id !== 'loginmsg') setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 
-let students = [], courses = [], bookings = [], ledger = [], families = [];
+let students = [], courses = [], bookings = [], ledger = [], families = [], coupons = [];
 let byStudent = {}, byCourse = {};
 let editingCourse = null, rosterCourse = null;
 
@@ -185,18 +207,19 @@ $('signout').onclick = () => sb.auth.signOut();
 $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
-  const [s, c, b, l, f] = await Promise.all([
+  const [s, c, b, l, f, g] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select('*').order('cohort_date'),
     sb.from('bookings').select('*'),
     sb.from('points_ledger').select('*'),
     sb.from('course_families').select('*').order('sort_order'),
+    sb.from('coupons').select('*').order('created_at', { ascending: false }),
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || []; ledger = l.data || [];
-  families = f.data || [];
+  families = f.data || []; coupons = g.data || [];
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
-  renderKPIs(); renderCohorts(); renderForm(); renderRefBoard();
+  renderKPIs(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderRefBoard();
   if (rosterCourse) openRoster(rosterCourse);
 }
 
@@ -347,6 +370,66 @@ $('f-save').onclick = async () => {
 };
 window.toggleOpen = async function (cid, cur) {
   const { error } = await sb.from('courses').update({ is_open: !cur }).eq('id', cid);
+  if (error) return alert(error.message);
+  await loadAll();
+};
+
+// ---------- Discounts & free passes ----------
+function renderCouponForm() {
+  $('c-family').innerHTML = '<option value="">Any course</option>' +
+    families.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+  $('c-course').innerHTML = '<option value="">Any date</option>' +
+    [...courses].sort((a, b) => a.cohort_date.localeCompare(b.cohort_date))
+      .map(c => `<option value="${c.id}">${c.name} · ${fdate(c.cohort_date)}</option>`).join('');
+}
+$('c-kind').onchange = () => {
+  const k = $('c-kind').value;
+  $('c-vallabel').textContent = k === 'percent' ? 'Value (%)' : k === 'fixed' ? 'Value (S$)' : 'Value (n/a — 100%)';
+  $('c-value').disabled = k === 'free';
+  if (k === 'free') $('c-value').value = '';
+};
+$('c-save').onclick = async () => {
+  const code = $('c-code').value.trim().toUpperCase();
+  const kind = $('c-kind').value;
+  const val = $('c-value').value === '' ? null : Number($('c-value').value);
+  if (!code) return msg('c-msg', 'err', 'Enter a code.');
+  if (kind !== 'free' && !(val > 0)) return msg('c-msg', 'err', 'Enter a value greater than 0.');
+  if (kind === 'percent' && val > 100) return msg('c-msg', 'err', 'Percentage can’t exceed 100.');
+  const rec = {
+    code, kind, value: kind === 'free' ? null : val,
+    family_id: $('c-family').value || null, course_id: $('c-course').value || null,
+    max_uses: $('c-max').value ? Number($('c-max').value) : null,
+    expires_at: $('c-exp').value || null, note: $('c-note').value.trim() || null, active: true,
+  };
+  const { error } = await sb.from('coupons').insert(rec);
+  if (error) return msg('c-msg', 'err', /duplicate|unique/i.test(error.message) ? 'That code already exists — pick another.' : error.message);
+  msg('c-msg', 'ok', `Code ${code} created and live.`);
+  ['c-code', 'c-value', 'c-max', 'c-exp', 'c-note'].forEach(i => $(i).value = '');
+  await loadAll();
+};
+function renderCoupons() {
+  if (!coupons.length) { $('couponlist').textContent = 'No codes yet.'; return; }
+  const famName = (id) => (families.find(f => f.id === id) || {}).name || '—';
+  const crsLabel = (id) => { const c = byCourse[id]; return c ? `${c.name} · ${fdate(c.cohort_date)}` : '—'; };
+  const today = new Date().toISOString().slice(0, 10);
+  $('couponlist').innerHTML = `<table><thead><tr><th>Code</th><th>Discount</th><th>Scope</th><th>Used</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>` +
+    coupons.map(c => {
+      const disc = c.kind === 'percent' ? `${c.value}% off` : c.kind === 'fixed' ? `S$${c.value} off` : 'Free pass';
+      const scope = c.course_id ? crsLabel(c.course_id) : (c.family_id ? famName(c.family_id) : 'Any course');
+      const used = `${c.uses}${c.max_uses != null ? ' / ' + c.max_uses : ''}`;
+      const expired = c.expires_at && c.expires_at < today;
+      const capped = c.max_uses != null && c.uses >= c.max_uses;
+      const status = !c.active ? '<span class="pill closed">Off</span>'
+        : expired ? '<span class="pill cancelled">Expired</span>'
+        : capped ? '<span class="pill cancelled">Used up</span>'
+        : '<span class="pill open">Live</span>';
+      return `<tr><td><strong>${c.code}</strong>${c.note ? `<div class="muted" style="font-size:11px">${c.note}</div>` : ''}</td>` +
+        `<td>${disc}</td><td>${scope}</td><td>${used}</td><td>${c.expires_at ? fdate(c.expires_at) : '—'}</td><td>${status}</td>` +
+        `<td><button class="btn sm ghost" onclick="toggleCoupon('${c.id}',${c.active})">${c.active ? 'Turn off' : 'Turn on'}</button></td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+window.toggleCoupon = async function (id, cur) {
+  const { error } = await sb.from('coupons').update({ active: !cur }).eq('id', id);
   if (error) return alert(error.message);
   await loadAll();
 };
