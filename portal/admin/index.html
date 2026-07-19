@@ -106,6 +106,30 @@
       <div class="msg" id="rostermsg"></div>
     </div>
 
+    <div class="card" id="cancelcard" style="display:none;border:1px solid #f3c9c9">
+      <h2 id="canceltitle" style="color:var(--red)">Cancel class</h2>
+      <p class="muted" style="margin-top:-6px">Choose what happens to each participant, then notify everyone. Transfers keep their payment &amp; points; credit refunds go back as points instantly; cash refunds to card/PayNow are recorded as <strong>pending</strong> until HitPay is live.</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0">
+        <span class="muted" style="font-size:13px">Set everyone to:</span>
+        <select id="cx-bulk" style="width:auto">
+          <option value="refund_credit">Refund as credit (points)</option>
+          <option value="refund_cash">Refund to original payment</option>
+        </select>
+        <button class="btn ghost sm" id="cx-applyall">Apply to all</button>
+      </div>
+      <div id="cancelroster"></div>
+      <label style="margin-top:14px">Email subject</label>
+      <input id="cx-subject">
+      <label>Message (before the personal outcome line). Use {first} for their name.</label>
+      <textarea id="cx-body" rows="4" style="width:100%;font-family:inherit;font-size:14px;padding:10px;border:1px solid var(--line);border-radius:9px"></textarea>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn ghost sm" id="cx-preview">Preview (no changes)</button>
+        <button class="btn" id="cx-go" style="background:var(--red);color:#fff">Cancel class &amp; notify everyone</button>
+        <button class="btn ghost sm" id="cx-close">Close</button>
+      </div>
+      <div class="msg" id="cancelmsg"></div>
+    </div>
+
     <div class="card">
       <h2 id="formtitle">Add a new cohort</h2>
       <div class="formgrid">
@@ -117,6 +141,8 @@
       </div>
       <label>Details (one-liner shown on portal)</label>
       <input id="f-details" placeholder="Optional description">
+      <label style="margin-top:12px">WhatsApp group invite link (added as a footnote to this class's emails)</label>
+      <input id="f-whatsapp" placeholder="https://chat.whatsapp.com/…">
       <label style="margin-top:12px"><input type="checkbox" id="f-open" style="width:auto;vertical-align:-2px"> Open for booking on the student portal</label>
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn" id="f-save">Save cohort</button>
@@ -145,6 +171,25 @@
       <div style="margin-top:14px"><button class="btn" id="c-save">Create code</button></div>
       <div class="msg" id="c-msg"></div>
       <div id="couponlist" class="muted" style="margin-top:16px">Loading…</div>
+    </div>
+
+    <div class="card">
+      <h2>Email students</h2>
+      <p class="muted" style="margin-top:-6px;margin-bottom:12px">Send an announcement via Impactus Learning (noreply@impactuslearning.com). Use {first} for the student's first name. The class WhatsApp link is added as a footnote automatically.</p>
+      <div class="formgrid">
+        <div><label>Send to</label><select id="em-scope"></select></div>
+        <div><label>Attach WhatsApp footnote from</label><select id="em-wa"><option value="">— none —</option></select></div>
+      </div>
+      <label style="margin-top:10px">Subject</label>
+      <input id="em-subject" placeholder="e.g. See you at class this week!">
+      <label>Message</label>
+      <textarea id="em-body" rows="6" style="width:100%;font-family:inherit;font-size:14px;padding:10px;border:1px solid var(--line);border-radius:9px" placeholder="Hi {first},&#10;&#10;…"></textarea>
+      <div id="em-count" class="muted" style="font-size:12.5px;margin-top:8px"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn ghost sm" id="em-test">Send test to me</button>
+        <button class="btn" id="em-send">Send to recipients</button>
+      </div>
+      <div class="msg" id="em-msg"></div>
     </div>
 
     <div class="card">
@@ -219,7 +264,7 @@ async function loadAll() {
   families = f.data || []; coupons = g.data || [];
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
-  renderKPIs(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderRefBoard();
+  renderKPIs(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderEmailForm(); renderRefBoard();
   if (rosterCourse) openRoster(rosterCourse);
 }
 
@@ -255,15 +300,16 @@ function renderCohorts() {
   else list = list.slice().reverse();
   if (!list.length) { $('cohortlist').textContent = 'No cohorts.'; return; }
   $('cohortlist').innerHTML = list.map(c => `
-    <div class="cohort-row">
+    <div class="cohort-row"${c.cancelled ? ' style="opacity:.6"' : ''}>
       <div style="flex:1;min-width:220px">
-        <strong>${c.name}</strong> <span class="pill ${c.is_open ? 'open' : 'closed'}">${c.is_open ? 'OPEN' : 'closed'}</span><br>
+        <strong>${c.name}</strong> ${c.cancelled ? '<span class="pill cancelled">CANCELLED</span>' : `<span class="pill ${c.is_open ? 'open' : 'closed'}">${c.is_open ? 'OPEN' : 'closed'}</span>`}<br>
         <span class="muted">${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''} · ${fmt$(c.price_sgd)} · <strong>${cohortCount(c.id)}</strong> confirmed</span>
       </div>
       <div class="cohort-actions">
         <button class="btn sm" onclick="openRoster('${c.id}')">Roster</button>
         <button class="btn ghost sm" onclick="editCohort('${c.id}')">Edit</button>
-        <button class="btn ghost sm" onclick="toggleOpen('${c.id}', ${c.is_open})">${c.is_open ? 'Close' : 'Open'}</button>
+        ${c.cancelled ? '' : `<button class="btn ghost sm" onclick="toggleOpen('${c.id}', ${c.is_open})">${c.is_open ? 'Close' : 'Open'}</button>
+        <button class="btn ghost sm" style="color:var(--red)" onclick="openCancel('${c.id}')">Cancel class</button>`}
       </div>
     </div>`).join('');
 }
@@ -337,6 +383,130 @@ $('copywa').onclick = () => rosterExport('wa');
 $('copyemails').onclick = () => rosterExport('emails');
 $('copymobiles').onclick = () => rosterExport('mobiles');
 
+// ---------- Shared: call an edge function with the admin's JWT ----------
+async function callFn(name, payload) {
+  const { data: { session } } = await sb.auth.getSession();
+  const res = await fetch(SUPABASE_URL + '/functions/v1/' + name, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+    body: JSON.stringify(payload),
+  });
+  let out = {}; try { out = await res.json(); } catch (e) {}
+  return { ok: res.ok, out };
+}
+
+// ---------- Cancel a class ----------
+let cancelCourse = null;
+window.openCancel = function (cid) {
+  cancelCourse = cid;
+  const c = byCourse[cid];
+  const rows = bookings.filter(b => b.course_id === cid && b.status === 'confirmed');
+  $('cancelcard').style.display = '';
+  $('canceltitle').textContent = `Cancel class — ${c.name} · ${fdate(c.cohort_date)}`;
+  const futureOthers = courses.filter(x => x.cohort_date >= today() && x.id !== cid && !x.cancelled)
+    .map(x => `<option value="${x.id}">${x.name} — ${fdate(x.cohort_date)}${x.session_time ? ' (' + x.session_time + ')' : ''}</option>`).join('');
+  if (!rows.length) {
+    $('cancelroster').innerHTML = '<p class="muted">No confirmed participants — cancelling just closes the class.</p>';
+  } else {
+    $('cancelroster').innerHTML = `<table><thead><tr><th>Student</th><th>Paid</th><th>What happens</th></tr></thead><tbody>` +
+      rows.map(b => {
+        const s = byStudent[b.student_id] || { name: '?' };
+        return `<tr>
+          <td><strong>${s.name}</strong></td>
+          <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}</td>
+          <td><select class="cx-action" data-b="${b.id}" style="width:auto">
+              <option value="refund_credit">Refund as credit (points)</option>
+              <option value="refund_cash">Refund to original payment</option>
+              <option value="transfer">Transfer to…</option>
+            </select>
+            <select class="cx-target hidden" data-b="${b.id}" style="width:auto;margin-top:6px">${futureOthers}</select></td>
+        </tr>`;
+      }).join('') + '</tbody></table>';
+    document.querySelectorAll('.cx-action').forEach(sel => sel.onchange = () => {
+      document.querySelector(`.cx-target[data-b="${sel.dataset.b}"]`).classList.toggle('hidden', sel.value !== 'transfer');
+    });
+  }
+  $('cx-subject').value = `Important: ${c.name} on ${fdate(c.cohort_date)} has been cancelled`;
+  $('cx-body').value = `Hi {first},\n\nWe're very sorry to let you know that ${c.name} on ${fdate(c.cohort_date)} has been cancelled.`;
+  $('cancelmsg').className = 'msg';
+  $('cancelcard').scrollIntoView({ behavior: 'smooth' });
+};
+$('cx-applyall').onclick = () => {
+  const v = $('cx-bulk').value;
+  document.querySelectorAll('.cx-action').forEach(sel => { sel.value = v; sel.onchange(); });
+};
+$('cx-close').onclick = () => { $('cancelcard').style.display = 'none'; cancelCourse = null; };
+function collectDispositions() {
+  const disp = {};
+  document.querySelectorAll('.cx-action').forEach(sel => {
+    const bid = sel.dataset.b, action = sel.value, entry = { action };
+    if (action === 'transfer') entry.target_course_id = document.querySelector(`.cx-target[data-b="${bid}"]`).value;
+    disp[bid] = entry;
+  });
+  return disp;
+}
+$('cx-preview').onclick = async () => {
+  if (!cancelCourse) return;
+  msg('cancelmsg', 'ok', 'Checking…');
+  const { ok, out } = await callFn('cancel-cohort', { course_id: cancelCourse, dispositions: collectDispositions(), dry_run: true });
+  if (!ok) return msg('cancelmsg', 'err', out.error || 'Preview failed');
+  msg('cancelmsg', 'ok', `Would affect ${out.would_affect} participant(s). No changes made — press “Cancel class & notify” to apply.`);
+};
+$('cx-go').onclick = async () => {
+  if (!cancelCourse) return;
+  const c = byCourse[cancelCourse];
+  if (!confirm(`Cancel ${c.name} on ${fdate(c.cohort_date)}?\n\nThis applies all refunds/transfers and emails everyone. It can't be undone.`)) return;
+  $('cx-go').disabled = true; msg('cancelmsg', 'ok', 'Cancelling and notifying…');
+  const { ok, out } = await callFn('cancel-cohort', {
+    course_id: cancelCourse, dispositions: collectDispositions(),
+    email: { subject: $('cx-subject').value, body: $('cx-body').value }, whatsapp_url: c.whatsapp_url || null,
+  });
+  $('cx-go').disabled = false;
+  if (!ok) return msg('cancelmsg', 'err', out.error || 'Cancel failed');
+  let m = `Class cancelled. ${out.affected} participant(s) processed. Emails sent: ${out.emails_sent}${out.emails_failed ? ', failed: ' + out.emails_failed : ''}.`;
+  if (out.note) m += ' ' + out.note;
+  msg('cancelmsg', 'ok', m);
+  await loadAll();
+};
+
+// ---------- Email students ----------
+function renderEmailForm() {
+  const upcoming = courses.filter(c => c.cohort_date >= today() && !c.cancelled).sort((a, b) => a.cohort_date.localeCompare(b.cohort_date));
+  $('em-scope').innerHTML = '<option value="all">All students</option><option value="upcoming">All students with an upcoming class</option>' +
+    upcoming.map(c => `<option value="c:${c.id}">${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' (' + c.session_time + ')' : ''}</option>`).join('');
+  $('em-wa').innerHTML = '<option value="">— none —</option>' +
+    courses.filter(c => c.whatsapp_url).sort((a, b) => a.cohort_date.localeCompare(b.cohort_date))
+      .map(c => `<option value="${c.id}">${c.name} · ${fdate(c.cohort_date)}</option>`).join('');
+  $('em-scope').onchange = updateEmCount; updateEmCount();
+}
+function emRecipients() {
+  const v = $('em-scope').value || 'all';
+  const sids = new Set();
+  if (v === 'all') students.forEach(s => sids.add(s.id));
+  else if (v === 'upcoming') bookings.filter(b => b.status === 'confirmed' && byCourse[b.course_id] && byCourse[b.course_id].cohort_date >= today() && !byCourse[b.course_id].cancelled).forEach(b => sids.add(b.student_id));
+  else if (v.startsWith('c:')) { const cid = v.slice(2); bookings.filter(b => b.course_id === cid && b.status === 'confirmed').forEach(b => sids.add(b.student_id)); }
+  return [...sids].map(id => byStudent[id]).filter(s => s && s.email).map(s => ({ email: s.email, name: s.name }));
+}
+function updateEmCount() { $('em-count').textContent = `${emRecipients().length} recipient(s) for this selection.`; }
+function emWaUrl() { return $('em-wa').value ? (byCourse[$('em-wa').value] || {}).whatsapp_url || null : null; }
+$('em-test').onclick = async () => {
+  if (!$('em-subject').value.trim() || !$('em-body').value.trim()) return msg('em-msg', 'err', 'Enter a subject and message first.');
+  msg('em-msg', 'ok', 'Sending test to you…');
+  const { ok, out } = await callFn('send-email', { subject: $('em-subject').value, body: $('em-body').value, whatsapp_url: emWaUrl(), test_to: true });
+  msg('em-msg', ok && out.sent ? 'ok' : 'err', ok && out.sent ? 'Test sent to andrew@impactuslearning.com — check your inbox (and spam).' : (out.error || 'Test failed'));
+};
+$('em-send').onclick = async () => {
+  const recips = emRecipients();
+  if (!$('em-subject').value.trim() || !$('em-body').value.trim()) return msg('em-msg', 'err', 'Enter a subject and message first.');
+  if (!recips.length) return msg('em-msg', 'err', 'No recipients for that selection.');
+  if (!confirm(`Send this email to ${recips.length} student(s)?`)) return;
+  $('em-send').disabled = true; msg('em-msg', 'ok', `Sending to ${recips.length}… (about ${Math.ceil(recips.length * 0.6)}s)`);
+  const { ok, out } = await callFn('send-email', { subject: $('em-subject').value, body: $('em-body').value, recipients: recips, whatsapp_url: emWaUrl() });
+  $('em-send').disabled = false;
+  if (!ok) return msg('em-msg', 'err', out.error || 'Send failed');
+  msg('em-msg', 'ok', `Sent to ${out.sent}${out.failed ? ', failed: ' + out.failed : ''}.`);
+};
+
 // ---------- Cohort form ----------
 function renderForm() {
   // Cohorts must belong to a course family, or they won't show on the student portal.
@@ -350,15 +520,16 @@ window.editCohort = function (cid) {
   $('f-family').value = c.family_id || ''; $('f-date').value = c.cohort_date;
   $('f-time').value = c.session_time || ''; $('f-price').value = c.price_sgd;
   $('f-details').value = c.details || ''; $('f-open').checked = c.is_open;
+  $('f-whatsapp').value = c.whatsapp_url || '';
   $('f-cancel').classList.remove('hidden');
   $('f-save').scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
-$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-time','f-price','f-details'].forEach(i => $(i).value = ''); $('f-open').checked = false; $('f-cancel').classList.add('hidden'); };
+$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-time','f-price','f-details','f-whatsapp'].forEach(i => $(i).value = ''); $('f-open').checked = false; $('f-cancel').classList.add('hidden'); };
 $('f-save').onclick = async () => {
   const fam = families.find(f => f.id === $('f-family').value);
   if (!fam) return msg('formmsg', 'err', 'Pick a course — cohorts without one never reach the student portal.');
   const rec = { family_id: fam.id, name: fam.name, cohort_date: $('f-date').value, session_time: $('f-time').value.trim() || null,
-    price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, is_open: $('f-open').checked };
+    price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, whatsapp_url: $('f-whatsapp').value.trim() || null, is_open: $('f-open').checked };
   if (!rec.cohort_date || !(rec.price_sgd >= 0)) return msg('formmsg', 'err', 'Date and price are required.');
   let error;
   if (editingCourse) ({ error } = await sb.from('courses').update(rec).eq('id', editingCourse));
