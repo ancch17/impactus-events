@@ -57,7 +57,7 @@
 </head>
 <body>
 <header><div class="wrap">
-  <div class="logo">Impactus <span>Learning</span> · Student Portal</div>
+  <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:26px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Student Portal</span></div>
   <button class="signout hidden" id="signout">Sign out</button>
 </div></header>
 
@@ -110,6 +110,11 @@
     <h2>Book a class</h2>
     <div id="courselist" class="muted">Loading classes…</div>
     <div id="bookform" class="hidden">
+      <div class="reflink" style="margin-top:0">
+        <input type="text" id="couponcode" placeholder="Discount code (optional)" style="text-transform:uppercase">
+        <button class="btn" id="couponbtn">Apply</button>
+      </div>
+      <div class="msg" id="couponmsg" style="margin-top:8px"></div>
       <div class="slider-row">
         <span class="muted" style="font-size:13px">Use points:</span>
         <input type="range" id="ptsrange" min="0" value="0" step="1">
@@ -117,6 +122,7 @@
       </div>
       <div class="breakdown">
         <div class="row"><span>Class price</span><span id="bd-price"></span></div>
+        <div class="row hidden" id="bd-disc-row"><span id="bd-disc-label">Discount</span><span class="pts" id="bd-disc">− S$0</span></div>
         <div class="row"><span>Points applied</span><span class="pts" id="bd-pts">− S$0</span></div>
         <div class="row total"><span>You pay</span><span id="bd-total"></span></div>
       </div>
@@ -326,29 +332,61 @@ async function loadCourses() {
   }
 }
 
+let coupon = null;  // { code, discount, label } once a valid code is applied
+
 function selectCourse(c) {
-  selCourse = c;
+  selCourse = c; coupon = null;
   $('bookform').classList.remove('hidden');
-  const max = Math.min(balance, Math.floor(Number(c.price_sgd)));
-  const rng = $('ptsrange'); rng.max = max; rng.value = 0;
-  rng.oninput = updateBreakdown; updateBreakdown();
+  $('couponcode').value = ''; $('couponbtn').textContent = 'Apply'; $('couponbtn').disabled = false;
+  $('couponmsg').className = 'msg'; $('couponmsg').textContent = '';
+  syncSlider(true);
+  $('ptsrange').oninput = updateBreakdown; updateBreakdown();
 }
 
+function syncSlider(reset) {
+  const discounted = Number(selCourse.price_sgd) - (coupon ? coupon.discount : 0);
+  const max = Math.max(0, Math.min(balance, Math.floor(discounted)));
+  const rng = $('ptsrange'); rng.max = max;
+  if (reset) rng.value = 0; else if (Number(rng.value) > max) rng.value = max;
+}
+
+$('couponbtn').onclick = async () => {
+  const code = $('couponcode').value.trim();
+  if (!code) { coupon = null; $('couponmsg').className = 'msg'; $('couponmsg').textContent = ''; syncSlider(); updateBreakdown(); return; }
+  $('couponbtn').disabled = true; $('couponbtn').textContent = '…';
+  const { data, error } = await sb.rpc('preview_coupon', { p_code: code, p_course_id: selCourse.id });
+  $('couponbtn').disabled = false; $('couponbtn').textContent = 'Apply';
+  if (error || !data || !data.ok) {
+    coupon = null; syncSlider();
+    msg('couponmsg', 'err', (data && data.message) || (error && error.message) || 'Code not recognised');
+    updateBreakdown(); return;
+  }
+  coupon = { code: code.toUpperCase(), discount: Number(data.discount), label: data.label };
+  msg('couponmsg', 'ok', data.label + ' applied ✓');
+  syncSlider(); updateBreakdown();
+};
+$('couponcode').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); $('couponbtn').click(); } };
+
 function updateBreakdown() {
-  const pts = Number($('ptsrange').value);
   const price = Number(selCourse.price_sgd);
-  const pay = price - pts;
+  const discount = coupon ? coupon.discount : 0;
+  const discounted = +(price - discount).toFixed(2);
+  const pts = Math.min(Number($('ptsrange').value), Math.floor(discounted));
+  const pay = +(discounted - pts).toFixed(2);
   $('ptsval').textContent = pts + ' pts';
   $('bd-price').textContent = fmt$(price);
+  const dr = $('bd-disc-row');
+  if (discount > 0) { dr.classList.remove('hidden'); $('bd-disc-label').textContent = coupon.label || 'Discount'; $('bd-disc').textContent = '− ' + fmt$(discount); }
+  else dr.classList.add('hidden');
   $('bd-pts').textContent = '− ' + fmt$(pts);
   $('bd-total').textContent = fmt$(pay);
   const cardNeeded = pay > 0 && !PAYMENTS_LIVE;
   $('paybtn').disabled = cardNeeded;
   $('paybtn').textContent = cardNeeded
     ? 'Card payment — coming soon'
-    : (pay === 0 ? 'Book with points — pay S$0' : `Pay ${fmt$(pay)} with PayNow / card`);
+    : (pay === 0 ? 'Book now — pay S$0' : `Pay ${fmt$(pay)} with PayNow / card`);
   $('bookmsg').className = 'msg';
-  if (cardNeeded) msg('bookmsg', 'ok', 'Card / PayNow checkout goes live shortly. For now you can book any class fully covered by points — slide up to use them.');
+  if (cardNeeded) msg('bookmsg', 'ok', 'Card / PayNow checkout goes live shortly. For now you can book any class fully covered by points or a code.');
 }
 
 $('paybtn').onclick = async () => {
@@ -362,12 +400,12 @@ $('paybtn').onclick = async () => {
     const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      body: JSON.stringify({ course_id: selCourse.id, points_to_redeem: Number($('ptsrange').value) }),
+      body: JSON.stringify({ course_id: selCourse.id, points_to_redeem: Number($('ptsrange').value), coupon_code: coupon ? coupon.code : null }),
     });
     const out = await res.json();
     if (!res.ok) throw new Error(out.error || 'Something went wrong');
     if (out.status === 'confirmed_free') {
-      msg('bookmsg', 'ok', 'Booked! Fully paid with your points. See you in class!');
+      msg('bookmsg', 'ok', 'Booked! You\'re all set — see you in class!');
       const { data: { session: s2 } } = await sb.auth.getSession(); await showApp(s2);
     } else if (out.url) {
       location.href = out.url;
