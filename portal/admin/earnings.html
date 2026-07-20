@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Earnings — Impactus Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --navy:#101a2d; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --red:#c93b3b; --line:#e6e9f0; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:1080px; margin:0 auto; padding:16px; }
+  header { background:var(--navy); color:#fff; position:sticky; top:0; z-index:5; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:12px; padding-bottom:12px; gap:10px; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; }
+  nav.tabs { display:flex; gap:4px; }
+  .tab { color:#fff; opacity:.75; padding:6px 12px; border-radius:8px; font-size:13px; text-decoration:none; font-weight:600; }
+  .tab:hover { opacity:1; }
+  .tab.active { background:rgba(255,255,255,.12); opacity:1; color:var(--amber); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; }
+  h1 { font-size:20px; font-weight:800; }
+  h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
+  .muted { color:var(--mut); font-size:13px; }
+  .hidden { display:none !important; }
+  select { padding:9px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; font-family:inherit; background:#fff; }
+  .btn { display:inline-block; padding:8px 15px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .btn.sm { padding:6px 11px; font-size:12.5px; }
+  .btn.on { background:var(--navy); color:#fff; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:16px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .kpi .v { font-size:21px; font-weight:800; } .kpi .l { font-size:11.5px; color:var(--mut); margin-top:2px; }
+  .kpi .sub { font-size:11.5px; color:var(--green); margin-top:2px; font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); padding:8px 8px 6px 0; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:9px 8px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  tr.total td { font-weight:800; border-top:2px solid var(--ink); }
+  .num { text-align:right; } th.num { text-align:right; }
+  .pill { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:99px; background:#e8edfb; color:#3c5bd2; }
+  footer { text-align:center; padding:26px 0 34px; }
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
+  <nav class="tabs">
+    <a class="tab" href="./" target="_blank">Dashboard</a>
+    <a class="tab" href="students.html" target="_blank">Students</a>
+    <a class="tab active" href="earnings.html">Earnings</a>
+  </nav>
+  <button class="btn ghost sm hidden" id="signout" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff">Sign out</button>
+</div></header>
+
+<div class="wrap">
+
+  <div id="view-login" class="card hidden" style="max-width:460px;margin:40px auto">
+    <h1>Sign in required</h1>
+    <p class="muted" style="margin-top:6px">Please sign in from the <a href="./" target="_blank">admin dashboard</a> first, then refresh this page.</p>
+    <button class="btn ghost" style="margin-top:14px" onclick="location.reload()">Refresh</button>
+  </div>
+
+  <div id="view-noauth" class="card hidden" style="max-width:420px;margin:40px auto">
+    <h1>Not authorized</h1>
+    <button class="btn ghost" id="noauth-out" style="margin-top:14px">Sign out</button>
+  </div>
+
+  <div id="view-app" class="hidden">
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">Earnings over time
+        <span style="display:flex;gap:6px">
+          <button class="btn ghost sm" id="p-week">Week</button>
+          <button class="btn ghost sm on" id="p-month">Month</button>
+          <button class="btn ghost sm" id="p-year">Year</button>
+        </span>
+      </h2>
+      <div style="position:relative;height:300px"><canvas id="chart"></canvas></div>
+      <div id="periodtable" style="margin-top:14px;overflow-x:auto"></div>
+      <p class="muted" style="margin-top:8px">Cash collected (SGD), attributed to the class date. Cancelled bookings excluded. Future class dates = cash already collected for upcoming cohorts.</p>
+    </div>
+
+    <div class="card">
+      <h2>By class</h2>
+      <div id="bycourse" style="overflow-x:auto">Loading…</div>
+    </div>
+
+    <div class="card">
+      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">By cohort
+        <select id="cohort-filter"><option value="">All courses</option></select>
+      </h2>
+      <div id="bycohort" style="overflow-x:auto">Loading…</div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="muted">Impactus Learning Pte Ltd · Admin console</footer>
+
+<script>
+const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+const ADMIN_EMAIL = 'andrew@impactuslearning.com';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
+
+const $ = (id) => document.getElementById(id);
+const fmt$ = (n) => 'S$' + Number(n).toLocaleString('en-SG', { maximumFractionDigits: 0 });
+const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+const today = () => new Date().toISOString().slice(0, 10);
+function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude', 'AI Animation Automation': 'Anim-Auto', 'AI Animation Masterclass': 'Animation', 'AI Audio Masterclass': 'Audio' };
+const shortName = (n) => SHORTNAMES[n] || n;
+function courseColor(n) { let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},52%,45%)`; }
+
+let courses = [], bookings = [], rows = [], chart = null, period = 'month';
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  route(session);
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') route(s); });
+}
+function route(session) {
+  if (!session) { show('view-login'); return; }
+  if ((session.user.email || '').toLowerCase() !== ADMIN_EMAIL) { show('view-noauth'); return; }
+  $('signout').classList.remove('hidden');
+  show('view-app');
+  loadAll();
+}
+$('signout').onclick = () => sb.auth.signOut();
+$('noauth-out').onclick = () => sb.auth.signOut();
+
+async function loadAll() {
+  const [c, b] = await Promise.all([
+    sb.from('courses').select('*'),
+    sb.from('bookings').select('*'),
+  ]);
+  courses = c.data || []; bookings = b.data || [];
+  const byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
+  // one row per confirmed booking with course info
+  rows = bookings.filter(b => b.status === 'confirmed' && byCourse[b.course_id]).map(b => ({
+    cash: Number(b.cash_paid_sgd || 0),
+    pts: Number(b.points_redeemed || 0),
+    course: byCourse[b.course_id].name,
+    date: byCourse[b.course_id].cohort_date,
+  }));
+  const names = [...new Set(rows.map(r => r.course))].sort();
+  $('cohort-filter').innerHTML = '<option value="">All courses</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
+  renderKPIs(); renderChart(); renderByCourse(); renderByCohort();
+}
+
+// ---- period helpers (attribute to class date) ----
+function mondayOf(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function periodKey(iso) {
+  if (period === 'week') return mondayOf(iso);
+  if (period === 'month') return iso.slice(0, 7);
+  return iso.slice(0, 4);
+}
+function periodLabel(k) {
+  if (period === 'week') return 'Wk of ' + new Date(k + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }) + ' ' + k.slice(2, 4);
+  if (period === 'month') return new Date(k + '-01T00:00:00').toLocaleDateString('en-SG', { month: 'short', year: 'numeric' });
+  return k;
+}
+
+function renderKPIs() {
+  const t = today();
+  const wk = mondayOf(t), mo = t.slice(0, 7), yr = t.slice(0, 4);
+  const sum = (f) => rows.filter(f).reduce((s, r) => s + r.cash, 0);
+  const all = sum(() => true);
+  const cohortSet = new Set(rows.filter(r => r.cash > 0).map(r => r.course + r.date));
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="v">${fmt$(all)}</div><div class="l">All-time</div><div class="sub">${rows.filter(r=>r.cash>0).length} paid bookings</div></div>
+    <div class="kpi"><div class="v">${fmt$(sum(r => r.date.slice(0,4) === yr))}</div><div class="l">This year (${yr})</div></div>
+    <div class="kpi"><div class="v">${fmt$(sum(r => r.date.slice(0,7) === mo))}</div><div class="l">This month</div></div>
+    <div class="kpi"><div class="v">${fmt$(sum(r => mondayOf(r.date) === wk))}</div><div class="l">This week</div></div>
+    <div class="kpi"><div class="v">${fmt$(cohortSet.size ? Math.round(all / cohortSet.size) : 0)}</div><div class="l">Avg per cohort (${cohortSet.size} paid cohorts)</div></div>`;
+}
+
+function renderChart() {
+  const keys = [...new Set(rows.map(r => periodKey(r.date)))].sort();
+  const names = [...new Set(rows.map(r => r.course))].sort();
+  const datasets = names.map(n => ({
+    label: shortName(n),
+    data: keys.map(k => rows.filter(r => r.course === n && periodKey(r.date) === k).reduce((s, r) => s + r.cash, 0)),
+    backgroundColor: courseColor(n),
+    stack: 's',
+  }));
+  if (chart) chart.destroy();
+  chart = new Chart($('chart'), {
+    type: 'bar',
+    data: { labels: keys.map(periodLabel), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: (c) => c.dataset.label + ': S$' + c.parsed.y.toLocaleString() } } },
+      scales: { x: { stacked: true, grid: { display: false } },
+        y: { stacked: true, ticks: { callback: (v) => 'S$' + v.toLocaleString() } } },
+    },
+  });
+  // period table
+  const totals = keys.map(k => ({ k, cash: rows.filter(r => periodKey(r.date) === k).reduce((s, r) => s + r.cash, 0), n: rows.filter(r => periodKey(r.date) === k && r.cash > 0).length }));
+  const all = totals.reduce((s, t) => s + t.cash, 0);
+  $('periodtable').innerHTML = `<table><thead><tr><th>Period</th><th class="num">Paid bookings</th><th class="num">Cash earned</th><th class="num">% of all-time</th></tr></thead><tbody>` +
+    totals.slice().reverse().map(t => `<tr><td>${periodLabel(t.k)}${t.k >= periodKey(today()) && period !== 'year' && t.k > periodKey(today()) ? ' <span class="pill">upcoming</span>' : ''}</td>
+      <td class="num">${t.n}</td><td class="num"><strong>${fmt$(t.cash)}</strong></td>
+      <td class="num muted">${all ? (t.cash / all * 100).toFixed(1) : 0}%</td></tr>`).join('') +
+    `<tr class="total"><td>Total</td><td class="num">${totals.reduce((s,t)=>s+t.n,0)}</td><td class="num">${fmt$(all)}</td><td class="num">100%</td></tr></tbody></table>`;
+}
+function setPeriod(p) {
+  period = p;
+  ['p-week','p-month','p-year'].forEach(id => $(id).classList.toggle('on', id === 'p-' + p));
+  renderChart();
+}
+$('p-week').onclick = () => setPeriod('week');
+$('p-month').onclick = () => setPeriod('month');
+$('p-year').onclick = () => setPeriod('year');
+
+function renderByCourse() {
+  const names = [...new Set(rows.map(r => r.course))];
+  const data = names.map(n => {
+    const rs = rows.filter(r => r.course === n);
+    const cohorts = new Set(rs.map(r => r.date)).size;
+    const cash = rs.reduce((s, r) => s + r.cash, 0);
+    return { n, cohorts, students: rs.length, cash, pts: rs.reduce((s, r) => s + r.pts, 0), avg: cohorts ? cash / cohorts : 0 };
+  }).sort((a, b) => b.cash - a.cash);
+  const all = data.reduce((s, d) => s + d.cash, 0);
+  $('bycourse').innerHTML = `<table><thead><tr><th>Class</th><th class="num">Cohorts</th><th class="num">Students</th><th class="num">Cash earned</th><th class="num">Avg / cohort</th><th class="num">Points used</th><th class="num">% of revenue</th></tr></thead><tbody>` +
+    data.map(d => `<tr><td><strong>${d.n}</strong></td><td class="num">${d.cohorts}</td><td class="num">${d.students}</td>
+      <td class="num"><strong>${fmt$(d.cash)}</strong></td><td class="num">${fmt$(d.avg)}</td>
+      <td class="num muted">${d.pts ? '−' + d.pts : '—'}</td>
+      <td class="num muted">${all ? (d.cash / all * 100).toFixed(1) : 0}%</td></tr>`).join('') +
+    `<tr class="total"><td>All classes</td><td class="num">${data.reduce((s,d)=>s+d.cohorts,0)}</td><td class="num">${data.reduce((s,d)=>s+d.students,0)}</td><td class="num">${fmt$(all)}</td><td></td><td class="num">−${data.reduce((s,d)=>s+d.pts,0)}</td><td class="num">100%</td></tr></tbody></table>`;
+}
+
+function renderByCohort() {
+  const flt = $('cohort-filter').value;
+  const map = {};
+  rows.filter(r => !flt || r.course === flt).forEach(r => {
+    const k = r.course + '|' + r.date;
+    const m = map[k] = map[k] || { course: r.course, date: r.date, students: 0, cash: 0, pts: 0 };
+    m.students++; m.cash += r.cash; m.pts += r.pts;
+  });
+  const list = Object.values(map).sort((a, b) => a.date < b.date ? 1 : -1);
+  if (!list.length) { $('bycohort').textContent = 'No cohorts.'; return; }
+  const t = today();
+  $('bycohort').innerHTML = `<table><thead><tr><th>Date</th><th>Class</th><th class="num">Students</th><th class="num">Cash earned</th><th class="num">Points used</th></tr></thead><tbody>` +
+    list.map(m => `<tr><td>${fdate(m.date)}${m.date >= t ? ' <span class="pill">upcoming</span>' : ''}</td><td>${m.course}</td>
+      <td class="num">${m.students}</td><td class="num"><strong>${fmt$(m.cash)}</strong></td>
+      <td class="num muted">${m.pts ? '−' + m.pts : '—'}</td></tr>`).join('') +
+    `<tr class="total"><td colspan="2">Total</td><td class="num">${list.reduce((s,m)=>s+m.students,0)}</td><td class="num">${fmt$(list.reduce((s,m)=>s+m.cash,0))}</td><td class="num">−${list.reduce((s,m)=>s+m.pts,0)}</td></tr></tbody></table>`;
+}
+$('cohort-filter').onchange = renderByCohort;
+
+init();
+</script>
+</body>
+</html>
