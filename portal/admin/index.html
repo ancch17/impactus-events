@@ -70,6 +70,16 @@
   .cal-slot .evs { flex:1; min-width:0; }
   .cal-ev { font-size:10px; color:#fff; border-radius:4px; padding:1.5px 4px; margin-bottom:2px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cal-ev.closed { opacity:.5; }
+  @media print {
+    @page { size: A4 landscape; margin: 8mm; }
+    body { background:#fff; }
+    header, footer, .kpis, .card:not(#calcard), #cal-prev, #cal-next, .card#calcard p.muted { display:none !important; }
+    .wrap { max-width:none; padding:0; }
+    .card#calcard { border:none; box-shadow:none; padding:0; margin:0; }
+    table.cal { min-width:0; width:100%; }
+    .cal td { height:80px; }
+    .cal-ev, .cal td.today .dnum { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
   footer { text-align:center; padding:26px 0 34px; }
   @media (max-width:640px){ th:nth-child(4),td:nth-child(4){display:none;} }
 </style>
@@ -110,9 +120,10 @@
 
     <div class="kpis" id="kpis"></div>
 
-    <div class="card">
+    <div class="card" id="calcard">
       <h2 style="display:flex;justify-content:space-between;align-items:center">Calendar
         <span style="display:flex;gap:6px;align-items:center">
+          <button class="btn ghost sm" id="cal-print" title="Print this month">🖨</button>
           <button class="btn ghost sm" id="cal-prev">‹</button>
           <strong id="cal-label" style="min-width:118px;text-align:center;font-size:13px"></strong>
           <button class="btn ghost sm" id="cal-next">›</button>
@@ -401,6 +412,7 @@ function renderCalendar() {
   }
   $('calendar').innerHTML = html + '</tbody></table>';
 }
+$('cal-print').onclick = () => window.print();
 $('cal-prev').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); };
 $('cal-next').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); };
 window.calAdd = function (iso) {
