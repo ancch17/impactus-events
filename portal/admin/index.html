@@ -397,7 +397,8 @@ function renderCalendar() {
       const slots = [[], [], []];
       (byDate[iso] || []).forEach(c => slots[slotOf(c.session_time)].push(c));
       const bslots = [[], [], []];
-      blocks.filter(x => x.block_date === iso).forEach(x => bslots[slotOf(x.session_time)].push(x));
+      const dow = d.getDay();
+      blocks.filter(x => x.block_date === iso || (x.recur_weekly && x.block_date <= iso && new Date(x.block_date + 'T00:00:00').getDay() === dow)).forEach(x => bslots[slotOf(x.session_time)].push(x));
       const slotHtml = ['AM', 'PM', 'N'].map((lab, si) =>
         `<div class="cal-slot"><span class="sl">${lab}</span><div class="evs">` +
         bslots[si].map(x =>
