@@ -87,8 +87,36 @@
     <div id="newFields">
       <label>Full name <span style="font-weight:400">(new students)</span></label>
       <input type="text" id="fullname" placeholder="Your name" autocomplete="name">
-      <label>Mobile <span style="font-weight:400">(optional)</span></label>
-      <input type="tel" id="mobile" placeholder="+65 9xxx xxxx" autocomplete="tel">
+      <label>Mobile <span style="font-weight:400">(required — WhatsApp updates for your class)</span></label>
+      <div style="display:flex;gap:8px">
+        <select id="ccode" style="width:auto;flex:none;max-width:180px">
+          <option value="+65" selected>🇸🇬 Singapore +65</option>
+          <option value="+61">🇦🇺 Australia +61</option>
+          <option value="+673">🇧🇳 Brunei +673</option>
+          <option value="+855">🇰🇭 Cambodia +855</option>
+          <option value="+1">🇨🇦 Canada +1</option>
+          <option value="+86">🇨🇳 China +86</option>
+          <option value="+33">🇫🇷 France +33</option>
+          <option value="+49">🇩🇪 Germany +49</option>
+          <option value="+852">🇭🇰 Hong Kong +852</option>
+          <option value="+91">🇮🇳 India +91</option>
+          <option value="+62">🇮🇩 Indonesia +62</option>
+          <option value="+81">🇯🇵 Japan +81</option>
+          <option value="+82">🇰🇷 South Korea +82</option>
+          <option value="+60">🇲🇾 Malaysia +60</option>
+          <option value="+95">🇲🇲 Myanmar +95</option>
+          <option value="+64">🇳🇿 New Zealand +64</option>
+          <option value="+63">🇵🇭 Philippines +63</option>
+          <option value="+886">🇹🇼 Taiwan +886</option>
+          <option value="+66">🇹🇭 Thailand +66</option>
+          <option value="+971">🇦🇪 UAE +971</option>
+          <option value="+44">🇬🇧 United Kingdom +44</option>
+          <option value="+1">🇺🇸 United States +1</option>
+          <option value="+84">🇻🇳 Vietnam +84</option>
+          <option value="">🌐 Other (type full number with +)</option>
+        </select>
+        <input type="tel" id="mobile" placeholder="9123 4567" autocomplete="tel" style="flex:1">
+      </div>
       <label id="reflabel">Have a friend's referral code? <span style="font-weight:400">(optional — fills in automatically if you used their link or QR)</span></label>
       <input type="text" id="refcode" placeholder="Only needed if your friend told you a code">
     </div>
@@ -231,6 +259,12 @@ function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.
 $('sendlink').onclick = async () => {
   const email = $('email').value.trim().toLowerCase();
   if (!email || !email.includes('@')) return msg('loginmsg', 'err', 'Please enter a valid email.');
+  const rawMobile = $('mobile').value.trim();
+  const digits = rawMobile.replace(/[^0-9]/g, '');
+  if (digits.length < 6) return msg('loginmsg', 'err', 'Please enter your mobile number — we use it for class WhatsApp updates.');
+  const cc = $('ccode').value;
+  const fullMobile = rawMobile.startsWith('+') ? rawMobile : (cc ? cc + ' ' + rawMobile : rawMobile);
+  if (!fullMobile.startsWith('+')) return msg('loginmsg', 'err', 'Chose "Other"? Type your full number starting with + and country code.');
   $('sendlink').disabled = true;
   const { error } = await sb.auth.signInWithOtp({
     email,
@@ -238,7 +272,7 @@ $('sendlink').onclick = async () => {
       emailRedirectTo: PORTAL_URL,
       data: {
         full_name: $('fullname').value.trim(),
-        mobile: $('mobile').value.trim(),
+        mobile: fullMobile,
         referral_code: $('refcode').value.trim().toUpperCase(),
       },
     },
