@@ -252,7 +252,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok' && id !== 'loginmsg') setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 
-let students = [], courses = [], bookings = [], ledger = [], families = [], coupons = [];
+let students = [], courses = [], bookings = [], ledger = [], families = [], coupons = [], blocks = [];
 let byStudent = {}, byCourse = {};
 let editingCourse = null, rosterCourse = null;
 
@@ -288,16 +288,17 @@ $('signout').onclick = () => sb.auth.signOut();
 $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
-  const [s, c, b, l, f, g] = await Promise.all([
+  const [s, c, b, l, f, g, k] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select('*').order('cohort_date'),
     sb.from('bookings').select('*'),
     sb.from('points_ledger').select('*'),
     sb.from('course_families').select('*').order('sort_order'),
     sb.from('coupons').select('*').order('created_at', { ascending: false }),
+    sb.from('calendar_blocks').select('*'),
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || []; ledger = l.data || [];
-  families = f.data || []; coupons = g.data || [];
+  families = f.data || []; coupons = g.data || []; blocks = k.data || [];
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
   renderKPIs(); renderCalendar(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderEmailForm(); renderRefBoard();
@@ -384,8 +385,13 @@ function renderCalendar() {
       const out = d.getMonth() !== m;
       const slots = [[], [], []];
       (byDate[iso] || []).forEach(c => slots[slotOf(c.session_time)].push(c));
+      const bslots = [[], [], []];
+      blocks.filter(x => x.block_date === iso).forEach(x => bslots[slotOf(x.session_time)].push(x));
       const slotHtml = ['AM', 'PM', 'N'].map((lab, si) =>
         `<div class="cal-slot"><span class="sl">${lab}</span><div class="evs">` +
+        bslots[si].map(x =>
+          `<div class="cal-ev" style="background:${x.color || '#475569'}" title="${x.note || x.title}${x.session_time ? ' · ' + x.session_time : ''}" onclick="event.stopPropagation()">${x.title}</div>`
+        ).join('') +
         slots[si].map(c =>
           `<div class="cal-ev ${c.is_open ? '' : 'closed'}" style="background:${courseColor(c.name)}" title="${c.name} · ${c.session_time || ''} · ${cohortCount(c.id)} confirmed" onclick="event.stopPropagation();openRoster('${c.id}')">${shortName(c.name)} · ${cohortCount(c.id)}</div>`
         ).join('') + '</div></div>').join('');
