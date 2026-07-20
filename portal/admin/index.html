@@ -53,6 +53,18 @@
   .formgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0 14px; }
   .transfer-box { background:#f2f5fb; border-radius:10px; padding:10px; margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .transfer-box select { width:auto; flex:1; min-width:220px; }
+  table.cal { table-layout:fixed; min-width:660px; border-collapse:collapse; }
+  .cal th { text-align:center; padding:6px 2px; border-bottom:1px solid var(--line); }
+  .cal td { border:1px solid var(--line); padding:3px 3px 4px; vertical-align:top; height:92px; cursor:pointer; }
+  .cal td:hover { background:#fdf8ec; }
+  .cal td.out { background:#fbfbfd; } .cal td.out .dnum { opacity:.35; }
+  .cal td.today .dnum { background:var(--amber); color:var(--navy); border-radius:99px; }
+  .dnum { font-size:11px; font-weight:700; display:inline-block; padding:1px 5px; margin-bottom:2px; }
+  .cal-slot { display:flex; gap:2px; align-items:flex-start; min-height:17px; }
+  .cal-slot .sl { font-size:8.5px; color:#c3c9d4; width:15px; flex:none; font-weight:700; padding-top:3px; }
+  .cal-slot .evs { flex:1; min-width:0; }
+  .cal-ev { font-size:10px; color:#fff; border-radius:4px; padding:1.5px 4px; margin-bottom:2px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cal-ev.closed { opacity:.5; }
   footer { text-align:center; padding:26px 0 34px; }
   @media (max-width:640px){ th:nth-child(4),td:nth-child(4){display:none;} }
 </style>
@@ -87,6 +99,19 @@
   <div id="view-app" class="hidden">
 
     <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">Calendar
+        <span style="display:flex;gap:6px;align-items:center">
+          <button class="btn ghost sm" id="cal-prev">‹</button>
+          <strong id="cal-label" style="min-width:118px;text-align:center;font-size:13px"></strong>
+          <button class="btn ghost sm" id="cal-next">›</button>
+        </span>
+      </h2>
+      <div id="calendar" style="overflow-x:auto"></div>
+      <p class="muted" style="margin-top:8px">Mon–Sat · slots by class start time (AM before 12pm · PM 12–6pm · N after 6pm). Click a class for its roster · click an empty day to add a cohort on that date.</p>
+    </div>
+
 
     <div class="card">
       <h2 style="display:flex;justify-content:space-between;align-items:center">Cohorts
@@ -273,7 +298,7 @@ async function loadAll() {
   families = f.data || []; coupons = g.data || [];
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
-  renderKPIs(); renderCohorts(); renderStudents(); renderForm(); renderCouponForm(); renderCoupons(); renderEmailForm(); renderRefBoard();
+  renderKPIs(); renderCalendar(); renderCohorts(); renderStudents(); renderForm(); renderCouponForm(); renderCoupons(); renderEmailForm(); renderRefBoard();
   if (rosterCourse) openRoster(rosterCourse);
 }
 
@@ -323,6 +348,60 @@ function renderCohorts() {
     </div>`).join('');
 }
 $('showpast').onchange = renderCohorts;
+
+// ---------- Calendar ----------
+let calMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+const isoOf = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+function slotOf(t) {
+  if (!t) return 0;
+  const m = t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+  if (!m) return 0;
+  let h = parseInt(m[1], 10) % 12;
+  if (m[3].toLowerCase() === 'pm') h += 12;
+  return h < 12 ? 0 : h < 18 ? 1 : 2;
+}
+const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude', 'AI Animation Automation': 'Anim-Auto', 'AI Animation Masterclass': 'Animation', 'AI Audio Masterclass': 'Audio' };
+const shortName = (n) => SHORTNAMES[n] || (n.length > 14 ? n.slice(0, 13) + '…' : n);
+function courseColor(n) { let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},52%,38%)`; }
+function renderCalendar() {
+  $('cal-label').textContent = calMonth.toLocaleDateString('en-SG', { month: 'long', year: 'numeric' });
+  const y = calMonth.getFullYear(), m = calMonth.getMonth();
+  const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
+  const byDate = {};
+  courses.forEach(c => { (byDate[c.cohort_date] = byDate[c.cohort_date] || []).push(c); });
+  const cur = new Date(first);
+  cur.setDate(cur.getDate() - ((cur.getDay() + 6) % 7));
+  const tod = isoOf(new Date());
+  let html = '<table class="cal"><thead><tr>' + ['Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<th>${d}</th>`).join('') + '</tr></thead><tbody>';
+  while (cur <= last) {
+    html += '<tr>';
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(cur); cur.setDate(cur.getDate() + 1);
+      if (i === 6) continue;
+      const iso = isoOf(d);
+      const out = d.getMonth() !== m;
+      const slots = [[], [], []];
+      (byDate[iso] || []).forEach(c => slots[slotOf(c.session_time)].push(c));
+      const slotHtml = ['AM', 'PM', 'N'].map((lab, si) =>
+        `<div class="cal-slot"><span class="sl">${lab}</span><div class="evs">` +
+        slots[si].map(c =>
+          `<div class="cal-ev ${c.is_open ? '' : 'closed'}" style="background:${courseColor(c.name)}" title="${c.name} · ${c.session_time || ''} · ${cohortCount(c.id)} confirmed" onclick="event.stopPropagation();openRoster('${c.id}')">${shortName(c.name)} · ${cohortCount(c.id)}</div>`
+        ).join('') + '</div></div>').join('');
+      html += `<td class="${out ? 'out' : ''} ${iso === tod ? 'today' : ''}" onclick="calAdd('${iso}')"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
+    }
+    html += '</tr>';
+  }
+  $('calendar').innerHTML = html + '</tbody></table>';
+}
+$('cal-prev').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); };
+$('cal-next').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); };
+window.calAdd = function (iso) {
+  if (editingCourse) $('f-cancel').onclick();
+  $('f-date').value = iso;
+  msg('formmsg', 'ok', 'Date set to ' + fdate(iso) + ' — fill in the rest below.');
+  $('f-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  $('f-name').focus();
+};
 
 // ---------- Roster + transfers ----------
 window.openRoster = function (cid) {
