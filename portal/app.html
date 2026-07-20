@@ -126,6 +126,11 @@
         <div class="row"><span>Points applied</span><span class="pts" id="bd-pts">− S$0</span></div>
         <div class="row total"><span>You pay</span><span id="bd-total"></span></div>
       </div>
+      <div id="paychoice" class="hidden" style="margin:10px 0 2px;padding:10px 12px;border:1px solid var(--line);border-radius:10px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px">How would you like to pay once your seat is accepted?</div>
+        <label id="pm-card-lbl" style="display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer;margin:4px 0"><input type="radio" name="pm" id="pm-card" value="card_saved" checked style="width:auto;margin:0"> Save my card now — charged only if my seat is accepted</label>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer;margin:4px 0"><input type="radio" name="pm" id="pm-paynow" value="paynow_later" style="width:auto;margin:0"> PayNow — I'll pay via an emailed link after acceptance</label>
+      </div>
       <button class="btn" id="paybtn">Continue</button>
     </div>
     <div class="msg" id="bookmsg"></div>
@@ -213,6 +218,10 @@ async function init() {
   if (params.get('payment') === 'done') {
     history.replaceState({}, '', location.pathname);
     setTimeout(() => msg('bookmsg', 'ok', 'Payment received! Your booking is confirmed and points are updated. (Refresh if you don\'t see it yet.)'), 800);
+  }
+  if (params.get('setup') === 'done') {
+    history.replaceState({}, '', location.pathname);
+    setTimeout(() => msg('bookmsg', 'ok', 'Card saved ✓ — you have NOT been charged. Your card is only charged if your seat is accepted; we\'ll email you either way.'), 800);
   }
 }
 
@@ -380,19 +389,27 @@ function updateBreakdown() {
   else dr.classList.add('hidden');
   $('bd-pts').textContent = '− ' + fmt$(pts);
   $('bd-total').textContent = fmt$(pay);
-  const cardNeeded = pay > 0 && !PAYMENTS_LIVE;
+  const approval = !!selCourse.require_approval;
+  if (approval && pay > 0) {
+    $('paychoice').classList.remove('hidden');
+    if (!PAYMENTS_LIVE) { $('pm-card').disabled = true; $('pm-paynow').checked = true; $('pm-card-lbl').style.opacity = .45; }
+  } else $('paychoice').classList.add('hidden');
+  const cardNeeded = pay > 0 && !PAYMENTS_LIVE && !approval;
   $('paybtn').disabled = cardNeeded;
   $('paybtn').textContent = cardNeeded
     ? 'Card payment — coming soon'
-    : (pay === 0 ? 'Book now — pay S$0' : `Pay ${fmt$(pay)} with PayNow / card`);
+    : approval
+      ? 'Request a seat — no charge unless accepted'
+      : (pay === 0 ? 'Book now — pay S$0' : `Pay ${fmt$(pay)} with PayNow / card`);
   $('bookmsg').className = 'msg';
   if (cardNeeded) msg('bookmsg', 'ok', 'Card / PayNow checkout goes live shortly. For now you can book any class fully covered by points or a code.');
+  else if (approval) msg('bookmsg', 'ok', 'This class needs a minimum group size, so Andrew confirms every seat personally. Nothing is charged — and no points are taken — unless your seat is accepted.');
 }
 
 $('paybtn').onclick = async () => {
   if (!selCourse) return;
   const payNow = Number(selCourse.price_sgd) - Number($('ptsrange').value);
-  if (payNow > 0 && !PAYMENTS_LIVE) return;   // card checkout not live yet
+  if (payNow > 0 && !PAYMENTS_LIVE && !selCourse.require_approval) return;   // card checkout not live yet
   $('paybtn').disabled = true;
   msg('bookmsg', 'ok', 'Preparing your booking…');
   try {
@@ -400,12 +417,16 @@ $('paybtn').onclick = async () => {
     const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      body: JSON.stringify({ course_id: selCourse.id, points_to_redeem: Number($('ptsrange').value), coupon_code: coupon ? coupon.code : null }),
+      body: JSON.stringify({ course_id: selCourse.id, points_to_redeem: Number($('ptsrange').value), coupon_code: coupon ? coupon.code : null,
+        pay_method: selCourse.require_approval && document.querySelector('input[name=pm]:checked') ? document.querySelector('input[name=pm]:checked').value : null }),
     });
     const out = await res.json();
     if (!res.ok) throw new Error(out.error || 'Something went wrong');
     if (out.status === 'confirmed_free') {
       msg('bookmsg', 'ok', 'Booked! You\'re all set — see you in class!');
+      const { data: { session: s2 } } = await sb.auth.getSession(); await showApp(s2);
+    } else if (out.status === 'pending_approval') {
+      msg('bookmsg', 'ok', "Request received! You're on the list — you'll get an email as soon as your seat is accepted. Nothing has been charged.");
       const { data: { session: s2 } } = await sb.auth.getSession(); await showApp(s2);
     } else if (out.url) {
       location.href = out.url;
@@ -422,7 +443,10 @@ async function loadHistory() {
     const paid = Number(r.cash_paid_sgd);
     const isFuture = r.cohort_date >= new Date().toISOString().slice(0, 10);
     let badge = '';
-    if (r.status === 'cancelled') badge = '<span class="pill" style="background:#eee;color:#888">Postponed / cancelled</span>';
+    if (r.status === 'pending_approval') badge = '<span class="pill" style="background:#fdf3d7;color:#b8860b">Awaiting approval — not charged</span>';
+    else if (r.status === 'approved_await_payment') badge = '<span class="pill" style="background:#fdf3d7;color:#b8860b">Accepted — check your email to pay</span>';
+    else if (r.status === 'declined') badge = '<span class="pill" style="background:#eee;color:#888">Not confirmed — nothing charged</span>';
+    else if (r.status === 'cancelled') badge = '<span class="pill" style="background:#eee;color:#888">Postponed / cancelled</span>';
     else if (paid === 0 && r.points_redeemed > 0) badge = '<span class="pill free">Paid with points</span>';
     else if (paid === 0) badge = '<span class="pill free">Complimentary</span>';
     else if (paid === 90) badge = '<span class="pill early">Introductory price — early supporter</span>';
