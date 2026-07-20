@@ -35,7 +35,7 @@
 </style>
 </head>
 <body>
-<header><div class="wrap"><div class="logo">Impactus <span>Learning</span> &middot; Student Portal</div></div></header>
+<header><div class="wrap"><div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:26px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Student Portal</span></div></div></header>
 <main><div class="wrap">
   <div class="hero">
     <span class="badge">Coming soon</span>
@@ -60,7 +60,7 @@
 (function () {
   var h = location.hash || '';
   var q = new URLSearchParams(location.search);
-  if (h.indexOf('access_token') > -1 || h.indexOf('error') > -1 || q.get('preview') === '1') {
+  if (h.indexOf('access_token') > -1 || h.indexOf('error') > -1 || q.has('preview')) {
     location.replace('app.html' + location.search + location.hash);
   }
 })();
