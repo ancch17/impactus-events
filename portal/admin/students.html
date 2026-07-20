@@ -101,6 +101,7 @@ function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).cl
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude', 'AI Animation Automation': 'Anim-Auto', 'AI Animation Masterclass': 'Animation', 'AI Audio Masterclass': 'Audio' };
 const shortName = (n) => SHORTNAMES[n] || n;
+const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 let students = [], courses = [], bookings = [], ledger = [];
 let byCourse = {};
@@ -156,6 +157,7 @@ function filtered() {
     else if (sortKey === 'contact') { va = a.email || ''; vb = b.email || ''; }
     else if (sortKey === 'classes') { va = attendedOf(a.id).length; vb = attendedOf(b.id).length; }
     else if (sortKey === 'points') { va = balanceOf(a.id); vb = balanceOf(b.id); }
+    else if (sortKey === 'remarks') { va = a.remarks || ''; vb = b.remarks || ''; }
     else { va = a.referral_code || ''; vb = b.referral_code || ''; }
     if (typeof va === 'number') return (va - vb) * dir;
     return va.localeCompare(vb) * dir;
@@ -175,6 +177,7 @@ function render() {
       <th onclick="setSort('classes')">Classes attended${arr('classes')}</th>
       <th onclick="setSort('points')">Points${arr('points')}</th>
       <th onclick="setSort('referral')">Referral${arr('referral')}</th>
+      <th onclick="setSort('remarks')">Remarks${arr('remarks')}</th>
     </tr></thead><tbody>` +
     list.map(s => {
       const cls = attendedOf(s.id);
@@ -186,6 +189,10 @@ function render() {
         <td>${clsHtml}</td>
         <td style="font-weight:700;color:var(--green)">${balanceOf(s.id)}</td>
         <td><span class="muted">${s.referral_code || '—'}</span></td>
+        <td id="remcell-${s.id}" style="max-width:250px;min-width:140px">
+          <div class="muted" style="font-size:12px;white-space:pre-wrap">${esc(s.remarks || '')}</div>
+          <button class="btn ghost sm" onclick="editRemark('${s.id}')" style="margin-top:3px;padding:2px 8px;font-size:11px">${s.remarks ? '✎ edit' : '+ add'}</button>
+        </td>
       </tr>`;
     }).join('') + '</tbody></table>';
 }
@@ -195,6 +202,24 @@ window.setSort = function (k) {
 };
 $('stu-search').oninput = render;
 $('stu-course').onchange = render;
+
+window.editRemark = function (id) {
+  const s = students.find(x => x.id === id);
+  const cell = $('remcell-' + id);
+  cell.innerHTML = `<textarea id="remta-${id}" rows="4" style="font-size:12px;width:100%">${esc(s.remarks || '')}</textarea>
+    <div style="display:flex;gap:6px;margin-top:4px">
+      <button class="btn sm" onclick="saveRemark('${id}')">Save</button>
+      <button class="btn ghost sm" onclick="render()">✕</button></div>`;
+  $('remta-' + id).focus();
+};
+window.saveRemark = async function (id) {
+  const val = $('remta-' + id).value.trim();
+  const { error } = await sb.from('students').update({ remarks: val || null }).eq('id', id);
+  if (error) return msg('stu-msg', 'err', error.message);
+  students.find(x => x.id === id).remarks = val || null;
+  msg('stu-msg', 'ok', 'Remark saved.');
+  render();
+};
 
 $('stu-copy').onclick = () => {
   const emails = filtered().map(s => s.email).filter(Boolean).join(', ');
@@ -214,10 +239,11 @@ $('stu-xlsx').onclick = () => {
       '# Classes': cls.length,
       'Points Balance': balanceOf(s.id),
       'Referral Code': s.referral_code || '',
+      'Remarks': s.remarks || '',
     };
   });
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 14 }, { wch: 60 }, { wch: 9 }, { wch: 13 }, { wch: 13 }];
+  ws['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 14 }, { wch: 60 }, { wch: 9 }, { wch: 13 }, { wch: 13 }, { wch: 50 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Students');
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
