@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Impactus Learning — Student Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root { --navy:#101a2d; --navy2:#1b2942; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --line:#e6e9f0; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:760px; margin:0 auto; padding:16px; }
+  header { background:var(--navy); color:#fff; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:14px; padding-bottom:14px; }
+  .logo { font-weight:800; font-size:17px; letter-spacing:.2px; }
+  .logo span { color:var(--amber); }
+  .signout { background:none; border:1px solid rgba(255,255,255,.3); color:#fff; padding:6px 12px; border-radius:8px; font-size:13px; cursor:pointer; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; margin-top:16px; }
+  h1 { font-size:22px; font-weight:800; }
+  h2 { font-size:16px; font-weight:700; margin-bottom:12px; }
+  .muted { color:var(--mut); font-size:13.5px; }
+  .banner { background:linear-gradient(120deg,var(--navy),var(--navy2)); color:#fff; border-radius:14px; padding:22px; margin-top:16px; }
+  .banner .big { font-size:28px; font-weight:800; color:var(--amber); }
+  input, select { width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:10px; font-size:15px; font-family:inherit; margin-top:8px; background:#fff; }
+  label { font-size:13px; font-weight:600; color:var(--mut); display:block; margin-top:12px; }
+  .btn { display:inline-block; width:100%; margin-top:16px; padding:13px; background:var(--amber); color:var(--navy); border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn:disabled { opacity:.55; cursor:default; }
+  .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .row { display:flex; justify-content:space-between; align-items:baseline; padding:9px 0; border-bottom:1px solid var(--line); font-size:14.5px; }
+  .row:last-child { border-bottom:none; }
+  .pill { display:inline-block; font-size:11px; font-weight:700; padding:2.5px 9px; border-radius:99px; margin-left:6px; vertical-align:middle; }
+  .pill.early { background:#fdf3d7; color:var(--amber-d); }
+  .pill.free { background:#e3f4ea; color:var(--green); }
+  .pill.upcoming { background:#e8edfb; color:#3c5bd2; }
+  .pill.again { background:#f0e9fb; color:#6b3fc4; }
+  .pts { color:var(--green); font-weight:700; white-space:nowrap; }
+  .neg { color:#c0392b; font-weight:700; }
+  .hist-course { font-weight:600; }
+  .hist-sub { font-size:12.5px; color:var(--mut); margin-top:2px; }
+  .slider-row { display:flex; align-items:center; gap:12px; margin-top:10px; }
+  input[type=range] { flex:1; accent-color:var(--amber-d); padding:0; }
+  .breakdown { background:var(--bg); border-radius:10px; padding:14px; margin-top:14px; font-size:14.5px; }
+  .breakdown .row { border-bottom:none; padding:4px 0; }
+  .total { font-size:18px; font-weight:800; }
+  .msg { margin-top:12px; padding:12px 14px; border-radius:10px; font-size:14px; display:none; }
+  .msg.ok { background:#e3f4ea; color:var(--green); display:block; }
+  .msg.err { background:#fdeaea; color:#c0392b; display:block; }
+  .reflink { display:flex; gap:8px; margin-top:10px; }
+  .reflink input { margin-top:0; font-size:13px; color:var(--mut); }
+  .reflink button { white-space:nowrap; width:auto; margin-top:0; padding:0 16px; }
+  .hidden { display:none !important; }
+  footer { text-align:center; padding:26px 0 34px; }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:26px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Student Portal</span></div>
+  <button class="signout hidden" id="signout">Sign out</button>
+</div></header>
+
+<!-- PRE-LAUNCH GATE (blocks students until payments are live) -->
+<div class="wrap hidden" id="view-soon">
+  <div class="banner">
+    <h1>Your rewards portal is almost ready</h1>
+    <p class="muted" style="color:#cfd6e4;margin-top:6px">We're putting the finishing touches on the Impactus Learning student portal — where every class earns you 10% back in rebate points.</p>
+  </div>
+  <div class="card">
+    <h2>Opening very soon</h2>
+    <p class="muted">Your points are already waiting — nothing to do yet. We'll email every student a sign-in link the moment it's live. Thanks for your patience!</p>
+    <p class="muted" style="margin-top:14px">Questions in the meantime? <a href="mailto:andrew@impactuslearning.com">andrew@impactuslearning.com</a></p>
+  </div>
+</div>
+
+<!-- SIGNED OUT -->
+<div class="wrap hidden" id="view-login">
+  <div class="banner">
+    <h1>Your classes. Your rebates.</h1>
+    <p class="muted" style="color:#cfd6e4;margin-top:6px">Earn 10% back in rebate points on every class — 1 point = S$1 off your next one. Joining through a friend's link? You start with 5 welcome points (S$5).</p>
+  </div>
+  <div class="card">
+    <h2>Sign in / Create account</h2>
+    <label>Email</label>
+    <input type="email" id="email" placeholder="you@email.com" autocomplete="email">
+    <div id="newFields">
+      <label>Full name <span style="font-weight:400">(new students)</span></label>
+      <input type="text" id="fullname" placeholder="Your name" autocomplete="name">
+      <label>Mobile <span style="font-weight:400">(optional)</span></label>
+      <input type="tel" id="mobile" placeholder="+65 9xxx xxxx" autocomplete="tel">
+      <label id="reflabel">Have a friend's referral code? <span style="font-weight:400">(optional — fills in automatically if you used their link or QR)</span></label>
+      <input type="text" id="refcode" placeholder="Only needed if your friend told you a code">
+    </div>
+    <button class="btn" id="sendlink">Email me a sign-in link</button>
+    <div class="msg" id="loginmsg"></div>
+    <p class="muted" style="margin-top:14px">No password needed — we email you a secure link. Existing students: use the same email you registered with, your points are already waiting.</p>
+  </div>
+</div>
+
+<!-- SIGNED IN -->
+<div class="wrap hidden" id="view-app">
+  <div class="banner">
+    <p style="font-size:14px;color:#cfd6e4" id="hello">Welcome back</p>
+    <p class="big" id="balline">…</p>
+    <p class="muted" style="color:#cfd6e4;margin-top:4px">Points never expire. Use them on any class — or keep collecting.</p>
+  </div>
+
+  <div class="card" id="bookcard">
+    <h2>Book a class</h2>
+    <div id="courselist" class="muted">Loading classes…</div>
+    <div id="bookform" class="hidden">
+      <div class="reflink" style="margin-top:0">
+        <input type="text" id="couponcode" placeholder="Discount code (optional)" style="text-transform:uppercase">
+        <button class="btn" id="couponbtn">Apply</button>
+      </div>
+      <div class="msg" id="couponmsg" style="margin-top:8px"></div>
+      <div class="slider-row">
+        <span class="muted" style="font-size:13px">Use points:</span>
+        <input type="range" id="ptsrange" min="0" value="0" step="1">
+        <strong id="ptsval" style="min-width:52px;text-align:right">0 pts</strong>
+      </div>
+      <div class="breakdown">
+        <div class="row"><span>Class price</span><span id="bd-price"></span></div>
+        <div class="row hidden" id="bd-disc-row"><span id="bd-disc-label">Discount</span><span class="pts" id="bd-disc">− S$0</span></div>
+        <div class="row"><span>Points applied</span><span class="pts" id="bd-pts">− S$0</span></div>
+        <div class="row total"><span>You pay</span><span id="bd-total"></span></div>
+      </div>
+      <button class="btn" id="paybtn">Continue</button>
+    </div>
+    <div class="msg" id="bookmsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Your transaction history</h2>
+    <div id="history" class="muted">Loading…</div>
+  </div>
+
+  <div class="card">
+    <h2>Refer a friend, earn 10%</h2>
+    <p class="muted">When a friend signs up through you, <strong>they get 5 welcome points (S$5)</strong> — and when they book their first class, <strong>you get 10% of what they pay</strong> in points. No codes to remember: they just tap your link or scan your QR.</p>
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:14px">
+      <div id="refqr" style="background:#fff;padding:10px;border:1px solid var(--line);border-radius:12px"></div>
+      <div style="flex:1;min-width:230px">
+        <button class="btn" id="waref" style="margin-top:0;background:#25D366;color:#fff">Share via WhatsApp</button>
+        <div class="reflink">
+          <input type="text" id="reflink" readonly>
+          <button class="btn" id="copyref">Copy</button>
+        </div>
+        <p class="muted" style="margin-top:8px">In class? Let your neighbour scan the QR with their phone camera.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="muted">Impactus Learning Pte Ltd · Points are non-transferable and not exchangeable for cash.<br>Questions? andrew@impactuslearning.com</footer>
+
+<script>
+const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+const PORTAL_URL = 'https://events.impactuslearning.com/portal/';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
+
+const $ = (id) => document.getElementById(id);
+const fmt$ = (n) => 'S$' + Number(n).toFixed(2).replace(/\.00$/, '');
+const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+
+// ── PRE-LAUNCH SWITCHES ──────────────────────────────────────────────
+// PAYMENTS_LIVE: flip to true once HitPay keys are set in Supabase edge-function secrets.
+//   While false, balance-due bookings are blocked; full-points bookings still work for testing.
+// PREVIEW_TOKEN: append ?preview=<token> to the URL to unlock the portal (sticks in this browser).
+//   To relock: clear it, or bump the token. To launch to everyone: set GATE_OPEN = true.
+const PAYMENTS_LIVE = false;
+const GATE_OPEN = false;
+const PREVIEW_TOKEN = 'il2026-preview-7q9k';
+(function gate() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('preview') === PREVIEW_TOKEN) {
+    try { localStorage.setItem('ilPreview', PREVIEW_TOKEN); } catch (e) {}
+    p.delete('preview');
+    history.replaceState({}, '', location.pathname + (p.toString() ? '?' + p : '') + location.hash);
+  }
+  let ok = false;
+  try { ok = localStorage.getItem('ilPreview') === PREVIEW_TOKEN; } catch (e) {}
+  if (GATE_OPEN || ok) return;              // authorised → normal portal
+  $('view-soon').classList.remove('hidden'); // otherwise show "coming soon" and stop
+  window.__gated = true;
+})();
+
+let student = null, balance = 0, courses = [], selCourse = null;
+
+// referral code from ?ref=
+// Surface auth errors from the magic link (expired / already used)
+const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+if (hashParams.get('error_description') || hashParams.get('error')) {
+  const desc = hashParams.get('error_description') || 'This sign-in link has expired or was already used.';
+  setTimeout(() => msg('loginmsg', 'err', desc.replace(/\+/g, ' ') + ' — enter your email above for a fresh link (always use the newest email).'), 300);
+  history.replaceState({}, '', location.pathname + location.search);
+}
+const params = new URLSearchParams(location.search);
+if (params.get('ref')) {
+  $('refcode').value = params.get('ref').toUpperCase();
+  setTimeout(() => msg('loginmsg', 'ok', "Your friend's referral is attached ✓ — sign up above and get 5 welcome points (S$5 off your first class)."), 300);
+}
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { await showApp(session); } else { show('view-login'); }
+  sb.auth.onAuthStateChange(async (ev, s) => {
+    if (ev === 'SIGNED_IN' && s) await showApp(s);
+    if (ev === 'SIGNED_OUT') { show('view-login'); $('signout').classList.add('hidden'); }
+  });
+  if (params.get('payment') === 'done') {
+    history.replaceState({}, '', location.pathname);
+    setTimeout(() => msg('bookmsg', 'ok', 'Payment received! Your booking is confirmed and points are updated. (Refresh if you don\'t see it yet.)'), 800);
+  }
+}
+
+function show(id) { ['view-soon', 'view-login', 'view-app'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; }
+
+$('sendlink').onclick = async () => {
+  const email = $('email').value.trim().toLowerCase();
+  if (!email || !email.includes('@')) return msg('loginmsg', 'err', 'Please enter a valid email.');
+  $('sendlink').disabled = true;
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: PORTAL_URL,
+      data: {
+        full_name: $('fullname').value.trim(),
+        mobile: $('mobile').value.trim(),
+        referral_code: $('refcode').value.trim().toUpperCase(),
+      },
+    },
+  });
+  $('sendlink').disabled = false;
+  if (error) return msg('loginmsg', 'err', error.message);
+  msg('loginmsg', 'ok', 'Check your email — the sign-in link comes from Impactus Learning (noreply@impactuslearning.com). Not there within a minute? Check your Spam/Junk folder (and Promotions tab in Gmail).');
+};
+
+$('signout').onclick = () => sb.auth.signOut();
+
+async function showApp(session) {
+  show('view-app'); $('signout').classList.remove('hidden');
+  const { data: me } = await sb.from('points_balances').select('*').limit(1);
+  student = me && me[0];
+  if (!student) { $('hello').textContent = 'Welcome!'; $('balline').textContent = 'Setting up your account…'; setTimeout(() => showApp(session), 1500); return; }
+  balance = student.balance_points;
+  $('hello').textContent = 'Welcome back, ' + student.name.split(' ')[0];
+  $('balline').textContent = balance > 0 ? `You've earned S$${balance} toward your next class` : 'Book your first class to start earning rebates';
+  const reflink = PORTAL_URL + '?ref=' + student.referral_code;
+  $('reflink').value = reflink;
+  $('refqr').innerHTML = '';
+  new QRCode($('refqr'), { text: reflink, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
+  $('waref').onclick = () => window.open('https://wa.me/?text=' + encodeURIComponent(
+    "I've been taking Impactus Learning's AI masterclasses — sign up with my link and get S$5 off your first class: " + reflink), '_blank');
+  loadCourses(); loadHistory();
+}
+
+let courseGroups = {};
+
+// Which course families has this student already sat in? Drives the "come back" badge.
+async function attendedFamilies() {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await sb.from('student_history').select('family_slug,cohort_date,status');
+  const seen = {};
+  (data || []).forEach(r => {
+    if (!r.family_slug || r.status !== 'confirmed' || r.cohort_date >= today) return;
+    if (!seen[r.family_slug] || r.cohort_date > seen[r.family_slug]) seen[r.family_slug] = r.cohort_date;
+  });
+  return seen;
+}
+
+async function loadCourses() {
+  // open_cohorts = bookable cohorts already joined to their course family (active families only)
+  const [{ data }, done] = await Promise.all([
+    sb.from('open_cohorts').select('*').order('sort_order').order('cohort_date'),
+    attendedFamilies(),
+  ]);
+  const rows = data || [];
+  if (!rows.length) { $('courselist').textContent = 'No classes open for booking right now — watch this space!'; return; }
+  courseGroups = {};
+  rows.forEach(c => { (courseGroups[c.family_slug] = courseGroups[c.family_slug] || []).push(c); });
+  $('courselist').innerHTML = Object.entries(courseGroups).map(([slug, list], gi) => {
+    const next = list[0];
+    const been = done[slug];
+    const badge = been
+      ? `<span class="pill again">${balance > 0 ? 'Come back — use your ' + balance + ' pts' : 'You’ve taken this'}</span>`
+      : '';
+    const sub = been
+      ? `You attended ${fdate(been)}.${balance > 0 ? ` Your ${balance} pts come off the price — repeats welcome.` : ' Repeats welcome.'}`
+      : (next.family_tagline || next.details || '');
+    const dates = list.map(c =>
+      `<label style="display:flex;gap:10px;align-items:center;padding:9px 0 9px 4px;border-top:1px solid var(--line);cursor:pointer">
+        <input type="radio" name="course" value="${c.id}" style="width:auto;margin:0">
+        <span style="flex:1"><strong>${fdate(c.cohort_date)}</strong>${c.session_time ? ' <span class="hist-sub">· ' + c.session_time + '</span>' : ''}</span>
+        <span>${fmt$(c.price_sgd)}</span></label>`).join('');
+    return `<div style="border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden">
+      <div class="course-head" data-g="${gi}" style="padding:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div><div class="hist-course">${next.family_name}${badge}</div>
+        <div class="hist-sub">${sub}</div>
+        <div class="hist-sub" style="margin-top:4px">Next: <strong>${fdate(next.cohort_date)}</strong>${list.length > 1 ? ` · +${list.length - 1} more date${list.length > 2 ? 's' : ''}` : ''}</div></div>
+        <div style="text-align:right;white-space:nowrap"><strong>${fmt$(next.price_sgd)}</strong><div class="hist-sub">▾ choose date</div></div>
+      </div>
+      <div class="course-dates hidden" data-gd="${gi}" style="padding:0 14px 10px">${dates}</div></div>`;
+  }).join('');
+  document.querySelectorAll('.course-head').forEach(h => h.onclick = () => {
+    document.querySelectorAll('.course-dates').forEach(d => { if (d.dataset.gd !== h.dataset.g) d.classList.add('hidden'); });
+    document.querySelector(`.course-dates[data-gd="${h.dataset.g}"]`).classList.toggle('hidden');
+  });
+  const all = Object.values(courseGroups).flat();
+  document.querySelectorAll('input[name=course]').forEach(r => r.onchange = () => selectCourse(all.find(c => c.id === r.value)));
+  // deep link: ?course=automation&date=2026-08-13&time=am|pm — matches family slug or any alt_slug
+  const asked = (params.get('course') || '').toLowerCase();
+  const want = asked && Object.keys(courseGroups).find(s =>
+    s === asked || (courseGroups[s][0].alt_slugs || []).includes(asked));
+  if (want) {
+    const gi = Object.keys(courseGroups).indexOf(want);
+    const panel = document.querySelector(`.course-dates[data-gd="${gi}"]`);
+    if (panel) panel.classList.remove('hidden');
+    const d = params.get('date');
+    const t = (params.get('time') || '').toLowerCase();
+    let target = d ? courseGroups[want].find(c => c.cohort_date === d && (!t || (c.session_time || '').toLowerCase().startsWith(t === 'am' ? '9' : '7'))) : null;
+    if (!target && d) target = courseGroups[want].find(c => c.cohort_date === d);
+    if (!target) target = courseGroups[want][0];
+    if (target) {
+      const radio = document.querySelector(`input[name=course][value="${target.id}"]`);
+      if (radio) { radio.checked = true; selectCourse(target); }
+      $('bookcard').scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+}
+
+let coupon = null;  // { code, discount, label } once a valid code is applied
+
+function selectCourse(c) {
+  selCourse = c; coupon = null;
+  $('bookform').classList.remove('hidden');
+  $('couponcode').value = ''; $('couponbtn').textContent = 'Apply'; $('couponbtn').disabled = false;
+  $('couponmsg').className = 'msg'; $('couponmsg').textContent = '';
+  syncSlider(true);
+  $('ptsrange').oninput = updateBreakdown; updateBreakdown();
+}
+
+function syncSlider(reset) {
+  const discounted = Number(selCourse.price_sgd) - (coupon ? coupon.discount : 0);
+  const max = Math.max(0, Math.min(balance, Math.floor(discounted)));
+  const rng = $('ptsrange'); rng.max = max;
+  if (reset) rng.value = 0; else if (Number(rng.value) > max) rng.value = max;
+}
+
+$('couponbtn').onclick = async () => {
+  const code = $('couponcode').value.trim();
+  if (!code) { coupon = null; $('couponmsg').className = 'msg'; $('couponmsg').textContent = ''; syncSlider(); updateBreakdown(); return; }
+  $('couponbtn').disabled = true; $('couponbtn').textContent = '…';
+  const { data, error } = await sb.rpc('preview_coupon', { p_code: code, p_course_id: selCourse.id });
+  $('couponbtn').disabled = false; $('couponbtn').textContent = 'Apply';
+  if (error || !data || !data.ok) {
+    coupon = null; syncSlider();
+    msg('couponmsg', 'err', (data && data.message) || (error && error.message) || 'Code not recognised');
+    updateBreakdown(); return;
+  }
+  coupon = { code: code.toUpperCase(), discount: Number(data.discount), label: data.label };
+  msg('couponmsg', 'ok', data.label + ' applied ✓');
+  syncSlider(); updateBreakdown();
+};
+$('couponcode').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); $('couponbtn').click(); } };
+
+function updateBreakdown() {
+  const price = Number(selCourse.price_sgd);
+  const discount = coupon ? coupon.discount : 0;
+  const discounted = +(price - discount).toFixed(2);
+  const pts = Math.min(Number($('ptsrange').value), Math.floor(discounted));
+  const pay = +(discounted - pts).toFixed(2);
+  $('ptsval').textContent = pts + ' pts';
+  $('bd-price').textContent = fmt$(price);
+  const dr = $('bd-disc-row');
+  if (discount > 0) { dr.classList.remove('hidden'); $('bd-disc-label').textContent = coupon.label || 'Discount'; $('bd-disc').textContent = '− ' + fmt$(discount); }
+  else dr.classList.add('hidden');
+  $('bd-pts').textContent = '− ' + fmt$(pts);
+  $('bd-total').textContent = fmt$(pay);
+  const cardNeeded = pay > 0 && !PAYMENTS_LIVE;
+  $('paybtn').disabled = cardNeeded;
+  $('paybtn').textContent = cardNeeded
+    ? 'Card payment — coming soon'
+    : (pay === 0 ? 'Book now — pay S$0' : `Pay ${fmt$(pay)} with PayNow / card`);
+  $('bookmsg').className = 'msg';
+  if (cardNeeded) msg('bookmsg', 'ok', 'Card / PayNow checkout goes live shortly. For now you can book any class fully covered by points or a code.');
+}
+
+$('paybtn').onclick = async () => {
+  if (!selCourse) return;
+  const payNow = Number(selCourse.price_sgd) - Number($('ptsrange').value);
+  if (payNow > 0 && !PAYMENTS_LIVE) return;   // card checkout not live yet
+  $('paybtn').disabled = true;
+  msg('bookmsg', 'ok', 'Preparing your booking…');
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ course_id: selCourse.id, points_to_redeem: Number($('ptsrange').value), coupon_code: coupon ? coupon.code : null }),
+    });
+    const out = await res.json();
+    if (!res.ok) throw new Error(out.error || 'Something went wrong');
+    if (out.status === 'confirmed_free') {
+      msg('bookmsg', 'ok', 'Booked! You\'re all set — see you in class!');
+      const { data: { session: s2 } } = await sb.auth.getSession(); await showApp(s2);
+    } else if (out.url) {
+      location.href = out.url;
+    }
+  } catch (e) { msg('bookmsg', 'err', e.message); }
+  $('paybtn').disabled = false;
+};
+
+async function loadHistory() {
+  const { data } = await sb.from('student_history').select('*').order('cohort_date', { ascending: false });
+  const rows = (data || []).filter(r => r.status !== 'pending');
+  if (!rows.length) { $('history').textContent = 'No transactions yet.'; return; }
+  $('history').innerHTML = rows.map(r => {
+    const paid = Number(r.cash_paid_sgd);
+    const isFuture = r.cohort_date >= new Date().toISOString().slice(0, 10);
+    let badge = '';
+    if (r.status === 'cancelled') badge = '<span class="pill" style="background:#eee;color:#888">Postponed / cancelled</span>';
+    else if (paid === 0 && r.points_redeemed > 0) badge = '<span class="pill free">Paid with points</span>';
+    else if (paid === 0) badge = '<span class="pill free">Complimentary</span>';
+    else if (paid === 90) badge = '<span class="pill early">Introductory price — early supporter</span>';
+    if (isFuture && r.status === 'confirmed') badge += '<span class="pill upcoming">Upcoming</span>';
+    const right = [];
+    if (paid > 0) right.push(`<div><strong>${fmt$(paid)}</strong> paid</div>`);
+    if (r.points_earned > 0) right.push(`<div class="pts">+${r.points_earned} pts</div>`);
+    if (r.points_redeemed > 0 && r.status === 'confirmed') right.push(`<div class="neg">−${r.points_redeemed} pts</div>`);
+    return `<div class="row"><div><div class="hist-course">${r.course}${badge}</div>
+      <div class="hist-sub">${fdate(r.cohort_date)}${r.note && r.status !== 'confirmed' ? ' · ' + r.note : ''}</div></div>
+      <div style="text-align:right">${right.join('') || '<span class="muted">—</span>'}</div></div>`;
+  }).join('');
+}
+
+$('copyref').onclick = () => { navigator.clipboard.writeText($('reflink').value); $('copyref').textContent = 'Copied!'; setTimeout(() => $('copyref').textContent = 'Copy', 1500); };
+
+if (!window.__gated) init();
+</script>
+</body>
+</html>
