@@ -52,6 +52,11 @@
   .pill.closed { background:#eee; color:#888; }
   .pill.cancelled { background:#fde8e8; color:var(--red); }
   .pill.pending { background:#fdf3d7; color:var(--amber-d); }
+  .pill.draft { background:#e9ebf1; color:#6c7688; border:1px dashed #b9c0cf; }
+  .pill.approval { background:#eef2ff; color:#4756c8; }
+  .cal-ev.draftev { background:#c9cfda !important; color:#39404f; }
+  .modal-bg { position:fixed; inset:0; background:rgba(16,26,45,.45); z-index:20; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .modal { background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; box-shadow:0 18px 50px rgba(0,0,0,.25); }
   .cohort-row { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:11px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
   .cohort-row:last-child { border-bottom:none; }
   .cohort-actions { display:flex; gap:6px; flex-wrap:wrap; }
@@ -191,6 +196,7 @@
       <label style="margin-top:12px">WhatsApp group invite link (added as a footnote to this class's emails)</label>
       <input id="f-whatsapp" placeholder="https://chat.whatsapp.com/…">
       <label style="margin-top:12px"><input type="checkbox" id="f-open" style="width:auto;vertical-align:-2px"> Open for booking on the student portal</label>
+      <label style="margin-top:6px"><input type="checkbox" id="f-approval" style="width:auto;vertical-align:-2px"> Require my approval before students are charged (Luma-style — good for F2F minimum class size)</label>
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn" id="f-save">Save cohort</button>
         <button class="btn ghost hidden" id="f-cancel">Cancel edit</button>
@@ -244,6 +250,26 @@
       <div id="refboard" class="muted">Loading…</div>
     </div>
 
+  </div>
+</div>
+
+<div class="modal-bg hidden" id="planbg">
+  <div class="modal">
+    <h2 id="plan-title">Plan a class</h2>
+    <p class="muted" style="margin-top:-4px">Saved as a <strong>DRAFT</strong> — light grey on the calendar, hidden from students until you press CONFIRM.</p>
+    <label>Course</label><select id="plan-family"></select>
+    <label>Date</label><input type="date" id="plan-date">
+    <label>Slot</label><select id="plan-slot">
+      <option value="am">Morning</option>
+      <option value="pm">Afternoon</option>
+      <option value="n">Night</option></select>
+    <label>Session time (shown to students)</label><input id="plan-time">
+    <label>Price (SGD)</label><input type="number" id="plan-price" min="0" step="1">
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn" id="plan-save">Save draft</button>
+      <button class="btn ghost" id="plan-close">Cancel</button>
+    </div>
+    <div class="msg" id="planmsg"></div>
   </div>
 </div>
 
@@ -347,19 +373,40 @@ function renderCohorts() {
   if (!showPast) list = list.filter(c => c.cohort_date >= today());
   else list = list.slice().reverse();
   if (!list.length) { $('cohortlist').textContent = 'No cohorts.'; return; }
-  $('cohortlist').innerHTML = list.map(c => `
+  $('cohortlist').innerHTML = list.map(c => {
+    const waiting = bookings.filter(b => b.course_id === c.id && b.status === 'pending_approval').length;
+    const pill = c.cancelled ? '<span class="pill cancelled">CANCELLED</span>'
+      : c.is_draft ? '<span class="pill draft">DRAFT</span>'
+      : `<span class="pill ${c.is_open ? 'open' : 'closed'}">${c.is_open ? 'OPEN' : 'closed'}</span>`;
+    const extras = [
+      c.require_approval && !c.is_draft && !c.cancelled ? '<span class="pill approval">approval required</span>' : '',
+      waiting ? `<span class="pill pending">${waiting} awaiting approval</span>` : '',
+    ].join(' ');
+    const zoom = c.zoom_link ? ` · <a href="${c.zoom_link}" target="_blank">Zoom ↗</a>${c.zoom_password ? ` <span style="font-size:11px">(pw ${c.zoom_password})</span>` : ''}` : '';
+    const wa = c.whatsapp_url ? ` · <a href="${c.whatsapp_url}" target="_blank">WhatsApp ↗</a>` : '';
+    const mkZoom = c.zoom_link ? '' : `<button class="btn ghost sm" onclick="createZoom(this,'${c.id}')">Create Zoom</button>`;
+    const mkWa = c.whatsapp_url ? '' : `<button class="btn ghost sm" onclick="createWhatsApp('${c.id}')">Create WhatsApp</button>`;
+    const actions = c.cancelled
+      ? `<button class="btn sm" onclick="openRoster('${c.id}')">Roster</button>`
+      : c.is_draft
+      ? `<button class="btn sm" style="background:var(--green);color:#fff" onclick="confirmDraft('${c.id}')">CONFIRM</button>
+        ${mkZoom} ${mkWa}
+        <button class="btn ghost sm" onclick="editCohort('${c.id}')">Edit</button>
+        <button class="btn ghost sm" style="color:var(--red)" onclick="deleteDraft('${c.id}')">Delete</button>`
+      : `<button class="btn sm" onclick="openRoster('${c.id}')">Roster</button>
+        ${mkZoom} ${mkWa}
+        <button class="btn ghost sm" onclick="editCohort('${c.id}')">Edit</button>
+        <button class="btn ghost sm" onclick="toggleOpen('${c.id}', ${c.is_open})">${c.is_open ? 'Close' : 'Open'}</button>
+        <button class="btn ghost sm" style="color:var(--red)" onclick="openCancel('${c.id}')">Cancel class</button>`;
+    return `
     <div class="cohort-row"${c.cancelled ? ' style="opacity:.6"' : ''}>
       <div style="flex:1;min-width:220px">
-        <strong>${c.name}</strong> ${c.cancelled ? '<span class="pill cancelled">CANCELLED</span>' : `<span class="pill ${c.is_open ? 'open' : 'closed'}">${c.is_open ? 'OPEN' : 'closed'}</span>`}<br>
-        <span class="muted">${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''} · ${fmt$(c.price_sgd)} · <strong>${cohortCount(c.id)}</strong> confirmed</span>
+        <strong>${c.name}</strong> ${pill} ${extras}<br>
+        <span class="muted">${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''} · ${fmt$(c.price_sgd)}${c.is_draft ? '' : ` · <strong>${cohortCount(c.id)}</strong> confirmed`}${zoom}${wa}</span>
       </div>
-      <div class="cohort-actions">
-        <button class="btn sm" onclick="openRoster('${c.id}')">Roster</button>
-        <button class="btn ghost sm" onclick="editCohort('${c.id}')">Edit</button>
-        ${c.cancelled ? '' : `<button class="btn ghost sm" onclick="toggleOpen('${c.id}', ${c.is_open})">${c.is_open ? 'Close' : 'Open'}</button>
-        <button class="btn ghost sm" style="color:var(--red)" onclick="openCancel('${c.id}')">Cancel class</button>`}
-      </div>
-    </div>`).join('');
+      <div class="cohort-actions">${actions}</div>
+    </div>`;
+  }).join('');
 }
 $('showpast').onchange = renderCohorts;
 
@@ -374,7 +421,7 @@ function slotOf(t) {
   if (m[3].toLowerCase() === 'pm') h += 12;
   return h < 12 ? 0 : h < 18 ? 1 : 2;
 }
-const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude', 'AI Animation Automation': 'Anim-Auto', 'AI Animation Masterclass': 'Animation', 'AI Audio Masterclass': 'Audio' };
+const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude', 'AI Animation Automation': 'Anim-Auto', 'AI Animation Masterclass': 'Animation', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude', 'F2F AI Animation Masterclass': 'F2F Animation', 'F2F AI Animation Automation': 'F2F Anim-Auto', 'F2F Master Claude - Build': 'F2F Build' };
 const shortName = (n) => SHORTNAMES[n] || (n.length > 14 ? n.slice(0, 13) + '…' : n);
 function courseColor(n) { let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},52%,38%)`; }
 function renderCalendar() {
@@ -400,14 +447,15 @@ function renderCalendar() {
       const dow = d.getDay();
       blocks.filter(x => x.block_date === iso || (x.recur_weekly && x.block_date <= iso && new Date(x.block_date + 'T00:00:00').getDay() === dow)).forEach(x => bslots[slotOf(x.session_time)].push(x));
       const slotHtml = ['AM', 'PM', 'N'].map((lab, si) =>
-        `<div class="cal-slot"><span class="sl">${lab}</span><div class="evs">` +
+        `<div class="cal-slot"><span class="sl">${lab}</span><div class="evs" onclick="event.stopPropagation();planSlot('${iso}','${['am','pm','n'][si]}')">` +
         bslots[si].map(x =>
           `<div class="cal-ev" style="background:${x.color || '#475569'}" title="${x.note || x.title}${x.session_time ? ' · ' + x.session_time : ''}" onclick="event.stopPropagation()">${x.title}</div>`
         ).join('') +
-        slots[si].map(c =>
-          `<div class="cal-ev ${c.is_open ? '' : 'closed'}" style="background:${courseColor(c.name)}" title="${c.name} · ${c.session_time || ''} · ${cohortCount(c.id)} confirmed" onclick="event.stopPropagation();openRoster('${c.id}')">${shortName(c.name)} · ${cohortCount(c.id)}</div>`
+        slots[si].map(c => c.is_draft
+          ? `<div class="cal-ev draftev" title="DRAFT — ${c.name}${c.session_time ? ' · ' + c.session_time : ''}" onclick="event.stopPropagation();editCohort('${c.id}')">✎ ${shortName(c.name)}</div>`
+          : `<div class="cal-ev ${c.is_open ? '' : 'closed'}" style="background:${courseColor(c.name)}" title="${c.name} · ${c.session_time || ''} · ${cohortCount(c.id)} confirmed" onclick="event.stopPropagation();openRoster('${c.id}')">${shortName(c.name)} · ${cohortCount(c.id)}</div>`
         ).join('') + '</div></div>').join('');
-      html += `<td class="${out ? 'out' : ''} ${iso === tod ? 'today' : ''}" onclick="calAdd('${iso}')"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
+      html += `<td class="${out ? 'out' : ''} ${iso === tod ? 'today' : ''}" onclick="planSlot('${iso}','am')"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
     }
     html += '</tr>';
   }
@@ -416,12 +464,37 @@ function renderCalendar() {
 $('cal-print').onclick = () => window.print();
 $('cal-prev').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); };
 $('cal-next').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); };
-window.calAdd = function (iso) {
-  if (editingCourse) $('f-cancel').onclick();
-  $('f-date').value = iso;
-  msg('formmsg', 'ok', 'Date set to ' + fdate(iso) + ' — fill in the rest below.');
-  $('f-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  $('f-name').focus();
+const SLOT_TIMES = { am: '9:00am – 5:00pm', pm: '2:00pm – 6:00pm', n: '7:00pm – 10:30pm' };
+window.planSlot = function (iso, slot) {
+  $('plan-date').value = iso;
+  $('plan-slot').value = slot || 'am';
+  $('plan-family').innerHTML = '<option value="">— choose a course —</option>' + families.filter(f => f.status === 'active').map(f =>
+    `<option value="${f.id}">${f.name}</option>`).join('');
+  $('plan-time').value = SLOT_TIMES[$('plan-slot').value];
+  $('plan-price').value = '';
+  $('plan-title').textContent = 'Plan a class — ' + fdate(iso);
+  $('planmsg').className = 'msg'; $('planmsg').textContent = '';
+  $('planbg').classList.remove('hidden');
+};
+$('plan-slot').onchange = () => { $('plan-time').value = SLOT_TIMES[$('plan-slot').value]; };
+$('plan-family').onchange = () => {
+  const f = families.find(x => x.id === $('plan-family').value);
+  if (f && f.default_price_sgd != null) $('plan-price').value = f.default_price_sgd;
+};
+$('plan-close').onclick = () => $('planbg').classList.add('hidden');
+$('planbg').onclick = (e) => { if (e.target === $('planbg')) $('planbg').classList.add('hidden'); };
+$('plan-save').onclick = async () => {
+  const f = families.find(x => x.id === $('plan-family').value);
+  if (!f) return msg('planmsg', 'err', 'Pick a course.');
+  const rec = { family_id: f.id, name: f.name, cohort_date: $('plan-date').value,
+    session_time: $('plan-time').value.trim() || null,
+    price_sgd: Number($('plan-price').value || f.default_price_sgd || 0),
+    is_draft: true, is_open: false };
+  if (!rec.cohort_date) return msg('planmsg', 'err', 'Pick a date.');
+  const { error } = await sb.from('courses').insert(rec);
+  if (error) return msg('planmsg', 'err', error.message);
+  $('planbg').classList.add('hidden');
+  await loadAll();
 };
 
 // ---------- Roster + transfers ----------
@@ -432,7 +505,7 @@ window.openRoster = function (cid) {
   $('rostercard').style.display = '';
   $('rostertitle').textContent = `Roster — ${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''}`;
   if (!rows.length) { $('roster').innerHTML = '<p class="muted">No bookings yet.</p>'; return; }
-  const futureOthers = courses.filter(x => x.cohort_date >= today() && x.id !== cid)
+  const futureOthers = courses.filter(x => x.cohort_date >= today() && x.id !== cid && !x.is_draft)
     .map(x => `<option value="${x.id}">${x.name} — ${fdate(x.cohort_date)}${x.session_time ? ' (' + x.session_time + ')' : ''}</option>`).join('');
   $('roster').innerHTML = `<table><thead><tr><th>#</th><th>Student</th><th>Contact</th><th>Paid / Pts</th><th>Status</th><th></th></tr></thead><tbody>` +
     rows.map((b, i) => {
@@ -441,9 +514,11 @@ window.openRoster = function (cid) {
         <td>${i + 1}</td>
         <td><strong>${s.name}</strong>${b.note ? `<br><span class="muted">${b.note}</span>` : ''}</td>
         <td>${s.email}<br><span class="muted">${s.mobile || '—'}</span></td>
-        <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}</td>
-        <td><span class="pill ${b.status === 'confirmed' ? 'open' : b.status}">${b.status}</span></td>
-        <td><button class="btn ghost sm" onclick="showTransfer('${b.id}')">Transfer</button>
+        <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}${['pending_approval','approved_await_payment'].includes(b.status) ? `<br><span class="muted">due ${fmt$(Math.max(0, Number(b.price_sgd) - Number(b.discount_sgd || 0) - Number(b.points_redeemed || 0)))}</span>` : ''}</td>
+        <td><span class="pill ${b.status === 'confirmed' ? 'open' : ['pending_approval','approved_await_payment'].includes(b.status) ? 'pending' : b.status === 'declined' ? 'cancelled' : b.status}">${b.status === 'pending_approval' ? 'awaiting approval' : b.status === 'approved_await_payment' ? 'approved — unpaid' : b.status}</span>${b.pay_method === 'card_saved' ? '<br><span class="muted" style="font-size:11px">card saved</span>' : b.pay_method === 'paynow_later' ? '<br><span class="muted" style="font-size:11px">PayNow after approval</span>' : ''}</td>
+        <td>${b.status === 'pending_approval' ? `<button class="btn sm" style="background:var(--green);color:#fff" onclick="approveBooking(this,'${b.id}','approve')">Approve</button>
+          <button class="btn ghost sm" style="color:var(--red)" onclick="approveBooking(this,'${b.id}','decline')">Decline</button> ` : ''}${b.status === 'approved_await_payment' ? `<button class="btn ghost sm" onclick="approveBooking(this,'${b.id}','resend')">Resend pay link</button>
+          <button class="btn ghost sm" style="color:var(--red)" onclick="approveBooking(this,'${b.id}','decline')">Decline</button> ` : ''}<button class="btn ghost sm" onclick="showTransfer('${b.id}')">Transfer</button>
           <div class="transfer-box hidden" id="tf-${b.id}">
             <select id="tfsel-${b.id}">${futureOthers}</select>
             <button class="btn sm" onclick="doTransfer('${b.id}')">Move</button>
@@ -455,6 +530,25 @@ window.openRoster = function (cid) {
 };
 
 window.showTransfer = (bid) => $('tf-' + bid).classList.toggle('hidden');
+
+window.approveBooking = async function (btn, bid, action) {
+  const b = bookings.find(x => x.id === bid);
+  const s = byStudent[b.student_id] || { name: 'student' };
+  const due = Math.max(0, +(Number(b.price_sgd) - Number(b.discount_sgd || 0) - Number(b.points_redeemed || 0)).toFixed(2));
+  const q = action === 'approve'
+    ? (due === 0 ? `Approve ${s.name}? Fully covered by points/code — seat confirms immediately, nothing to charge.`
+      : b.pay_method === 'card_saved' ? `Approve ${s.name}? Their saved card is charged ${fmt$(due)} now.`
+      : `Approve ${s.name}? They'll be emailed a PayNow link for ${fmt$(due)} — seat confirms when they pay.`)
+    : action === 'decline' ? `Decline ${s.name}? Nothing is charged and they get a polite email.`
+    : `Resend the payment link to ${s.name}?`;
+  if (!confirm(q)) return;
+  btn.disabled = true;
+  const { ok, out } = await callFn('approve-booking', { booking_id: bid, action });
+  btn.disabled = false;
+  if (!ok) return msg('rostermsg', 'err', out.error || 'Failed');
+  msg('rostermsg', 'ok', out.message || 'Done.');
+  await loadAll();
+};
 
 window.doTransfer = async function (bid) {
   const b = bookings.find(x => x.id === bid);
@@ -512,7 +606,7 @@ window.openCancel = function (cid) {
   const rows = bookings.filter(b => b.course_id === cid && b.status === 'confirmed');
   $('cancelcard').style.display = '';
   $('canceltitle').textContent = `Cancel class — ${c.name} · ${fdate(c.cohort_date)}`;
-  const futureOthers = courses.filter(x => x.cohort_date >= today() && x.id !== cid && !x.cancelled)
+  const futureOthers = courses.filter(x => x.cohort_date >= today() && x.id !== cid && !x.cancelled && !x.is_draft)
     .map(x => `<option value="${x.id}">${x.name} — ${fdate(x.cohort_date)}${x.session_time ? ' (' + x.session_time + ')' : ''}</option>`).join('');
   if (!rows.length) {
     $('cancelroster').innerHTML = '<p class="muted">No confirmed participants — cancelling just closes the class.</p>';
@@ -580,7 +674,7 @@ $('cx-go').onclick = async () => {
 
 // ---------- Email students ----------
 function renderEmailForm() {
-  const upcoming = courses.filter(c => c.cohort_date >= today() && !c.cancelled).sort((a, b) => a.cohort_date.localeCompare(b.cohort_date));
+  const upcoming = courses.filter(c => c.cohort_date >= today() && !c.cancelled && !c.is_draft).sort((a, b) => a.cohort_date.localeCompare(b.cohort_date));
   $('em-scope').innerHTML = '<option value="all">All students</option><option value="upcoming">All students with an upcoming class</option>' +
     upcoming.map(c => `<option value="c:${c.id}">${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' (' + c.session_time + ')' : ''}</option>`).join('');
   $('em-wa').innerHTML = '<option value="">— none —</option>' +
@@ -621,6 +715,10 @@ function renderForm() {
   // Cohorts must belong to a course family, or they won't show on the student portal.
   $('f-family').innerHTML = '<option value="">— choose a course —</option>' + families.map(f =>
     `<option value="${f.id}">${f.name}${f.status !== 'active' ? ' (' + f.status + ')' : ''}</option>`).join('');
+  $('f-family').onchange = () => {
+    const f = families.find(x => x.id === $('f-family').value);
+    if (f && f.default_price_sgd != null && !editingCourse) $('f-price').value = f.default_price_sgd;
+  };
 }
 window.editCohort = function (cid) {
   const c = byCourse[cid];
@@ -629,16 +727,17 @@ window.editCohort = function (cid) {
   $('f-family').value = c.family_id || ''; $('f-date').value = c.cohort_date;
   $('f-time').value = c.session_time || ''; $('f-price').value = c.price_sgd;
   $('f-details').value = c.details || ''; $('f-open').checked = c.is_open;
+  $('f-approval').checked = !!c.require_approval;
   $('f-whatsapp').value = c.whatsapp_url || '';
   $('f-cancel').classList.remove('hidden');
   $('f-save').scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
-$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-time','f-price','f-details','f-whatsapp'].forEach(i => $(i).value = ''); $('f-open').checked = false; $('f-cancel').classList.add('hidden'); };
+$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-time','f-price','f-details','f-whatsapp'].forEach(i => $(i).value = ''); $('f-open').checked = false; $('f-approval').checked = false; $('f-cancel').classList.add('hidden'); };
 $('f-save').onclick = async () => {
   const fam = families.find(f => f.id === $('f-family').value);
   if (!fam) return msg('formmsg', 'err', 'Pick a course — cohorts without one never reach the student portal.');
   const rec = { family_id: fam.id, name: fam.name, cohort_date: $('f-date').value, session_time: $('f-time').value.trim() || null,
-    price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, whatsapp_url: $('f-whatsapp').value.trim() || null, is_open: $('f-open').checked };
+    price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, whatsapp_url: $('f-whatsapp').value.trim() || null, is_open: $('f-open').checked, require_approval: $('f-approval').checked };
   if (!rec.cohort_date || !(rec.price_sgd >= 0)) return msg('formmsg', 'err', 'Date and price are required.');
   let error;
   if (editingCourse) ({ error } = await sb.from('courses').update(rec).eq('id', editingCourse));
@@ -653,13 +752,49 @@ window.toggleOpen = async function (cid, cur) {
   if (error) return alert(error.message);
   await loadAll();
 };
+window.confirmDraft = async function (cid) {
+  const c = byCourse[cid];
+  if (!confirm(`Confirm ${c.name} on ${fdate(c.cohort_date)}?\n\nIt becomes OPEN — course colour on the calendar, bookable on the student portal, tracked in earnings.`)) return;
+  const { error } = await sb.from('courses').update({ is_draft: false, is_open: true }).eq('id', cid);
+  if (error) return alert(error.message);
+  await loadAll();
+};
+window.deleteDraft = async function (cid) {
+  const c = byCourse[cid];
+  if (!confirm(`Delete draft ${c.name} — ${fdate(c.cohort_date)}? This can't be undone.`)) return;
+  const { error } = await sb.from('courses').delete().eq('id', cid);
+  if (error) return alert(error.message);
+  await loadAll();
+};
+window.createZoom = async function (btn, cid) {
+  const c = byCourse[cid];
+  if (!confirm(`Create a Zoom meeting (ancch17@gmail.com) for ${c.name} — ${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''}?`)) return;
+  btn.disabled = true; btn.textContent = 'Creating…';
+  const { ok, out } = await callFn('create-zoom', { course_id: cid });
+  btn.disabled = false; btn.textContent = 'Create Zoom';
+  if (!ok) return alert(out.error || 'Zoom creation failed');
+  alert(`Zoom created ✓\n\nLink: ${out.join_url}\nPasscode: ${out.password}\n\nSaved to this cohort.`);
+  await loadAll();
+};
+window.createWhatsApp = async function (cid) {
+  const c = byCourse[cid];
+  const gname = `${shortName(c.name)} ${fdate(c.cohort_date)}`;
+  try { await navigator.clipboard.writeText(gname); } catch (e) {}
+  window.open('https://web.whatsapp.com', '_blank');
+  const link = prompt(`WhatsApp has no API for creating groups, so it's a 20-second manual step:\n\n1. WhatsApp Web just opened — ⋮ → New group.\n2. The group name "${gname}" is already in your clipboard — paste it.\n3. Group info → Invite via link → Copy link.\n\nPaste the invite link here to save it to this cohort (auto-added to class emails):`);
+  if (!link) return;
+  if (!/^https:\/\/chat\.whatsapp\.com\//.test(link.trim())) return alert("That doesn't look like a chat.whatsapp.com invite link — not saved.");
+  const { error } = await sb.from('courses').update({ whatsapp_url: link.trim() }).eq('id', cid);
+  if (error) return alert(error.message);
+  await loadAll();
+};
 
 // ---------- Discounts & free passes ----------
 function renderCouponForm() {
   $('c-family').innerHTML = '<option value="">Any course</option>' +
     families.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
   $('c-course').innerHTML = '<option value="">Any date</option>' +
-    [...courses].sort((a, b) => a.cohort_date.localeCompare(b.cohort_date))
+    courses.filter(c => !c.is_draft).sort((a, b) => a.cohort_date.localeCompare(b.cohort_date))
       .map(c => `<option value="${c.id}">${c.name} · ${fdate(c.cohort_date)}</option>`).join('');
 }
 $('c-kind').onchange = () => {

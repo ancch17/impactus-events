@@ -115,7 +115,7 @@ const fmt$ = (n) => 'S$' + Number(n).toLocaleString('en-SG', { maximumFractionDi
 const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
 const today = () => new Date().toISOString().slice(0, 10);
 function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
-const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude', 'AI Animation Automation': 'Anim-Auto', 'AI Animation Masterclass': 'Animation', 'AI Audio Masterclass': 'Audio' };
+const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude', 'AI Animation Automation': 'Anim-Auto', 'AI Animation Masterclass': 'Animation', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude', 'F2F AI Animation Masterclass': 'F2F Animation', 'F2F AI Animation Automation': 'F2F Anim-Auto', 'F2F Master Claude - Build': 'F2F Build' };
 const shortName = (n) => SHORTNAMES[n] || n;
 function courseColor(n) { let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},52%,45%)`; }
 
