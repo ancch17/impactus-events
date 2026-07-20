@@ -387,7 +387,7 @@ function renderCohorts() {
     const mkZoom = c.zoom_link ? '' : `<button class="btn ghost sm" onclick="createZoom(this,'${c.id}')">Create Zoom</button>`;
     const mkWa = c.whatsapp_url ? '' : `<button class="btn ghost sm" onclick="createWhatsApp('${c.id}')">Create WhatsApp</button>`;
     const actions = c.cancelled
-      ? `<button class="btn sm" onclick="openRoster('${c.id}')">Roster</button>`
+      ? `<button class="btn sm" onclick="openRoster('${c.id}')">Roster</button>${c.zoom_meeting_id ? ` <button class="btn ghost sm" style="color:var(--red)" onclick="deleteZoom(this,'${c.id}')">Delete Zoom</button>` : ''}`
       : c.is_draft
       ? `<button class="btn sm" style="background:var(--green);color:#fff" onclick="confirmDraft('${c.id}')">CONFIRM</button>
         ${mkZoom} ${mkWa}
@@ -464,7 +464,7 @@ function renderCalendar() {
 $('cal-print').onclick = () => window.print();
 $('cal-prev').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); };
 $('cal-next').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); };
-const SLOT_TIMES = { am: '9:00am – 5:00pm', pm: '2:00pm – 6:00pm', n: '7:00pm – 10:30pm' };
+const SLOT_TIMES = { am: '9:00am – 12:00pm', pm: '2:00pm – 6:00pm', n: '7:00pm – 10:00pm' };
 window.planSlot = function (iso, slot) {
   $('plan-date').value = iso;
   $('plan-slot').value = slot || 'am';
@@ -761,9 +761,23 @@ window.confirmDraft = async function (cid) {
 };
 window.deleteDraft = async function (cid) {
   const c = byCourse[cid];
-  if (!confirm(`Delete draft ${c.name} — ${fdate(c.cohort_date)}? This can't be undone.`)) return;
+  if (!confirm(`Delete draft ${c.name} — ${fdate(c.cohort_date)}?${c.zoom_meeting_id ? '\nIts Zoom meeting will be deleted too.' : ''} This can't be undone.`)) return;
+  if (c.zoom_meeting_id) {
+    const { ok, out } = await callFn('create-zoom', { course_id: cid, action: 'delete' });
+    if (!ok && !confirm(`Zoom deletion failed (${out.error || '?'}). Delete the draft anyway? (Remove the meeting manually on zoom.us)`)) return;
+  }
   const { error } = await sb.from('courses').delete().eq('id', cid);
   if (error) return alert(error.message);
+  await loadAll();
+};
+window.deleteZoom = async function (btn, cid) {
+  const c = byCourse[cid];
+  if (!confirm(`Delete the Zoom meeting for ${c.name} — ${fdate(c.cohort_date)}?`)) return;
+  btn.disabled = true;
+  const { ok, out } = await callFn('create-zoom', { course_id: cid, action: 'delete' });
+  btn.disabled = false;
+  if (!ok) return alert(out.error || 'Failed');
+  alert('Zoom meeting deleted ✓');
   await loadAll();
 };
 window.createZoom = async function (btn, cid) {
