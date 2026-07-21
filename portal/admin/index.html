@@ -140,6 +140,28 @@
 
 
     <div class="card">
+      <h2 id="formtitle">Add a new cohort</h2>
+      <div class="formgrid">
+        <div><label>Course</label>
+          <select id="f-family"></select></div>
+        <div><label>Date</label><input type="date" id="f-date"></div>
+        <div><label>Session time (shown to students)</label><input id="f-time" placeholder="e.g. 9:00am – 5:00pm"></div>
+        <div><label>Price (SGD)</label><input type="number" id="f-price" min="0" step="1" placeholder="180"></div>
+      </div>
+      <label>Details (one-liner shown on portal)</label>
+      <input id="f-details" placeholder="Optional description">
+      <label style="margin-top:12px">WhatsApp group invite link (added as a footnote to this class's emails)</label>
+      <input id="f-whatsapp" placeholder="https://chat.whatsapp.com/…">
+      <label style="margin-top:12px"><input type="checkbox" id="f-open" style="width:auto;vertical-align:-2px"> Open for booking on the student portal</label>
+      <label style="margin-top:6px"><input type="checkbox" id="f-approval" style="width:auto;vertical-align:-2px"> Require my approval before students are charged (Luma-style — good for F2F minimum class size)</label>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn" id="f-save">Save cohort</button>
+        <button class="btn ghost hidden" id="f-cancel">Cancel edit</button>
+      </div>
+      <div class="msg" id="formmsg"></div>
+    </div>
+
+    <div class="card">
       <h2 style="display:flex;justify-content:space-between;align-items:center">Cohorts
         <span><label style="display:inline;font-weight:400;margin:0"><input type="checkbox" id="showpast" style="width:auto;vertical-align:-2px"> show past</label></span>
       </h2>
@@ -180,28 +202,6 @@
         <button class="btn ghost sm" id="cx-close">Close</button>
       </div>
       <div class="msg" id="cancelmsg"></div>
-    </div>
-
-    <div class="card">
-      <h2 id="formtitle">Add a new cohort</h2>
-      <div class="formgrid">
-        <div><label>Course</label>
-          <select id="f-family"></select></div>
-        <div><label>Date</label><input type="date" id="f-date"></div>
-        <div><label>Session time (shown to students)</label><input id="f-time" placeholder="e.g. 9:00am – 5:00pm"></div>
-        <div><label>Price (SGD)</label><input type="number" id="f-price" min="0" step="1" placeholder="180"></div>
-      </div>
-      <label>Details (one-liner shown on portal)</label>
-      <input id="f-details" placeholder="Optional description">
-      <label style="margin-top:12px">WhatsApp group invite link (added as a footnote to this class's emails)</label>
-      <input id="f-whatsapp" placeholder="https://chat.whatsapp.com/…">
-      <label style="margin-top:12px"><input type="checkbox" id="f-open" style="width:auto;vertical-align:-2px"> Open for booking on the student portal</label>
-      <label style="margin-top:6px"><input type="checkbox" id="f-approval" style="width:auto;vertical-align:-2px"> Require my approval before students are charged (Luma-style — good for F2F minimum class size)</label>
-      <div style="display:flex;gap:8px;margin-top:14px">
-        <button class="btn" id="f-save">Save cohort</button>
-        <button class="btn ghost hidden" id="f-cancel">Cancel edit</button>
-      </div>
-      <div class="msg" id="formmsg"></div>
     </div>
 
     <div class="card">
