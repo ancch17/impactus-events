@@ -29,6 +29,10 @@
   .othercourses { font-size:12.5px; line-height:1.5; }
   .cls-line { white-space:nowrap; }
   .cls-line.up { color:var(--mut); font-style:italic; }
+  .rm-input { width:160px; max-width:170px; font:inherit; font-size:12px; padding:5px 6px; border:1px solid var(--line); border-radius:6px; resize:vertical; }
+  .rm-row { display:flex; gap:8px; align-items:center; margin-top:4px; }
+  .rm-done { font-size:12px; color:var(--mut); display:flex; align-items:center; gap:3px; cursor:pointer; }
+  tr.hasremark { background:#fff7e6; }
   .hidden { display:none !important; }
   .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:16px; }
   .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
@@ -127,6 +131,13 @@
   <div id="view-app" class="hidden">
 
     <div class="kpis" id="kpis"></div>
+
+    <div class="card" id="followupcard" style="display:none;border-left:4px solid var(--amber)">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">📌 Follow-ups
+        <span class="muted" style="font-weight:400;font-size:12px">Open student remarks · you also get a daily 8am email digest</span>
+      </h2>
+      <div id="followups"></div>
+    </div>
 
     <div class="card" id="calcard">
       <h2 style="display:flex;justify-content:space-between;align-items:center">Calendar
@@ -287,8 +298,10 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType:
 
 const $ = (id) => document.getElementById(id);
 const fmt$ = (n) => 'S$' + Number(n).toLocaleString('en-SG', { maximumFractionDigits: 0 });
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
 const today = () => new Date().toISOString().slice(0, 10);
+const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok' && id !== 'loginmsg') setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 
@@ -341,7 +354,7 @@ async function loadAll() {
   families = f.data || []; coupons = g.data || []; blocks = k.data || [];
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
-  renderKPIs(); renderCalendar(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderEmailForm(); renderRefBoard();
+  renderKPIs(); renderFollowups(); renderCalendar(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderEmailForm(); renderRefBoard();
   if (rosterCourse) openRoster(rosterCourse);
 }
 
@@ -515,6 +528,47 @@ function otherCoursesCell(studentId, excludeCid) {
   if (!list.length) return '<span class="muted">—</span>';
   return list.map(c => `<div class="cls-line${c.past ? '' : ' up'}">${shortName(c.name)} · ${fdate(c.date)}${c.past ? '' : ' (upcoming)'}</div>`).join('');
 }
+// Dashboard card: every open (unresolved) student remark, class-date order, next-3-days highlighted.
+function renderFollowups() {
+  const open = bookings.filter(b => b.admin_remark && !b.admin_remark_done)
+    .sort((a, b) => ((byCourse[a.course_id] || {}).cohort_date || '') < ((byCourse[b.course_id] || {}).cohort_date || '') ? -1 : 1);
+  if (!open.length) { $('followupcard').style.display = 'none'; return; }
+  $('followupcard').style.display = '';
+  $('followups').innerHTML = `<table><thead><tr><th>Student</th><th>Class</th><th>Remark</th><th></th></tr></thead><tbody>` +
+    open.map(b => {
+      const s = byStudent[b.student_id] || { name: '?' };
+      const c = byCourse[b.course_id] || { name: '?', cohort_date: '' };
+      const soon = c.cohort_date && c.cohort_date >= today() && c.cohort_date <= addDays(today(), 3);
+      return `<tr${soon ? ' class="hasremark"' : ''}>
+        <td><strong>${esc(s.name)}</strong></td>
+        <td>${esc(shortName(c.name))} · ${c.cohort_date ? fdate(c.cohort_date) : '—'}${soon ? ' <span class="pill pending">soon</span>' : ''}</td>
+        <td>${esc(b.admin_remark)}</td>
+        <td style="white-space:nowrap"><button class="btn ghost sm" onclick="openRoster('${b.course_id}')">Open roster</button>
+            <button class="btn ghost sm" onclick="toggleRemarkDone('${b.id}', true)">Mark done</button></td>
+      </tr>`;
+    }).join('') + '</tbody></table>';
+}
+
+window.saveRemark = async function (bid) {
+  const b = bookings.find(x => x.id === bid); if (!b) return;
+  const val = ($('rm-' + bid).value || '').trim();
+  const patch = { admin_remark: val || null, admin_remark_at: new Date().toISOString() };
+  if (!val) patch.admin_remark_done = false;
+  const { error } = await sb.from('bookings').update(patch).eq('id', bid);
+  if (error) return msg('rostermsg', 'err', error.message);
+  Object.assign(b, patch);
+  msg('rostermsg', 'ok', val ? "Follow-up saved — I'll remind you (dashboard + daily 8am email)." : 'Follow-up cleared.');
+  renderFollowups(); openRoster(rosterCourse);
+};
+
+window.toggleRemarkDone = async function (bid, done) {
+  const b = bookings.find(x => x.id === bid); if (!b) return;
+  const { error } = await sb.from('bookings').update({ admin_remark_done: done }).eq('id', bid);
+  if (error) return msg('rostermsg', 'err', error.message);
+  b.admin_remark_done = done;
+  renderFollowups(); if (rosterCourse) openRoster(rosterCourse);
+};
+
 window.openRoster = function (cid) {
   rosterCourse = cid;
   const c = byCourse[cid];
@@ -524,16 +578,20 @@ window.openRoster = function (cid) {
   if (!rows.length) { $('roster').innerHTML = '<p class="muted">No bookings yet.</p>'; return; }
   const futureOthers = courses.filter(x => x.cohort_date >= today() && x.id !== cid && !x.is_draft)
     .map(x => `<option value="${x.id}">${x.name} — ${fdate(x.cohort_date)}${x.session_time ? ' (' + x.session_time + ')' : ''}</option>`).join('');
-  $('roster').innerHTML = `<table><thead><tr><th>#</th><th>Student</th><th>Contact</th><th>Other courses</th><th>Paid / Pts</th><th>Status</th><th></th></tr></thead><tbody>` +
+  $('roster').innerHTML = `<table><thead><tr><th>#</th><th>Student</th><th>Contact</th><th>Other courses</th><th>Paid / Pts</th><th>Status</th><th>Follow-up</th><th></th></tr></thead><tbody>` +
     rows.map((b, i) => {
       const s = byStudent[b.student_id] || { name: '?', email: '', mobile: '' };
-      return `<tr>
+      return `<tr${b.admin_remark && !b.admin_remark_done ? ' class="hasremark"' : ''}>
         <td>${i + 1}</td>
         <td><strong>${s.name}</strong>${b.note ? `<br><span class="muted">${b.note}</span>` : ''}</td>
         <td>${s.email}<br><span class="muted">${s.mobile || '—'}</span></td>
         <td class="othercourses">${otherCoursesCell(b.student_id, cid)}</td>
         <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}${['pending_approval','approved_await_payment'].includes(b.status) ? `<br><span class="muted">due ${fmt$(Math.max(0, Number(b.price_sgd) - Number(b.discount_sgd || 0) - Number(b.points_redeemed || 0)))}</span>` : ''}</td>
         <td><span class="pill ${b.status === 'confirmed' ? 'open' : ['pending_approval','approved_await_payment'].includes(b.status) ? 'pending' : b.status === 'declined' ? 'cancelled' : b.status}">${b.status === 'pending_approval' ? 'awaiting approval' : b.status === 'approved_await_payment' ? 'approved — unpaid' : b.status}</span>${b.pay_method === 'card_saved' ? '<br><span class="muted" style="font-size:11px">card saved</span>' : b.pay_method === 'paynow_later' ? '<br><span class="muted" style="font-size:11px">PayNow after approval</span>' : ''}</td>
+        <td class="remarkcell">
+          <textarea id="rm-${b.id}" class="rm-input" rows="2" placeholder="Add follow-up…">${esc(b.admin_remark)}</textarea>
+          <div class="rm-row"><button class="btn sm" onclick="saveRemark('${b.id}')">Save</button>${b.admin_remark ? `<label class="rm-done"><input type="checkbox" ${b.admin_remark_done ? 'checked' : ''} onchange="toggleRemarkDone('${b.id}', this.checked)"> done</label>` : ''}</div>
+        </td>
         <td>${b.status === 'pending_approval' ? `<button class="btn sm" style="background:var(--green);color:#fff" onclick="approveBooking(this,'${b.id}','approve')">Approve</button>
           <button class="btn ghost sm" style="color:var(--red)" onclick="approveBooking(this,'${b.id}','decline')">Decline</button> ` : ''}${b.status === 'approved_await_payment' ? `<button class="btn ghost sm" onclick="approveBooking(this,'${b.id}','resend')">Resend pay link</button>
           <button class="btn ghost sm" style="color:var(--red)" onclick="approveBooking(this,'${b.id}','decline')">Decline</button> ` : ''}<button class="btn ghost sm" onclick="showTransfer('${b.id}')">Transfer</button>
