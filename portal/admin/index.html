@@ -366,6 +366,8 @@ function renderKPIs() {
 }
 
 function cohortCount(cid) { return bookings.filter(b => b.course_id === cid && b.status === 'confirmed').length; }
+// F2F classes auto-require approval (Luma-style min-class-size gate).
+function isF2F(name) { return /^\s*F2F\b/i.test(name || ''); }
 
 function renderCohorts() {
   const showPast = $('showpast').checked;
@@ -379,7 +381,7 @@ function renderCohorts() {
       : c.is_draft ? '<span class="pill draft">DRAFT</span>'
       : `<span class="pill ${c.is_open ? 'open' : 'closed'}">${c.is_open ? 'OPEN' : 'closed'}</span>`;
     const extras = [
-      c.require_approval && !c.is_draft && !c.cancelled ? '<span class="pill approval">approval required</span>' : '',
+      (c.require_approval || isF2F(c.name)) && !c.cancelled ? '<span class="pill approval">Approval</span>' : '',
       waiting ? `<span class="pill pending">${waiting} awaiting approval</span>` : '',
     ].join(' ');
     const zoom = c.zoom_link ? ` · <a href="${c.zoom_link}" target="_blank">Zoom ↗</a>${c.zoom_password ? ` <span style="font-size:11px">(pw ${c.zoom_password})</span>` : ''}` : '';
@@ -489,7 +491,7 @@ $('plan-save').onclick = async () => {
   const rec = { family_id: f.id, name: f.name, cohort_date: $('plan-date').value,
     session_time: $('plan-time').value.trim() || null,
     price_sgd: Number($('plan-price').value || f.default_price_sgd || 0),
-    is_draft: true, is_open: false };
+    is_draft: true, is_open: false, require_approval: isF2F(f.name) };
   if (!rec.cohort_date) return msg('planmsg', 'err', 'Pick a date.');
   const { error } = await sb.from('courses').insert(rec);
   if (error) return msg('planmsg', 'err', error.message);
@@ -718,6 +720,7 @@ function renderForm() {
   $('f-family').onchange = () => {
     const f = families.find(x => x.id === $('f-family').value);
     if (f && f.default_price_sgd != null && !editingCourse) $('f-price').value = f.default_price_sgd;
+    if (f && isF2F(f.name)) $('f-approval').checked = true;
   };
 }
 window.editCohort = function (cid) {
@@ -727,7 +730,7 @@ window.editCohort = function (cid) {
   $('f-family').value = c.family_id || ''; $('f-date').value = c.cohort_date;
   $('f-time').value = c.session_time || ''; $('f-price').value = c.price_sgd;
   $('f-details').value = c.details || ''; $('f-open').checked = c.is_open;
-  $('f-approval').checked = !!c.require_approval;
+  $('f-approval').checked = !!c.require_approval || isF2F(c.name);
   $('f-whatsapp').value = c.whatsapp_url || '';
   $('f-cancel').classList.remove('hidden');
   $('f-save').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -737,7 +740,7 @@ $('f-save').onclick = async () => {
   const fam = families.find(f => f.id === $('f-family').value);
   if (!fam) return msg('formmsg', 'err', 'Pick a course — cohorts without one never reach the student portal.');
   const rec = { family_id: fam.id, name: fam.name, cohort_date: $('f-date').value, session_time: $('f-time').value.trim() || null,
-    price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, whatsapp_url: $('f-whatsapp').value.trim() || null, is_open: $('f-open').checked, require_approval: $('f-approval').checked };
+    price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, whatsapp_url: $('f-whatsapp').value.trim() || null, is_open: $('f-open').checked, require_approval: $('f-approval').checked || isF2F(fam.name) };
   if (!rec.cohort_date || !(rec.price_sgd >= 0)) return msg('formmsg', 'err', 'Date and price are required.');
   let error;
   if (editingCourse) ({ error } = await sb.from('courses').update(rec).eq('id', editingCourse));
