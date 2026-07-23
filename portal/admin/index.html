@@ -774,7 +774,7 @@ function emRecipients() {
   if (v === 'all') students.forEach(s => sids.add(s.id));
   else if (v === 'upcoming') bookings.filter(b => b.status === 'confirmed' && byCourse[b.course_id] && byCourse[b.course_id].cohort_date >= today() && !byCourse[b.course_id].cancelled).forEach(b => sids.add(b.student_id));
   else if (v.startsWith('c:')) { const cid = v.slice(2); bookings.filter(b => b.course_id === cid && b.status === 'confirmed').forEach(b => sids.add(b.student_id)); }
-  return [...sids].map(id => byStudent[id]).filter(s => s && s.email).map(s => ({ email: s.email, name: s.name }));
+  return [...sids].map(id => byStudent[id]).filter(s => s && s.email).map(s => ({ email: s.email, name: s.name, first: (s.preferred_name && s.preferred_name.trim()) || null }));
 }
 function updateEmCount() { $('em-count').textContent = `${emRecipients().length} recipient(s) for this selection.`; }
 function emWaUrl() { return $('em-wa').value ? (byCourse[$('em-wa').value] || {}).whatsapp_url || null : null; }

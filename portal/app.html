@@ -290,7 +290,7 @@ async function showApp(session) {
   student = me && me[0];
   if (!student) { $('hello').textContent = 'Welcome!'; $('balline').textContent = 'Setting up your account…'; setTimeout(() => showApp(session), 1500); return; }
   balance = student.balance_points;
-  $('hello').textContent = 'Welcome back, ' + student.name.split(' ')[0];
+  $('hello').textContent = 'Welcome back, ' + (student.preferred_name && student.preferred_name.trim() ? student.preferred_name.trim() : student.name.split(' ')[0]);
   $('balline').textContent = balance > 0 ? `You've earned S$${balance} toward your next class` : 'Book your first class to start earning rebates';
   const reflink = PORTAL_URL + '?ref=' + student.referral_code;
   $('reflink').value = reflink;

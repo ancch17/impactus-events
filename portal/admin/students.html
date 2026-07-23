@@ -184,7 +184,13 @@ function render() {
       const clsHtml = cls.length ? cls.map(c =>
         `<div class="cls-line${c.past ? '' : ' up'}">${shortName(c.name)} · ${fdate(c.date)}${c.past ? '' : ' (upcoming)'}</div>`).join('') : '<span class="muted">—</span>';
       return `<tr>
-        <td><strong>${s.name || '—'}</strong></td>
+        <td>
+          <strong>${s.name || '—'}</strong>
+          <div id="prefcell-${s.id}" style="margin-top:2px">
+            <span class="muted" style="font-size:11.5px">Greeted as: <strong>${esc(s.preferred_name || (s.name || '').split(' ')[0] || '—')}</strong></span>
+            <button class="btn ghost sm" onclick="editPreferredName('${s.id}')" style="margin-left:4px;padding:1px 6px;font-size:10.5px">✎</button>
+          </div>
+        </td>
         <td>${s.email || '—'}<br><span class="muted">${s.mobile || '—'}</span></td>
         <td>${clsHtml}</td>
         <td style="font-weight:700;color:var(--green)">${balanceOf(s.id)}</td>
@@ -202,6 +208,25 @@ window.setSort = function (k) {
 };
 $('stu-search').oninput = render;
 $('stu-course').onchange = render;
+
+window.editPreferredName = function (id) {
+  const s = students.find(x => x.id === id);
+  const cell = $('prefcell-' + id);
+  cell.innerHTML = `<div style="display:flex;gap:4px;align-items:center;margin-top:2px">
+      <input id="prefin-${id}" type="text" value="${esc(s.preferred_name || '')}" placeholder="${esc((s.name || '').split(' ')[0] || '')}" style="font-size:11.5px;padding:3px 6px;width:110px">
+      <button class="btn sm" onclick="savePreferredName('${id}')" style="padding:2px 8px;font-size:10.5px">Save</button>
+      <button class="btn ghost sm" onclick="render()" style="padding:2px 8px;font-size:10.5px">✕</button>
+    </div>`;
+  $('prefin-' + id).focus();
+};
+window.savePreferredName = async function (id) {
+  const val = $('prefin-' + id).value.trim();
+  const { error } = await sb.from('students').update({ preferred_name: val || null }).eq('id', id);
+  if (error) return msg('stu-msg', 'err', error.message);
+  students.find(x => x.id === id).preferred_name = val || null;
+  msg('stu-msg', 'ok', 'Preferred name saved — used for portal greeting and {first} in emails.');
+  render();
+};
 
 window.editRemark = function (id) {
   const s = students.find(x => x.id === id);
