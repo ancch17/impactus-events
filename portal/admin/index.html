@@ -150,6 +150,7 @@
       </h2>
       <div id="calendar" style="overflow-x:auto"></div>
       <p class="muted" style="margin-top:8px">Mon–Sat · slots by class start time (AM before 12pm · PM 12–6pm · N after 6pm). Click a class for its roster · click an empty day to add a cohort on that date.</p>
+      <div id="cal-legend" style="display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"></div>
     </div>
 
 
@@ -354,7 +355,7 @@ async function loadAll() {
   families = f.data || []; coupons = g.data || []; blocks = k.data || [];
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
-  renderKPIs(); renderFollowups(); renderCalendar(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderEmailForm(); renderRefBoard();
+  renderKPIs(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderEmailForm(); renderRefBoard();
   if (rosterCourse) openRoster(rosterCourse);
 }
 
@@ -439,9 +440,18 @@ function slotOf(t) {
   if (m[3].toLowerCase() === 'pm') h += 12;
   return h < 12 ? 0 : h < 18 ? 1 : 2;
 }
-const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude', 'AI Animation Automation': 'Anim-Auto', 'AI Animation Masterclass': 'Animation', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude', 'F2F AI Animation Masterclass': 'F2F Animation', 'F2F AI Animation Automation': 'F2F Anim-Auto', 'F2F Master Claude - Build': 'F2F Build' };
+const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude Lvl 1', 'AI Animation Automation': 'Ani Lvl2', 'AI Animation Masterclass': 'Ani Lvl1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude Lvl 1', 'F2F AI Animation Masterclass': 'F2F Ani Lvl1', 'F2F AI Animation Automation': 'F2F Ani Lvl2', 'F2F Master Claude - Build': 'F2F Claude Lvl 2' };
 const shortName = (n) => SHORTNAMES[n] || (n.length > 14 ? n.slice(0, 13) + '…' : n);
-function courseColor(n) { let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},52%,38%)`; }
+// Family = hue (Claude=magenta/violet, Animation=green/blue), tier = lightness (Masterclass lighter, Build/Automation darker), format = the hue split within a family.
+const COURSE_COLORS = { 'Master Claude: Agentic AI Masterclass': '#b83db8', 'F2F Master Claude - Agentic AI Masterclass': '#5e38a8', 'F2F Master Claude - Build': '#372163', 'AI Animation Masterclass': '#22872a', 'F2F AI Animation Masterclass': '#1b6da7', 'AI Animation Automation': '#124917', 'F2F AI Animation Automation': '#103f60' };
+function courseColor(n) { if (COURSE_COLORS[n]) return COURSE_COLORS[n]; let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},52%,38%)`; }
+function renderLegend() {
+  $('cal-legend').innerHTML = Object.keys(COURSE_COLORS).map(full => `
+    <span style="display:flex;align-items:center;gap:5px;font-size:11px">
+      <span style="width:10px;height:10px;border-radius:3px;background:${COURSE_COLORS[full]};flex:none"></span>
+      <strong>${shortName(full)}</strong><span class="muted">— ${full}</span>
+    </span>`).join('');
+}
 function renderCalendar() {
   $('cal-label').textContent = calMonth.toLocaleDateString('en-SG', { month: 'long', year: 'numeric' });
   const y = calMonth.getFullYear(), m = calMonth.getMonth();

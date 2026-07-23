@@ -99,7 +99,7 @@ const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day
 const today = () => new Date().toISOString().slice(0, 10);
 function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
-const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude', 'AI Animation Automation': 'Anim-Auto', 'AI Animation Masterclass': 'Animation', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude', 'F2F AI Animation Masterclass': 'F2F Animation', 'F2F AI Animation Automation': 'F2F Anim-Auto', 'F2F Master Claude - Build': 'F2F Build' };
+const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude Lvl 1', 'AI Animation Automation': 'Ani Lvl2', 'AI Animation Masterclass': 'Ani Lvl1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude Lvl 1', 'F2F AI Animation Masterclass': 'F2F Ani Lvl1', 'F2F AI Animation Automation': 'F2F Ani Lvl2', 'F2F Master Claude - Build': 'F2F Claude Lvl 2' };
 const shortName = (n) => SHORTNAMES[n] || n;
 const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
