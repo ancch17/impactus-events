@@ -197,7 +197,7 @@
 
     <div class="card" id="cancelcard" style="display:none;border:1px solid #f3c9c9">
       <h2 id="canceltitle" style="color:var(--red)">Cancel class</h2>
-      <p class="muted" style="margin-top:-6px">Choose what happens to each participant, then notify everyone. Transfers keep their payment &amp; points; credit refunds go back as points instantly; cash refunds to card/PayNow are recorded as <strong>pending</strong> until HitPay is live.</p>
+      <p class="muted" style="margin-top:-6px">Choose what happens to each participant, then notify everyone. Transfers keep their payment &amp; points; credit refunds go back as points instantly; cash refunds are sent back to the original payment method automatically via Stripe.</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0">
         <span class="muted" style="font-size:13px">Set everyone to:</span>
         <select id="cx-bulk" style="width:auto">
@@ -597,7 +597,7 @@ window.openRoster = function (cid) {
         <td>${s.email}<br><span class="muted">${s.mobile || '—'}</span></td>
         <td class="othercourses">${otherCoursesCell(b.student_id, cid)}</td>
         <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}${['pending_approval','approved_await_payment'].includes(b.status) ? `<br><span class="muted">due ${fmt$(Math.max(0, Number(b.price_sgd) - Number(b.discount_sgd || 0) - Number(b.points_redeemed || 0)))}</span>` : ''}</td>
-        <td><span class="pill ${b.status === 'confirmed' ? 'open' : ['pending_approval','approved_await_payment'].includes(b.status) ? 'pending' : b.status === 'declined' ? 'cancelled' : b.status}">${b.status === 'pending_approval' ? 'awaiting approval' : b.status === 'approved_await_payment' ? 'approved — unpaid' : b.status}</span>${b.pay_method === 'card_saved' ? '<br><span class="muted" style="font-size:11px">card saved</span>' : b.pay_method === 'paynow_later' ? '<br><span class="muted" style="font-size:11px">PayNow after approval</span>' : ''}</td>
+        <td><span class="pill ${b.status === 'confirmed' ? 'open' : ['pending_approval','approved_await_payment'].includes(b.status) ? 'pending' : b.status === 'declined' ? 'cancelled' : b.status}">${b.status === 'pending_approval' ? 'awaiting approval' : b.status === 'approved_await_payment' ? 'approved — unpaid' : b.status}</span>${b.pay_method === 'card_saved' ? '<br><span class="muted" style="font-size:11px">card held</span>' : b.pay_method === 'paynow_later' ? '<br><span class="muted" style="font-size:11px">pay after approval</span>' : ''}</td>
         <td class="remarkcell">
           <textarea id="rm-${b.id}" class="rm-input" rows="2" placeholder="Add follow-up…">${esc(b.admin_remark)}</textarea>
           <div class="rm-row"><button class="btn sm" onclick="saveRemark('${b.id}')">Save</button>${b.admin_remark ? `<label class="rm-done"><input type="checkbox" ${b.admin_remark_done ? 'checked' : ''} onchange="toggleRemarkDone('${b.id}', this.checked)"> done</label>` : ''}</div>
@@ -623,8 +623,8 @@ window.approveBooking = async function (btn, bid, action) {
   const due = Math.max(0, +(Number(b.price_sgd) - Number(b.discount_sgd || 0) - Number(b.points_redeemed || 0)).toFixed(2));
   const q = action === 'approve'
     ? (due === 0 ? `Approve ${s.name}? Fully covered by points/code — seat confirms immediately, nothing to charge.`
-      : b.pay_method === 'card_saved' ? `Approve ${s.name}? Their saved card is charged ${fmt$(due)} now.`
-      : `Approve ${s.name}? They'll be emailed a PayNow link for ${fmt$(due)} — seat confirms when they pay.`)
+      : b.pay_method === 'card_saved' ? `Approve ${s.name}? The hold on their card is captured for ${fmt$(due)} now.`
+      : `Approve ${s.name}? They'll be emailed a payment link (PayNow, card or GrabPay) for ${fmt$(due)} — seat confirms when they pay.`)
     : action === 'decline' ? `Decline ${s.name}? Nothing is charged and they get a polite email.`
     : `Resend the payment link to ${s.name}?`;
   if (!confirm(q)) return;
