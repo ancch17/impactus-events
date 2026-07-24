@@ -286,7 +286,10 @@ $('signout').onclick = () => sb.auth.signOut();
 
 async function showApp(session) {
   show('view-app'); $('signout').classList.remove('hidden');
-  const { data: me } = await sb.from('points_balances').select('*').limit(1);
+  // Defense-in-depth: filter explicitly by the signed-in user's email, never rely on RLS alone
+  // to return "only my row". (A view without security_invoker once returned another student's row.)
+  const myEmail = (session && session.user && session.user.email || '').toLowerCase();
+  const { data: me } = await sb.from('points_balances').select('*').eq('email', myEmail).limit(1);
   student = me && me[0];
   if (!student) { $('hello').textContent = 'Welcome!'; $('balline').textContent = 'Setting up your account…'; setTimeout(() => showApp(session), 1500); return; }
   balance = student.balance_points;
