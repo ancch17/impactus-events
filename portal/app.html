@@ -203,7 +203,7 @@ const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day
 //   While false, balance-due bookings are blocked; full-points bookings still work for testing.
 // PREVIEW_TOKEN: append ?preview=<token> to the URL to unlock the portal (sticks in this browser).
 //   To relock: clear it, or bump the token. To launch to everyone: set GATE_OPEN = true.
-const PAYMENTS_LIVE = false;
+const PAYMENTS_LIVE = true;
 const GATE_OPEN = false;
 const PREVIEW_TOKEN = 'il2026-preview-7q9k';
 (function gate() {
