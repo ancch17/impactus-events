@@ -62,7 +62,24 @@
   .legend { display:flex; flex-wrap:wrap; gap:12px; margin:2px 0 12px; font-size:11.5px; color:#5b6472; }
   .lg-item { display:flex; align-items:center; gap:5px; font-weight:600; }
   .lg-dot { width:10px; height:10px; border-radius:3px; flex:none; }
-  .lg-f2f, .f2f-tag { background:#101a2d; color:#fff; font-size:9.5px; font-weight:800; letter-spacing:.4px; padding:1px 5px; border-radius:4px; }
+  .lg-f2f { background:#d32020; color:#fff; font-size:9.5px; font-weight:800; letter-spacing:.4px; padding:1px 5px; border-radius:4px; }
+  /* F2F is the thing students miss, so it leads the row and pulses gently. */
+  .f2f-tag { background:#d32020; color:#fff; font-size:10px; font-weight:800; letter-spacing:.5px;
+             padding:2px 8px; border-radius:20px; white-space:nowrap; animation:f2fglow 1.9s ease-in-out infinite; }
+  @keyframes f2fglow {
+    0%,100% { box-shadow:0 0 0 0 rgba(211,32,32,.55); }
+    50%     { box-shadow:0 0 9px 3px rgba(211,32,32,.42); }
+  }
+  @media (prefers-reduced-motion: reduce) { .f2f-tag { animation:none; } }
+  /* Full / closed cohorts: still advertised, not bookable. */
+  .closed-tag { background:#eef1f6; color:#8b93a1; font-size:11px; font-weight:700; padding:2px 10px; border-radius:20px; white-space:nowrap; }
+  .scal-ev.full { background:#b9c0cc !important; cursor:default; }
+  .scal-ev.full:hover { filter:none; }
+  .ag-row.full { cursor:default; opacity:.72; }
+  .ag-row.full:hover { border-color:var(--line); box-shadow:none; }
+  .date-chip.full { cursor:default; background:#f4f6f9; border-style:dashed; }
+  .date-chip.full strong { color:#8b93a1; }
+  .date-chip.full:hover { border-color:var(--line); }
   .online-tag { background:#eef1f6; color:#5b6472; font-size:9.5px; font-weight:800; letter-spacing:.4px; padding:1px 5px; border-radius:4px; }
   .calnav { display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:8px; font-size:14px; }
   .calnav button { background:#fff; border:1px solid var(--line); border-radius:8px; width:30px; height:30px; font-size:16px; line-height:1; cursor:pointer; color:#101a2d; padding:0; }
@@ -517,8 +534,12 @@ function renderCalendar() {
         `<div class="scal-slot"><span class="sl">${slots[si].length ? lab : ''}</span><div class="evs">` +
         slots[si].map(c => {
           const L = lvlOf(c.family_slug);
+          const tip = `${esc(L.title)} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + esc(c.session_time) : ''}`;
+          if (c.is_full) {
+            return `<span class="scal-ev full" title="${tip} · Closed">${L.f2f ? '<span class="evf2f">F2F</span>' : ''}${L.short} · Closed</span>`;
+          }
           return `<button type="button" class="scal-ev" style="background:${L.color}" data-pick="${c.id}"
-            title="${esc(L.title)} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + esc(c.session_time) : ''} · ${fmt$(c.price_sgd)}">
+            title="${tip} · ${fmt$(c.price_sgd)}">
             ${L.f2f ? '<span class="evf2f">F2F</span>' : ''}${L.short}</button>`;
         }).join('') + '</div></div>').join('');
       html += `<td class="${out ? 'out' : ''}${iso === tod ? ' today' : ''}${any ? ' has' : ''}"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
@@ -535,10 +556,18 @@ function renderAgenda() {
   if (!rows.length) { $('agenda').innerHTML = '<p class="muted">No dates for this course yet.</p>'; return; }
   $('agenda').innerHTML = rows.map(c => {
     const L = lvlOf(c.family_slug);
+    const what = `${L.f2f ? '<span class="f2f-tag">F2F</span>' : ''}<span class="lvl-pill" style="background:${L.color}">${L.short}</span>`;
+    if (c.is_full) {
+      return `<div class="ag-row full">
+        <span class="ag-bar" style="background:#b9c0cc"></span>
+        <span class="ag-when"><strong>${fdate(c.cohort_date)}</strong><span class="hist-sub">${esc(c.session_time || '')}</span></span>
+        <span class="ag-what">${what}</span>
+        <span class="ag-price"><span class="closed-tag">Closed</span></span></div>`;
+    }
     return `<button type="button" class="ag-row" data-pick="${c.id}">
       <span class="ag-bar" style="background:${L.color}"></span>
       <span class="ag-when"><strong>${fdate(c.cohort_date)}</strong><span class="hist-sub">${esc(c.session_time || '')}</span></span>
-      <span class="ag-what"><span class="lvl-pill" style="background:${L.color}">${L.short}</span>${L.f2f ? '<span class="f2f-tag">F2F</span>' : ''}</span>
+      <span class="ag-what">${what}</span>
       <span class="ag-price">${fmt$(c.price_sgd)}</span></button>`;
   }).join('');
   wirePicks();
@@ -550,42 +579,50 @@ function renderCards() {
   $('courselist').innerHTML = slugs.map(slug => {
     const list = courseGroups[slug];
     const L = lvlOf(slug);
-    const next = list[0];
+    const bookable = list.filter(c => !c.is_full);
+    const allFull = !bookable.length;
+    const next = bookable[0] || list[0];
     const been = attendedMap[slug];
     const earn = earnOn(next.price_sgd);
     const sub = been
       ? `You attended ${fdate(been)}.${balance > 0 ? ` Your ${balance} pts come off the price — repeats welcome.` : ' Repeats welcome.'}`
       : (next.family_tagline || next.details || '');
-    const chips = list.map(c =>
-      `<button type="button" class="date-chip" data-chip="${c.id}" data-slug="${slug}">
-        <strong>${fdate(c.cohort_date)}</strong>${c.session_time ? `<span>${esc(c.session_time)}</span>` : ''}</button>`).join('');
-    return `<div class="ccard" data-card="${slug}" style="--accent:${L.color}">
+    const chips = list.map(c => c.is_full
+      ? `<span class="date-chip full"><strong>${fdate(c.cohort_date)}</strong><span>Closed</span></span>`
+      : `<button type="button" class="date-chip" data-chip="${c.id}" data-slug="${slug}">
+          <strong>${fdate(c.cohort_date)}</strong>${c.session_time ? `<span>${esc(c.session_time)}</span>` : ''}</button>`).join('');
+    // A fully closed course keeps its card so students still see it ran — but no price, no button.
+    const priceBlock = allFull
+      ? '<span class="closed-tag">Closed</span>'
+      : `<div class="price-big">${fmt$(next.price_sgd)}</div>
+         <div class="earn-chip">Earn ${earn} pt${earn === 1 ? '' : 's'}</div>`;
+    return `<div class="ccard" data-card="${slug}" style="--accent:${allFull ? '#b9c0cc' : L.color}">
       <div class="ccard-accent"></div>
       <div class="ccard-body">
         <div class="ccard-top">
           <div>
             <div class="ccard-pills">
-              <span class="lvl-pill" style="background:${L.color}">${L.short}</span>
               ${L.f2f ? '<span class="f2f-tag">F2F · in person</span>' : '<span class="online-tag">Online</span>'}
+              <span class="lvl-pill" style="background:${L.color}">${L.short}</span>
               ${been ? `<span class="pill again">${balance > 0 ? 'Come back — use your ' + balance + ' pts' : 'You’ve taken this'}</span>` : ''}
             </div>
             <div class="ccard-title">${esc(L.title || next.family_name)}</div>
             ${sub ? `<div class="hist-sub" style="margin-top:4px">${esc(sub)}</div>` : ''}
           </div>
-          <div class="ccard-price">
-            <div class="price-big">${fmt$(next.price_sgd)}</div>
-            <div class="earn-chip">Earn ${earn} pt${earn === 1 ? '' : 's'}</div>
-          </div>
+          <div class="ccard-price">${priceBlock}</div>
         </div>
-        <div class="ccard-datelabel">Choose a date</div>
+        <div class="ccard-datelabel">${allFull ? 'Dates' : 'Choose a date'}</div>
         <div class="date-chips">${chips}</div>
-        <button type="button" class="btn book-btn" data-book="${slug}" style="background:${L.color};color:#fff">Book this class</button>
+        ${allFull
+          ? '<p class="muted" style="margin-top:13px">This one is closed for booking — watch this space for the next run.</p>'
+          : `<button type="button" class="btn book-btn" data-book="${slug}" style="background:${L.color};color:#fff">Book this class</button>`}
       </div></div>`;
   }).join('');
 
   document.querySelectorAll('.date-chip').forEach(b => b.onclick = () => pickCohort(b.dataset.chip, false));
   document.querySelectorAll('.book-btn').forEach(b => b.onclick = () => {
-    const list = courseGroups[b.dataset.book];
+    const list = courseGroups[b.dataset.book].filter(c => !c.is_full);
+    if (!list.length) return;
     const chosen = selCourse && list.some(c => c.id === selCourse.id) ? selCourse : list[0];
     pickCohort(chosen.id, true);
   });
@@ -598,7 +635,7 @@ function wirePicks() {
 // Single entry point for "student chose this class" — from the calendar, the agenda or a date chip.
 function pickCohort(id, scroll) {
   const c = allCohorts.find(x => x.id === id);
-  if (!c) return;
+  if (!c || c.is_full) return;   // closed cohorts are display-only
   if (calFilter && lvlOf(c.family_slug).key !== calFilter) { calFilter = ''; $('calfilter').value = ''; renderCards(); }
   selectCourse(c);
   document.querySelectorAll('.date-chip').forEach(b => b.classList.toggle('on', b.dataset.chip === id));
@@ -617,11 +654,13 @@ function applyDeepLink() {
   const want = asked && Object.keys(courseGroups).find(s =>
     s === asked || (courseGroups[s][0].alt_slugs || []).includes(asked));
   if (!want) return;
+  const open = courseGroups[want].filter(c => !c.is_full);   // never deep-link into a closed cohort
+  if (!open.length) return;
   const d = params.get('date');
   const t = (params.get('time') || '').toLowerCase();
-  let target = d ? courseGroups[want].find(c => c.cohort_date === d && (!t || (c.session_time || '').toLowerCase().startsWith(t === 'am' ? '9' : '7'))) : null;
-  if (!target && d) target = courseGroups[want].find(c => c.cohort_date === d);
-  if (!target) target = courseGroups[want][0];
+  let target = d ? open.find(c => c.cohort_date === d && (!t || (c.session_time || '').toLowerCase().startsWith(t === 'am' ? '9' : '7'))) : null;
+  if (!target && d) target = open.find(c => c.cohort_date === d);
+  if (!target) target = open[0];
   if (target) pickCohort(target.id, true);
 }
 

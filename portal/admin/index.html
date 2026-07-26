@@ -169,6 +169,7 @@
       <input id="f-whatsapp" placeholder="https://chat.whatsapp.com/…">
       <label style="margin-top:12px"><input type="checkbox" id="f-open" style="width:auto;vertical-align:-2px"> Open for booking on the student portal</label>
       <label style="margin-top:6px"><input type="checkbox" id="f-approval" style="width:auto;vertical-align:-2px"> Require my approval before students are charged (Luma-style — good for F2F minimum class size)</label>
+      <label style="margin-top:6px"><input type="checkbox" id="f-full" style="width:auto;vertical-align:-2px"> Closed / full &mdash; still shown on the student portal, but greyed out with no price and not bookable</label>
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn" id="f-save">Save cohort</button>
         <button class="btn ghost hidden" id="f-cancel">Cancel edit</button>
@@ -396,7 +397,7 @@ function renderCohorts() {
     const waiting = bookings.filter(b => b.course_id === c.id && b.status === 'pending_approval').length;
     const pill = c.cancelled ? '<span class="pill cancelled">CANCELLED</span>'
       : c.is_draft ? '<span class="pill draft">DRAFT</span>'
-      : `<span class="pill ${c.is_open ? 'open' : 'closed'}">${c.is_open ? 'OPEN' : 'closed'}</span>`;
+      : `<span class="pill ${c.is_open ? 'open' : 'closed'}">${c.is_open ? 'OPEN' : 'closed'}</span>` + (c.is_full ? '<span class="pill closed">FULL</span>' : '');
     const extras = [
       (c.require_approval || isF2F(c.name)) && !c.cancelled ? '<span class="pill approval">Approval</span>' : '',
       waiting ? `<span class="pill pending">${waiting} awaiting approval</span>` : '',
@@ -815,16 +816,17 @@ window.editCohort = function (cid) {
   $('f-time').value = c.session_time || ''; $('f-price').value = c.price_sgd;
   $('f-details').value = c.details || ''; $('f-open').checked = c.is_open;
   $('f-approval').checked = !!c.require_approval || isF2F(c.name);
+  $('f-full').checked = !!c.is_full;
   $('f-whatsapp').value = c.whatsapp_url || '';
   $('f-cancel').classList.remove('hidden');
   $('f-save').scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
-$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-time','f-price','f-details','f-whatsapp'].forEach(i => $(i).value = ''); $('f-open').checked = false; $('f-approval').checked = false; $('f-cancel').classList.add('hidden'); };
+$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-time','f-price','f-details','f-whatsapp'].forEach(i => $(i).value = ''); $('f-open').checked = false; $('f-approval').checked = false; $('f-full').checked = false; $('f-cancel').classList.add('hidden'); };
 $('f-save').onclick = async () => {
   const fam = families.find(f => f.id === $('f-family').value);
   if (!fam) return msg('formmsg', 'err', 'Pick a course — cohorts without one never reach the student portal.');
   const rec = { family_id: fam.id, name: fam.name, cohort_date: $('f-date').value, session_time: $('f-time').value.trim() || null,
-    price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, whatsapp_url: $('f-whatsapp').value.trim() || null, is_open: $('f-open').checked, require_approval: $('f-approval').checked || isF2F(fam.name) };
+    price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, whatsapp_url: $('f-whatsapp').value.trim() || null, is_open: $('f-open').checked, require_approval: $('f-approval').checked || isF2F(fam.name), is_full: $('f-full').checked };
   if (!rec.cohort_date || !(rec.price_sgd >= 0)) return msg('formmsg', 'err', 'Date and price are required.');
   let error;
   if (editingCourse) ({ error } = await sb.from('courses').update(rec).eq('id', editingCourse));
