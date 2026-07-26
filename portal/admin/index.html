@@ -240,6 +240,9 @@
       <div style="margin-top:14px"><button class="btn" id="c-save">Create code</button></div>
       <div class="msg" id="c-msg"></div>
       <div id="couponlist" class="muted" style="margin-top:16px">Loading…</div>
+      <h2 style="margin-top:26px">Code usage — audit trail</h2>
+      <p class="muted" style="margin-bottom:10px">Every code ever redeemed, including codes that have since been deleted.</p>
+      <div id="couponaudit" class="muted">Loading…</div>
     </div>
 
     <div class="card">
@@ -307,7 +310,7 @@ const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d
 function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok' && id !== 'loginmsg') setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 
-let students = [], courses = [], bookings = [], ledger = [], families = [], coupons = [], blocks = [];
+let students = [], courses = [], bookings = [], ledger = [], families = [], coupons = [], blocks = [], couponAudit = [];
 let byStudent = {}, byCourse = {};
 let editingCourse = null, rosterCourse = null;
 
@@ -343,20 +346,21 @@ $('signout').onclick = () => sb.auth.signOut();
 $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
-  const [s, c, b, l, f, g, k] = await Promise.all([
+  const [s, c, b, l, f, g, ca, k] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select('*').order('cohort_date'),
     sb.from('bookings').select('*'),
     sb.from('points_ledger').select('*'),
     sb.from('course_families').select('*').order('sort_order'),
     sb.from('coupons').select('*').order('created_at', { ascending: false }),
+    sb.from('coupon_audit').select('*').order('created_at', { ascending: false }),
     sb.from('calendar_blocks').select('*'),
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || []; ledger = l.data || [];
-  families = f.data || []; coupons = g.data || []; blocks = k.data || [];
+  families = f.data || []; coupons = g.data || []; blocks = k.data || []; couponAudit = (ca && ca.data) || [];
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
-  renderKPIs(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderEmailForm(); renderRefBoard();
+  renderKPIs(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderCouponAudit(); renderEmailForm(); renderRefBoard();
   if (rosterCourse) openRoster(rosterCourse);
 }
 
@@ -476,15 +480,15 @@ function renderCalendar() {
       const dow = d.getDay();
       blocks.filter(x => x.block_date === iso || (x.recur_weekly && x.block_date <= iso && new Date(x.block_date + 'T00:00:00').getDay() === dow)).forEach(x => bslots[slotOf(x.session_time)].push(x));
       const slotHtml = ['AM', 'PM', 'N'].map((lab, si) =>
-        `<div class="cal-slot"><span class="sl">${lab}</span><div class="evs" onclick="event.stopPropagation();planSlot('${iso}','${['am','pm','n'][si]}')">` +
+        `<div class="cal-slot"><span class="sl">${lab}</span><div class="evs" onclick="event.stopPropagation();calendarSlot(event,'${iso}','${['am','pm','n'][si]}')">` +
         bslots[si].map(x =>
           `<div class="cal-ev" style="background:${x.color || '#475569'}" title="${x.note || x.title}${x.session_time ? ' · ' + x.session_time : ''}" onclick="event.stopPropagation()">${x.title}</div>`
         ).join('') +
         slots[si].map(c => c.is_draft
           ? `<div class="cal-ev draftev" title="DRAFT — ${c.name}${c.session_time ? ' · ' + c.session_time : ''}" onclick="event.stopPropagation();editCohort('${c.id}')">✎ ${shortName(c.name)}</div>`
-          : `<div class="cal-ev ${c.is_open ? '' : 'closed'}" style="background:${courseColor(c.name)}" title="${c.name} · ${c.session_time || ''} · ${cohortCount(c.id)} confirmed" onclick="event.stopPropagation();openRoster('${c.id}')">${shortName(c.name)} · ${cohortCount(c.id)}</div>`
+          : `<div class="cal-ev ${c.is_open ? '' : 'closed'}" style="background:${courseColor(c.name)}" title="${c.name} · ${c.session_time || ''} · ${cohortCount(c.id)} confirmed — click to edit, shift-click for the roster" onclick="event.stopPropagation();calendarPick(event,'${c.id}')">${shortName(c.name)} · ${cohortCount(c.id)}</div>`
         ).join('') + '</div></div>').join('');
-      html += `<td class="${out ? 'out' : ''} ${iso === tod ? 'today' : ''}" onclick="planSlot('${iso}','am')"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
+      html += `<td class="${out ? 'out' : ''} ${iso === tod ? 'today' : ''}" onclick="calendarSlot(event,'${iso}','am')"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
     }
     html += '</tr>';
   }
@@ -494,6 +498,25 @@ $('cal-print').onclick = () => window.print();
 $('cal-prev').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); };
 $('cal-next').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); };
 const SLOT_TIMES = { am: '9:00am – 12:00pm', pm: '2:00pm – 6:00pm', n: '7:00pm – 10:00pm' };
+
+// Calendar clicks drive the cohort form below, so it always shows what you just clicked.
+// Click an existing class  -> load it into "Edit cohort".   Shift-click -> its roster.
+// Click an empty slot      -> prefill "Add a new cohort" with that date and session time.
+// Shift-click an empty slot-> the quick "Plan a class" draft modal.
+window.calendarPick = function (ev, cid) {
+  if (ev && ev.shiftKey) return openRoster(cid);
+  editCohort(cid);
+};
+window.calendarSlot = function (ev, iso, slot) {
+  if (ev && ev.shiftKey) return planSlot(iso, slot);
+  if (editingCourse) $('f-cancel').onclick();          // drop out of edit mode first
+  $('f-date').value = iso;
+  $('f-time').value = SLOT_TIMES[slot] || '';
+  $('formtitle').textContent = 'Add a new cohort — ' + fdate(iso);
+  $('formmsg').className = 'msg'; $('formmsg').textContent = '';
+  $('f-family').focus();
+  $('f-save').scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
 window.planSlot = function (iso, slot) {
   $('plan-date').value = iso;
   $('plan-slot').value = slot || 'am';
@@ -943,7 +966,8 @@ function renderCoupons() {
         : '<span class="pill open">Live</span>';
       return `<tr><td><strong>${c.code}</strong>${c.note ? `<div class="muted" style="font-size:11px">${c.note}</div>` : ''}</td>` +
         `<td>${disc}</td><td>${scope}</td><td>${used}</td><td>${c.expires_at ? fdate(c.expires_at) : '—'}</td><td>${status}</td>` +
-        `<td><button class="btn sm ghost" onclick="toggleCoupon('${c.id}',${c.active})">${c.active ? 'Turn off' : 'Turn on'}</button></td></tr>`;
+        `<td style="white-space:nowrap"><button class="btn sm ghost" onclick="toggleCoupon('${c.id}',${c.active})">${c.active ? 'Turn off' : 'Turn on'}</button>` +
+        ` <button class="btn sm ghost" style="color:#c0392b" onclick="deleteCoupon('${c.id}','${c.code}',${c.uses || 0})">Delete</button></td></tr>`;
     }).join('') + '</tbody></table>';
 }
 window.toggleCoupon = async function (id, cur) {
@@ -951,6 +975,34 @@ window.toggleCoupon = async function (id, cur) {
   if (error) return alert(error.message);
   await loadAll();
 };
+
+// Deleting a code is the permanent version of turning it off. Past redemptions are NOT
+// deleted - each one snapshots the code, kind and value, so the audit trail below survives.
+window.deleteCoupon = async function (id, code, uses) {
+  const warn = uses > 0
+    ? `Delete code ${code}?\n\nIt has been used ${uses} time${uses === 1 ? '' : 's'}. Those redemptions stay in the audit trail below - only the code itself is removed, and it can never be used again.`
+    : `Delete code ${code}?\n\nIt has never been used. This removes it permanently.`;
+  if (!confirm(warn)) return;
+  const { error } = await sb.from('coupons').delete().eq('id', id);
+  if (error) return alert(error.message);
+  await loadAll();
+  msg('c-msg', 'ok', `Code ${code} deleted. Any past uses remain in the audit trail.`);
+};
+
+// ---------- Coupon audit trail (survives deletion) ----------
+function renderCouponAudit() {
+  const rows = couponAudit;
+  if (!rows.length) { $('couponaudit').textContent = 'No codes have been used yet.'; return; }
+  $('couponaudit').innerHTML = `<table><thead><tr><th>When</th><th>Code</th><th>Student</th><th>Class</th><th>Discount</th><th></th></tr></thead><tbody>` +
+    rows.map(r => `<tr>
+      <td>${fdate(String(r.created_at).slice(0, 10))}</td>
+      <td><strong>${esc(r.code)}</strong>${r.coupon_kind ? `<div class="muted" style="font-size:11px">${r.coupon_kind === 'percent' ? r.coupon_value + '% off' : r.coupon_kind === 'fixed' ? 'S$' + r.coupon_value + ' off' : 'Free pass'}</div>` : ''}</td>
+      <td>${esc(r.student_name || '—')}<br><span class="muted">${esc(r.student_email || '')}</span></td>
+      <td>${esc(r.course_name || '—')}${r.cohort_date ? `<div class="muted" style="font-size:11px">${fdate(r.cohort_date)}</div>` : ''}</td>
+      <td>S$${Number(r.discount_sgd).toFixed(2)}</td>
+      <td>${r.coupon_deleted ? '<span class="pill cancelled">code deleted</span>' : ''}${r.booking_status && r.booking_status !== 'confirmed' ? `<span class="pill closed">${r.booking_status}</span>` : ''}</td>
+    </tr>`).join('') + '</tbody></table>';
+}
 
 // ---------- Referral leaderboard ----------
 
