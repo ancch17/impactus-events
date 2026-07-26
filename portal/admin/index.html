@@ -952,23 +952,26 @@ window.toggleCoupon = async function (id, cur) {
 
 // ---------- Referral leaderboard ----------
 
+// Referrals earn NO points automatically — this board exists so Andrew can see who is
+// actually bringing people in, and thank them by hand (🎁 button on the Students tab).
 function renderRefBoard() {
-  const refEarn = {};
-  ledger.filter(l => l.type === 'earn_referral').forEach(l => refEarn[l.student_id] = (refEarn[l.student_id] || 0) + l.points);
   const referrers = {};
   students.filter(s => s.referred_by).forEach(s => {
-    const r = referrers[s.referred_by] = referrers[s.referred_by] || { signups: 0, converted: 0 };
+    const r = referrers[s.referred_by] = referrers[s.referred_by] || { signups: 0, converted: 0, cash: 0 };
     r.signups++;
-    if (bookings.some(b => b.student_id === s.id && b.status === 'confirmed')) r.converted++;
+    const paid = bookings.filter(b => b.student_id === s.id && b.status === 'confirmed')
+      .reduce((t, b) => t + Number(b.cash_paid_sgd || 0), 0);
+    if (paid > 0) r.converted++;
+    r.cash += paid;
   });
-  const ids = new Set([...Object.keys(referrers), ...Object.keys(refEarn)]);
-  const rows = [...ids].map(id => ({ s: byStudent[id], ...(referrers[id] || { signups: 0, converted: 0 }), pts: refEarn[id] || 0 }))
-    .filter(r => r.s).sort((a, b) => b.pts - a.pts || b.signups - a.signups);
+  const rows = Object.keys(referrers).map(id => ({ s: byStudent[id], ...referrers[id] }))
+    .filter(r => r.s).sort((a, b) => b.cash - a.cash || b.signups - a.signups);
   if (!rows.length) { $('refboard').textContent = 'No referrals yet.'; return; }
-  $('refboard').innerHTML = `<table><thead><tr><th>Referrer</th><th>Code</th><th>Sign-ups</th><th>Booked a class</th><th>Points earned</th></tr></thead><tbody>` +
+  $('refboard').innerHTML = `<p class="muted" style="margin-top:-6px;margin-bottom:10px">No points are awarded for referrals — use the 🎁 button on the Students tab to thank someone.</p>
+    <table><thead><tr><th>Referrer</th><th>Code</th><th>Sign-ups</th><th>Paid for a class</th><th>Cash they brought in</th></tr></thead><tbody>` +
     rows.map(r => `<tr><td><strong>${r.s.name}</strong><br><span class="muted">${r.s.email}</span></td>
       <td>${r.s.referral_code}</td><td>${r.signups}</td><td>${r.converted}</td>
-      <td class="pts" style="color:var(--green);font-weight:700">${r.pts ? '+' + r.pts : '—'}</td></tr>`).join('') + '</tbody></table>';
+      <td style="color:var(--green);font-weight:700">${r.cash ? 'S$' + r.cash.toFixed(0) : '—'}</td></tr>`).join('') + '</tbody></table>';
 }
 
 init();
