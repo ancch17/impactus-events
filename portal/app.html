@@ -574,7 +574,7 @@ function renderCards() {
           </div>
           <div class="ccard-price">
             <div class="price-big">${fmt$(next.price_sgd)}</div>
-            <div class="earn-chip">Earn ${earn} pts</div>
+            <div class="earn-chip">Earn ${earn} pt${earn === 1 ? '' : 's'}</div>
           </div>
         </div>
         <div class="ccard-datelabel">Choose a date</div>
@@ -781,7 +781,9 @@ async function loadLedger() {
     else if (r.type === 'grant') label = r.note || 'Points from Impactus';
     else if (r.type === 'adjust') label = 'Correction';
     else label = r.note || r.type;
-    const sub = [where, fdate(String(r.created_at).slice(0, 10))].filter(Boolean).join(' · ');
+    // Don't print the same date twice when the class and the transaction fall on the same day.
+    const when = String(r.created_at).slice(0, 10);
+    const sub = [where, when === r.course_date ? '' : fdate(when)].filter(Boolean).join(' · ');
     const detail = (r.type === 'adjust' || r.type === 'grant') && r.note ? `<div class="hist-sub">${esc(r.note)}</div>` : '';
     return `<div class="row"><div><div class="hist-course">${esc(label)}</div>
       <div class="hist-sub">${sub}</div>${detail}</div>
