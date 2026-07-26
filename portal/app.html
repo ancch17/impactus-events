@@ -40,7 +40,6 @@
   .neg { color:#c0392b; font-weight:700; }
   .hist-course { font-weight:600; }
   .hist-sub { font-size:12.5px; color:var(--mut); margin-top:2px; }
-  .slider-row { display:flex; align-items:center; gap:12px; margin-top:10px; }
   input[type=range] { flex:1; accent-color:var(--amber-d); padding:0; }
   .breakdown { background:var(--bg); border-radius:10px; padding:14px; margin-top:14px; font-size:14.5px; }
   .breakdown .row { border-bottom:none; padding:4px 0; }
@@ -78,7 +77,7 @@
 <div class="wrap hidden" id="view-login">
   <div class="banner">
     <h1>Your classes. Your rebates.</h1>
-    <p class="muted" style="color:#cfd6e4;margin-top:6px">Earn 10% back in rebate points on every class — 1 point = S$1 off your next one. Joining through a friend's link? You start with 5 welcome points (S$5).</p>
+    <p class="muted" style="color:#cfd6e4;margin-top:6px">Earn 10% back in rebate points on every class — 1 point = S$1, and they come off your next class automatically.</p>
   </div>
   <div class="card">
     <h2>Sign in / Create account</h2>
@@ -117,8 +116,8 @@
         </select>
         <input type="tel" id="mobile" placeholder="9123 4567" autocomplete="tel" style="flex:1">
       </div>
-      <label id="reflabel">Have a friend's referral code? <span style="font-weight:400">(optional — fills in automatically if you used their link or QR)</span></label>
-      <input type="text" id="refcode" placeholder="Only needed if your friend told you a code">
+      <label id="reflabel">Referred by a friend? <span style="font-weight:400">(optional — fills in automatically if you used their link or QR)</span></label>
+      <input type="text" id="refcode" placeholder="Their code, if they gave you one">
     </div>
     <button class="btn" id="sendlink">Email me a sign-in link</button>
     <div class="msg" id="loginmsg"></div>
@@ -131,7 +130,7 @@
   <div class="banner">
     <p style="font-size:14px;color:#cfd6e4" id="hello">Welcome back</p>
     <p class="big" id="balline">…</p>
-    <p class="muted" style="color:#cfd6e4;margin-top:4px">Points never expire. Use them on any class — or keep collecting.</p>
+    <p class="muted" style="color:#cfd6e4;margin-top:4px">Points never expire, and they come off your next class automatically.</p>
   </div>
 
   <div class="card" id="bookcard">
@@ -143,15 +142,10 @@
         <button class="btn" id="couponbtn">Apply</button>
       </div>
       <div class="msg" id="couponmsg" style="margin-top:8px"></div>
-      <div class="slider-row">
-        <span class="muted" style="font-size:13px">Use points:</span>
-        <input type="range" id="ptsrange" min="0" value="0" step="1">
-        <strong id="ptsval" style="min-width:52px;text-align:right">0 pts</strong>
-      </div>
       <div class="breakdown">
         <div class="row"><span>Class price</span><span id="bd-price"></span></div>
         <div class="row hidden" id="bd-disc-row"><span id="bd-disc-label">Discount</span><span class="pts" id="bd-disc">− S$0</span></div>
-        <div class="row"><span>Points applied</span><span class="pts" id="bd-pts">− S$0</span></div>
+        <div class="row hidden" id="bd-pts-row"><span id="bd-pts-label">Your points applied</span><span class="pts" id="bd-pts">− S$0</span></div>
         <div class="row total"><span>You pay</span><span id="bd-total"></span></div>
       </div>
       <div id="paychoice" class="hidden" style="margin:10px 0 2px;padding:10px 12px;border:1px solid var(--line);border-radius:10px">
@@ -165,13 +159,19 @@
   </div>
 
   <div class="card">
-    <h2>Your transaction history</h2>
+    <h2>Your points</h2>
+    <p class="muted" style="margin-top:-4px;margin-bottom:10px">Every point you've earned and every point you've used, newest first.</p>
+    <div id="ptshistory" class="muted">Loading…</div>
+  </div>
+
+  <div class="card">
+    <h2>Your classes</h2>
     <div id="history" class="muted">Loading…</div>
   </div>
 
   <div class="card">
-    <h2>Refer a friend, earn 10%</h2>
-    <p class="muted">When a friend signs up through you, <strong>they get 5 welcome points (S$5)</strong> — and when they book their first class, <strong>you get 10% of what they pay</strong> in points. No codes to remember: they just tap your link or scan your QR.</p>
+    <h2>Share the class</h2>
+    <p class="muted">Enjoyed it? Send it to someone who'd get something out of it. Your link and QR are below — no codes to remember, they just tap or scan.</p>
     <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:14px">
       <div id="refqr" style="background:#fff;padding:10px;border:1px solid var(--line);border-radius:12px"></div>
       <div style="flex:1;min-width:230px">
@@ -220,7 +220,7 @@ const PREVIEW_TOKEN = 'il2026-preview-7q9k';
   window.__gated = true;
 })();
 
-let student = null, balance = 0, courses = [], selCourse = null;
+let student = null, balance = 0, courses = [], selCourse = null, myEmail = '';
 
 // referral code from ?ref=
 // Surface auth errors from the magic link (expired / already used)
@@ -233,7 +233,7 @@ if (hashParams.get('error_description') || hashParams.get('error')) {
 const params = new URLSearchParams(location.search);
 if (params.get('ref')) {
   $('refcode').value = params.get('ref').toUpperCase();
-  setTimeout(() => msg('loginmsg', 'ok', "Your friend's referral is attached ✓ — sign up above and get 5 welcome points (S$5 off your first class)."), 300);
+  setTimeout(() => msg('loginmsg', 'ok', "Your friend's referral is attached ✓ — sign up above to get started."), 300);
 }
 
 async function init() {
@@ -288,7 +288,7 @@ async function showApp(session) {
   show('view-app'); $('signout').classList.remove('hidden');
   // Defense-in-depth: filter explicitly by the signed-in user's email, never rely on RLS alone
   // to return "only my row". (A view without security_invoker once returned another student's row.)
-  const myEmail = (session && session.user && session.user.email || '').toLowerCase();
+  myEmail = (session && session.user && session.user.email || '').toLowerCase();
   const { data: me } = await sb.from('points_balances').select('*').eq('email', myEmail).limit(1);
   student = me && me[0];
   if (!student) { $('hello').textContent = 'Welcome!'; $('balline').textContent = 'Setting up your account…'; setTimeout(() => showApp(session), 1500); return; }
@@ -300,8 +300,8 @@ async function showApp(session) {
   $('refqr').innerHTML = '';
   new QRCode($('refqr'), { text: reflink, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
   $('waref').onclick = () => window.open('https://wa.me/?text=' + encodeURIComponent(
-    "I've been taking Impactus Learning's AI masterclasses — sign up with my link and get S$5 off your first class: " + reflink), '_blank');
-  loadCourses(); loadHistory();
+    "I've been taking Impactus Learning's AI masterclasses — really worth a look: " + reflink), '_blank');
+  loadCourses(); loadHistory(); loadLedger();
 }
 
 let courseGroups = {};
@@ -385,31 +385,31 @@ function selectCourse(c) {
   $('bookform').classList.remove('hidden');
   $('couponcode').value = ''; $('couponbtn').textContent = 'Apply'; $('couponbtn').disabled = false;
   $('couponmsg').className = 'msg'; $('couponmsg').textContent = '';
-  syncSlider(true);
-  $('ptsrange').oninput = updateBreakdown; updateBreakdown();
+  updateBreakdown();
 }
 
-function syncSlider(reset) {
+// Points are applied automatically — the student never picks an amount.
+// Always the whole balance, capped at what's still due after any discount code.
+// (The server recomputes this independently; this is only the on-screen preview.)
+function autoPoints() {
   const discounted = Number(selCourse.price_sgd) - (coupon ? coupon.discount : 0);
-  const max = Math.max(0, Math.min(balance, Math.floor(discounted)));
-  const rng = $('ptsrange'); rng.max = max;
-  if (reset) rng.value = 0; else if (Number(rng.value) > max) rng.value = max;
+  return Math.max(0, Math.min(balance, Math.floor(discounted)));
 }
 
 $('couponbtn').onclick = async () => {
   const code = $('couponcode').value.trim();
-  if (!code) { coupon = null; $('couponmsg').className = 'msg'; $('couponmsg').textContent = ''; syncSlider(); updateBreakdown(); return; }
+  if (!code) { coupon = null; $('couponmsg').className = 'msg'; $('couponmsg').textContent = ''; updateBreakdown(); return; }
   $('couponbtn').disabled = true; $('couponbtn').textContent = '…';
   const { data, error } = await sb.rpc('preview_coupon', { p_code: code, p_course_id: selCourse.id });
   $('couponbtn').disabled = false; $('couponbtn').textContent = 'Apply';
   if (error || !data || !data.ok) {
-    coupon = null; syncSlider();
+    coupon = null;
     msg('couponmsg', 'err', (data && data.message) || (error && error.message) || 'Code not recognised');
     updateBreakdown(); return;
   }
   coupon = { code: code.toUpperCase(), discount: Number(data.discount), label: data.label };
   msg('couponmsg', 'ok', data.label + ' applied ✓');
-  syncSlider(); updateBreakdown();
+  updateBreakdown();
 };
 $('couponcode').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); $('couponbtn').click(); } };
 
@@ -417,14 +417,18 @@ function updateBreakdown() {
   const price = Number(selCourse.price_sgd);
   const discount = coupon ? coupon.discount : 0;
   const discounted = +(price - discount).toFixed(2);
-  const pts = Math.min(Number($('ptsrange').value), Math.floor(discounted));
+  const pts = autoPoints();
   const pay = +(discounted - pts).toFixed(2);
-  $('ptsval').textContent = pts + ' pts';
   $('bd-price').textContent = fmt$(price);
   const dr = $('bd-disc-row');
   if (discount > 0) { dr.classList.remove('hidden'); $('bd-disc-label').textContent = coupon.label || 'Discount'; $('bd-disc').textContent = '− ' + fmt$(discount); }
   else dr.classList.add('hidden');
-  $('bd-pts').textContent = '− ' + fmt$(pts);
+  const pr = $('bd-pts-row');
+  if (pts > 0) {
+    pr.classList.remove('hidden');
+    $('bd-pts-label').textContent = `Your points applied (${pts} pts)`;
+    $('bd-pts').textContent = '− ' + fmt$(pts);
+  } else pr.classList.add('hidden');
   $('bd-total').textContent = fmt$(pay);
   const approval = !!selCourse.require_approval;
   if (approval && pay > 0) {
@@ -445,7 +449,7 @@ function updateBreakdown() {
 
 $('paybtn').onclick = async () => {
   if (!selCourse) return;
-  const payNow = Number(selCourse.price_sgd) - Number($('ptsrange').value);
+  const payNow = Number(selCourse.price_sgd) - (coupon ? coupon.discount : 0) - autoPoints();
   if (payNow > 0 && !PAYMENTS_LIVE && !selCourse.require_approval) return;   // card checkout not live yet
   $('paybtn').disabled = true;
   msg('bookmsg', 'ok', 'Preparing your booking…');
@@ -454,7 +458,7 @@ $('paybtn').onclick = async () => {
     const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      body: JSON.stringify({ course_id: selCourse.id, points_to_redeem: Number($('ptsrange').value), coupon_code: coupon ? coupon.code : null,
+      body: JSON.stringify({ course_id: selCourse.id, coupon_code: coupon ? coupon.code : null,
         pay_method: selCourse.require_approval && document.querySelector('input[name=pm]:checked') ? document.querySelector('input[name=pm]:checked').value : null }),
     });
     const out = await res.json();
@@ -490,12 +494,43 @@ async function loadHistory() {
     if (isFuture && r.status === 'confirmed') badge += '<span class="pill upcoming">Upcoming</span>';
     const right = [];
     if (paid > 0) right.push(`<div><strong>${fmt$(paid)}</strong> paid</div>`);
-    if (r.points_earned > 0) right.push(`<div class="pts">+${r.points_earned} pts</div>`);
-    if (r.points_redeemed > 0 && r.status === 'confirmed') right.push(`<div class="neg">−${r.points_redeemed} pts</div>`);
+    if (r.points_redeemed > 0 && r.status === 'confirmed') right.push(`<div class="muted" style="font-size:12.5px">${r.points_redeemed} pts used</div>`);
     return `<div class="row"><div><div class="hist-course">${r.course}${badge}</div>
       <div class="hist-sub">${fdate(r.cohort_date)}${r.note && r.status !== 'confirmed' ? ' · ' + r.note : ''}</div></div>
       <div style="text-align:right">${right.join('') || '<span class="muted">—</span>'}</div></div>`;
   }).join('');
+}
+
+// Every points movement, plain and auditable: what happened, which class, when.
+async function loadLedger() {
+  const { data } = await sb.from('student_ledger').select('*').eq('email', myEmail).order('created_at', { ascending: true });
+  const rows = data || [];
+  if (!rows.length) { $('ptshistory').textContent = 'No points yet — your first class starts the clock.'; return; }
+
+  // Running balance, computed oldest-first, then shown newest-first.
+  let run = 0;
+  const withBal = rows.map(r => { run += Number(r.points); return { ...r, running: run }; }).reverse();
+
+  $('ptshistory').innerHTML = withBal.map(r => {
+    const p = Number(r.points);
+    const where = r.course ? `${r.course}${r.course_date ? ' · ' + fdate(r.course_date) : ''}` : '';
+    let label;
+    if (r.type === 'earn_purchase') label = 'Earned — 10% back on your class fee';
+    else if (r.type === 'redeem') label = 'Used — came off your class fee';
+    else if (r.type === 'grant') label = r.note || 'Points from Impactus';
+    else if (r.type === 'adjust') label = 'Correction';
+    else label = r.note || r.type;
+    const sub = [where, fdate(String(r.created_at).slice(0, 10))].filter(Boolean).join(' · ');
+    const detail = (r.type === 'adjust' || r.type === 'grant') && r.note ? `<div class="hist-sub">${esc(r.note)}</div>` : '';
+    return `<div class="row"><div><div class="hist-course">${esc(label)}</div>
+      <div class="hist-sub">${sub}</div>${detail}</div>
+      <div style="text-align:right"><div class="${p >= 0 ? 'pts' : 'neg'}"><strong>${p >= 0 ? '+' : '−'}${Math.abs(p)} pts</strong></div>
+      <div class="muted" style="font-size:12px">balance ${r.running}</div></div></div>`;
+  }).join('');
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 $('copyref').onclick = () => { navigator.clipboard.writeText($('reflink').value); $('copyref').textContent = 'Copied!'; setTimeout(() => $('copyref').textContent = 'Copy', 1500); };
