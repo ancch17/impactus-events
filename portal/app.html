@@ -52,6 +52,71 @@
   .reflink button { white-space:nowrap; width:auto; margin-top:0; padding:0 16px; }
   .hidden { display:none !important; }
   footer { text-align:center; padding:26px 0 34px; }
+  /* ---------- Upcoming classes: calendar, agenda, course cards ---------- */
+  .up-head { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .up-controls { display:flex; gap:8px; align-items:center; }
+  .up-controls select { width:auto; min-width:150px; margin:0; padding:7px 10px; font-size:13px; }
+  .segmented { display:flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+  .segmented button { background:#fff; border:0; padding:7px 13px; font-size:13px; font-weight:600; color:#6b7280; cursor:pointer; }
+  .segmented button.on { background:var(--navy,#101a2d); color:#fff; }
+  .legend { display:flex; flex-wrap:wrap; gap:12px; margin:2px 0 12px; font-size:11.5px; color:#5b6472; }
+  .lg-item { display:flex; align-items:center; gap:5px; font-weight:600; }
+  .lg-dot { width:10px; height:10px; border-radius:3px; flex:none; }
+  .lg-f2f, .f2f-tag { background:#101a2d; color:#fff; font-size:9.5px; font-weight:800; letter-spacing:.4px; padding:1px 5px; border-radius:4px; }
+  .online-tag { background:#eef1f6; color:#5b6472; font-size:9.5px; font-weight:800; letter-spacing:.4px; padding:1px 5px; border-radius:4px; }
+  .calnav { display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:8px; font-size:14px; }
+  .calnav button { background:#fff; border:1px solid var(--line); border-radius:8px; width:30px; height:30px; font-size:16px; line-height:1; cursor:pointer; color:#101a2d; padding:0; }
+  table.scal { width:100%; border-collapse:collapse; table-layout:fixed; }
+  table.scal th { font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:#8b93a1; padding:4px 2px; font-weight:700; }
+  table.scal td { border:1px solid var(--line); vertical-align:top; padding:3px; height:64px; background:#fff; }
+  table.scal td.out { background:#fafbfd; }
+  table.scal td.out .dnum { color:#c6ccd6; }
+  table.scal td.today { box-shadow:inset 0 0 0 2px #f5b731; }
+  .dnum { font-size:10.5px; font-weight:700; color:#6b7280; display:block; margin-bottom:2px; }
+  .scal-slot { display:flex; gap:2px; align-items:flex-start; min-height:15px; }
+  .scal-slot .sl { font-size:8px; color:#c3c9d4; width:14px; flex:none; font-weight:800; padding-top:3px; }
+  .scal-slot .evs { flex:1; min-width:0; }
+  .scal-ev { display:block; width:100%; text-align:left; border:0; color:#fff; font-size:9.5px; font-weight:700; line-height:1.25;
+             padding:2px 4px; border-radius:4px; margin-bottom:2px; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .scal-ev:hover { filter:brightness(1.12); }
+  .evf2f { background:rgba(255,255,255,.28); border-radius:3px; padding:0 3px; margin-right:3px; font-size:8px; }
+  .ag-row { display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:#fff; border:1px solid var(--line);
+            border-radius:10px; padding:9px 11px; margin-bottom:7px; cursor:pointer; }
+  .ag-row:hover { border-color:#c9cfda; box-shadow:0 2px 8px rgba(16,26,45,.07); }
+  .ag-bar { width:4px; align-self:stretch; border-radius:3px; flex:none; }
+  .ag-when { flex:1.1; min-width:0; display:flex; flex-direction:column; font-size:13.5px; }
+  .ag-what { flex:1.4; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .ag-price { font-weight:700; font-size:13.5px; white-space:nowrap; }
+  .lvl-pill { color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; white-space:nowrap; }
+  .ccard { border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:12px; background:#fff; transition:box-shadow .15s, border-color .15s; }
+  .ccard:hover, .ccard.active { border-color:var(--accent); box-shadow:0 4px 16px rgba(16,26,45,.09); }
+  .ccard-accent { height:4px; background:var(--accent); }
+  .ccard-body { padding:14px 15px 15px; }
+  .ccard-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+  .ccard-pills { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
+  .ccard-title { font-size:15.5px; font-weight:700; color:#101a2d; line-height:1.3; }
+  .ccard-price { text-align:right; white-space:nowrap; }
+  .price-big { font-size:21px; font-weight:800; color:#101a2d; line-height:1; }
+  .earn-chip { margin-top:5px; background:#e9f8ee; color:#1f7a45; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; display:inline-block; }
+  .ccard-datelabel { font-size:11.5px; text-transform:uppercase; letter-spacing:.5px; color:#8b93a1; font-weight:700; margin:14px 0 7px; }
+  .date-chips { display:flex; flex-wrap:wrap; gap:7px; }
+  .date-chip { background:#fff; border:1px solid var(--line); border-radius:10px; padding:7px 11px; cursor:pointer; text-align:left; line-height:1.25; }
+  .date-chip strong { display:block; font-size:13px; color:#101a2d; }
+  .date-chip span { display:block; font-size:11px; color:#8b93a1; }
+  .date-chip:hover { border-color:var(--accent); }
+  .date-chip.on { border-color:var(--accent); background:var(--accent); }
+  .date-chip.on strong, .date-chip.on span { color:#fff; }
+  .book-btn { margin-top:13px; border:0; }
+  @media (max-width:640px) {
+    .up-head { align-items:flex-start; }
+    .up-controls { width:100%; }
+    .up-controls select { flex:1; }
+    table.scal td { height:auto; min-height:46px; padding:2px; }
+    .scal-slot .sl { display:none; }
+    .scal-ev { font-size:8.5px; }
+    .ccard-top { flex-direction:column; }
+    .ccard-price { text-align:left; }
+  }
 </style>
 </head>
 <body>
@@ -131,6 +196,30 @@
     <p style="font-size:14px;color:#cfd6e4" id="hello">Welcome back</p>
     <p class="big" id="balline">…</p>
     <p class="muted" style="color:#cfd6e4;margin-top:4px">Points never expire, and they come off your next class automatically.</p>
+  </div>
+
+  <div class="card" id="upcomingcard">
+    <div class="up-head">
+      <h2 style="margin:0">Upcoming classes</h2>
+      <div class="up-controls">
+        <select id="calfilter" aria-label="Filter by course"><option value="">All courses</option></select>
+        <div class="segmented">
+          <button type="button" id="tab-cal" class="on">Calendar</button>
+          <button type="button" id="tab-list">List</button>
+        </div>
+      </div>
+    </div>
+    <div id="callegend" class="legend"></div>
+    <div id="calview">
+      <div class="calnav">
+        <button type="button" id="calprev" aria-label="Previous month">‹</button>
+        <strong id="calmonth"></strong>
+        <button type="button" id="calnext" aria-label="Next month">›</button>
+      </div>
+      <div id="calgrid"></div>
+    </div>
+    <div id="listview" class="hidden"><div id="agenda"></div></div>
+    <p class="muted" style="margin-top:10px;font-size:12.5px">Tap any class to jump straight to booking.</p>
   </div>
 
   <div class="card" id="bookcard">
@@ -298,7 +387,13 @@ async function showApp(session) {
   const reflink = PORTAL_URL + '?ref=' + student.referral_code;
   $('reflink').value = reflink;
   $('refqr').innerHTML = '';
-  new QRCode($('refqr'), { text: reflink, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
+  // The QR library is a CDN script — if it fails to load, the rest of the portal must still work.
+  try {
+    new QRCode($('refqr'), { text: reflink, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
+  } catch (e) {
+    $('refqr').classList.add('hidden');
+    console.log('QR unavailable:', e && e.message);
+  }
   $('waref').onclick = () => window.open('https://wa.me/?text=' + encodeURIComponent(
     "I've been taking Impactus Learning's AI masterclasses — really worth a look: " + reflink), '_blank');
   loadCourses(); loadHistory(); loadLedger();
@@ -318,65 +413,231 @@ async function attendedFamilies() {
   return seen;
 }
 
+// ---------- Upcoming classes: calendar + list + course cards ----------
+// Four levels, four colours. F2F (in-person) is a tag on the same level, not a separate colour.
+const LEVELS = {
+  'claude':         { key: 'c1', short: 'Claude Lvl 1', title: 'Master Claude – Agentic AI Masterclass (Level 1)', color: '#7c3aed', f2f: false },
+  'f2f-claude':     { key: 'c1', short: 'Claude Lvl 1', title: 'Master Claude – Agentic AI Masterclass (Level 1)', color: '#7c3aed', f2f: true },
+  'f2f-build':      { key: 'c2', short: 'Claude Lvl 2', title: 'Claude Masterclass – Build (Level 2)',              color: '#4c1d95', f2f: true },
+  'animation':      { key: 'a1', short: 'Ani Lvl 1',    title: 'AI Animation Masterclass (Level 1)',                color: '#c8901a', f2f: false },
+  'f2f-animation':  { key: 'a1', short: 'Ani Lvl 1',    title: 'AI Animation Masterclass (Level 1)',                color: '#c8901a', f2f: true },
+  'automation':     { key: 'a2', short: 'Ani Lvl 2',    title: 'AI Animation – Automation (Level 2)',               color: '#8a5024', f2f: false },
+  'f2f-automation': { key: 'a2', short: 'Ani Lvl 2',    title: 'AI Animation – Automation (Level 2)',               color: '#8a5024', f2f: true },
+};
+const LEVEL_ORDER = [
+  { key: 'c1', short: 'Claude Lvl 1', color: '#7c3aed', group: 'Claude' },
+  { key: 'c2', short: 'Claude Lvl 2', color: '#4c1d95', group: 'Claude' },
+  { key: 'a1', short: 'Ani Lvl 1',    color: '#c8901a', group: 'Animation' },
+  { key: 'a2', short: 'Ani Lvl 2',    color: '#8a5024', group: 'Animation' },
+];
+const lvlOf = (slug) => LEVELS[slug] || { key: 'x', short: 'Class', title: '', color: '#64748b', f2f: false };
+
+let allCohorts = [], attendedMap = {}, calMonth = null, calFilter = '';
+
+const isoOf = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+// Same slotting rule as the admin calendar: AM before 12pm, PM 12–6pm, N after 6pm.
+function slotOf(t) {
+  if (!t) return 0;
+  const m = String(t).match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+  if (!m) return 0;
+  let h = parseInt(m[1], 10) % 12;
+  if (m[3].toLowerCase() === 'pm') h += 12;
+  return h < 12 ? 0 : h < 18 ? 1 : 2;
+}
+const inFilter = (c) => !calFilter || lvlOf(c.family_slug).key === calFilter;
+const earnOn = (price) => Math.round(Number(price) * 0.10);
+
 async function loadCourses() {
   // open_cohorts = bookable cohorts already joined to their course family (active families only)
   const [{ data }, done] = await Promise.all([
     sb.from('open_cohorts').select('*').order('sort_order').order('cohort_date'),
     attendedFamilies(),
   ]);
-  const rows = data || [];
-  if (!rows.length) { $('courselist').textContent = 'No classes open for booking right now — watch this space!'; return; }
+  allCohorts = data || [];
+  attendedMap = done;
+  if (!allCohorts.length) {
+    $('courselist').textContent = 'No classes open for booking right now — watch this space!';
+    $('upcomingcard').classList.add('hidden');
+    return;
+  }
   courseGroups = {};
-  rows.forEach(c => { (courseGroups[c.family_slug] = courseGroups[c.family_slug] || []).push(c); });
-  $('courselist').innerHTML = Object.entries(courseGroups).map(([slug, list], gi) => {
+  allCohorts.forEach(c => { (courseGroups[c.family_slug] = courseGroups[c.family_slug] || []).push(c); });
+
+  // Open on the month of the next class, not necessarily this month.
+  const firstDate = allCohorts.map(c => c.cohort_date).sort()[0];
+  const fd = new Date(firstDate + 'T00:00:00');
+  calMonth = new Date(fd.getFullYear(), fd.getMonth(), 1);
+
+  buildFilter();
+  renderLegend();
+  renderCalendar();
+  renderAgenda();
+  renderCards();
+  applyDeepLink();
+}
+
+function buildFilter() {
+  const present = new Set(allCohorts.map(c => lvlOf(c.family_slug).key));
+  const groups = {};
+  LEVEL_ORDER.filter(l => present.has(l.key)).forEach(l => { (groups[l.group] = groups[l.group] || []).push(l); });
+  $('calfilter').innerHTML = '<option value="">All courses</option>' +
+    Object.entries(groups).map(([g, ls]) =>
+      `<optgroup label="${g}">` + ls.map(l => `<option value="${l.key}">${l.short}</option>`).join('') + '</optgroup>').join('');
+  $('calfilter').value = calFilter;
+}
+
+function renderLegend() {
+  const present = new Set(allCohorts.map(c => lvlOf(c.family_slug).key));
+  $('callegend').innerHTML = LEVEL_ORDER.filter(l => present.has(l.key)).map(l =>
+    `<span class="lg-item"><span class="lg-dot" style="background:${l.color}"></span>${l.short}</span>`).join('') +
+    `<span class="lg-item"><span class="lg-f2f">F2F</span>in person</span>`;
+}
+
+function renderCalendar() {
+  const y = calMonth.getFullYear(), m = calMonth.getMonth();
+  $('calmonth').textContent = calMonth.toLocaleDateString('en-SG', { month: 'long', year: 'numeric' });
+  const last = new Date(y, m + 1, 0);
+  const byDate = {};
+  allCohorts.filter(inFilter).forEach(c => { (byDate[c.cohort_date] = byDate[c.cohort_date] || []).push(c); });
+  const cur = new Date(y, m, 1);
+  cur.setDate(cur.getDate() - ((cur.getDay() + 6) % 7));   // back to Monday
+  const tod = isoOf(new Date());
+  let html = '<table class="scal"><thead><tr>' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => `<th>${d}</th>`).join('') + '</tr></thead><tbody>';
+  while (cur <= last) {
+    html += '<tr>';
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(cur); cur.setDate(cur.getDate() + 1);
+      if (i === 6) continue;                                 // Mon–Sat only
+      const iso = isoOf(d);
+      const out = d.getMonth() !== m;
+      const slots = [[], [], []];
+      (byDate[iso] || []).forEach(c => slots[slotOf(c.session_time)].push(c));
+      const any = slots.some(s => s.length);
+      const slotHtml = ['AM', 'PM', 'N'].map((lab, si) =>
+        `<div class="scal-slot"><span class="sl">${slots[si].length ? lab : ''}</span><div class="evs">` +
+        slots[si].map(c => {
+          const L = lvlOf(c.family_slug);
+          return `<button type="button" class="scal-ev" style="background:${L.color}" data-pick="${c.id}"
+            title="${esc(L.title)} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + esc(c.session_time) : ''} · ${fmt$(c.price_sgd)}">
+            ${L.f2f ? '<span class="evf2f">F2F</span>' : ''}${L.short}</button>`;
+        }).join('') + '</div></div>').join('');
+      html += `<td class="${out ? 'out' : ''}${iso === tod ? ' today' : ''}${any ? ' has' : ''}"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
+    }
+    html += '</tr>';
+  }
+  $('calgrid').innerHTML = html + '</tbody></table>';
+  wirePicks();
+}
+
+function renderAgenda() {
+  const rows = allCohorts.filter(inFilter).slice().sort((a, b) =>
+    a.cohort_date === b.cohort_date ? slotOf(a.session_time) - slotOf(b.session_time) : (a.cohort_date < b.cohort_date ? -1 : 1));
+  if (!rows.length) { $('agenda').innerHTML = '<p class="muted">No dates for this course yet.</p>'; return; }
+  $('agenda').innerHTML = rows.map(c => {
+    const L = lvlOf(c.family_slug);
+    return `<button type="button" class="ag-row" data-pick="${c.id}">
+      <span class="ag-bar" style="background:${L.color}"></span>
+      <span class="ag-when"><strong>${fdate(c.cohort_date)}</strong><span class="hist-sub">${esc(c.session_time || '')}</span></span>
+      <span class="ag-what"><span class="lvl-pill" style="background:${L.color}">${L.short}</span>${L.f2f ? '<span class="f2f-tag">F2F</span>' : ''}</span>
+      <span class="ag-price">${fmt$(c.price_sgd)}</span></button>`;
+  }).join('');
+  wirePicks();
+}
+
+function renderCards() {
+  const slugs = Object.keys(courseGroups).filter(s => !calFilter || lvlOf(s).key === calFilter);
+  if (!slugs.length) { $('courselist').innerHTML = '<p class="muted">No classes for that course right now — choose “All courses” to see everything.</p>'; return; }
+  $('courselist').innerHTML = slugs.map(slug => {
+    const list = courseGroups[slug];
+    const L = lvlOf(slug);
     const next = list[0];
-    const been = done[slug];
-    const badge = been
-      ? `<span class="pill again">${balance > 0 ? 'Come back — use your ' + balance + ' pts' : 'You’ve taken this'}</span>`
-      : '';
+    const been = attendedMap[slug];
+    const earn = earnOn(next.price_sgd);
     const sub = been
       ? `You attended ${fdate(been)}.${balance > 0 ? ` Your ${balance} pts come off the price — repeats welcome.` : ' Repeats welcome.'}`
       : (next.family_tagline || next.details || '');
-    const dates = list.map(c =>
-      `<label style="display:flex;gap:10px;align-items:center;padding:9px 0 9px 4px;border-top:1px solid var(--line);cursor:pointer">
-        <input type="radio" name="course" value="${c.id}" style="width:auto;margin:0">
-        <span style="flex:1"><strong>${fdate(c.cohort_date)}</strong>${c.session_time ? ' <span class="hist-sub">· ' + c.session_time + '</span>' : ''}</span>
-        <span>${fmt$(c.price_sgd)}</span></label>`).join('');
-    return `<div style="border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden">
-      <div class="course-head" data-g="${gi}" style="padding:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <div><div class="hist-course">${next.family_name}${badge}</div>
-        <div class="hist-sub">${sub}</div>
-        <div class="hist-sub" style="margin-top:4px">Next: <strong>${fdate(next.cohort_date)}</strong>${list.length > 1 ? ` · +${list.length - 1} more date${list.length > 2 ? 's' : ''}` : ''}</div></div>
-        <div style="text-align:right;white-space:nowrap"><strong>${fmt$(next.price_sgd)}</strong><div class="hist-sub">▾ choose date</div></div>
-      </div>
-      <div class="course-dates hidden" data-gd="${gi}" style="padding:0 14px 10px">${dates}</div></div>`;
+    const chips = list.map(c =>
+      `<button type="button" class="date-chip" data-chip="${c.id}" data-slug="${slug}">
+        <strong>${fdate(c.cohort_date)}</strong>${c.session_time ? `<span>${esc(c.session_time)}</span>` : ''}</button>`).join('');
+    return `<div class="ccard" data-card="${slug}" style="--accent:${L.color}">
+      <div class="ccard-accent"></div>
+      <div class="ccard-body">
+        <div class="ccard-top">
+          <div>
+            <div class="ccard-pills">
+              <span class="lvl-pill" style="background:${L.color}">${L.short}</span>
+              ${L.f2f ? '<span class="f2f-tag">F2F · in person</span>' : '<span class="online-tag">Online</span>'}
+              ${been ? `<span class="pill again">${balance > 0 ? 'Come back — use your ' + balance + ' pts' : 'You’ve taken this'}</span>` : ''}
+            </div>
+            <div class="ccard-title">${esc(L.title || next.family_name)}</div>
+            ${sub ? `<div class="hist-sub" style="margin-top:4px">${esc(sub)}</div>` : ''}
+          </div>
+          <div class="ccard-price">
+            <div class="price-big">${fmt$(next.price_sgd)}</div>
+            <div class="earn-chip">Earn ${earn} pts</div>
+          </div>
+        </div>
+        <div class="ccard-datelabel">Choose a date</div>
+        <div class="date-chips">${chips}</div>
+        <button type="button" class="btn book-btn" data-book="${slug}" style="background:${L.color};color:#fff">Book this class</button>
+      </div></div>`;
   }).join('');
-  document.querySelectorAll('.course-head').forEach(h => h.onclick = () => {
-    document.querySelectorAll('.course-dates').forEach(d => { if (d.dataset.gd !== h.dataset.g) d.classList.add('hidden'); });
-    document.querySelector(`.course-dates[data-gd="${h.dataset.g}"]`).classList.toggle('hidden');
+
+  document.querySelectorAll('.date-chip').forEach(b => b.onclick = () => pickCohort(b.dataset.chip, false));
+  document.querySelectorAll('.book-btn').forEach(b => b.onclick = () => {
+    const list = courseGroups[b.dataset.book];
+    const chosen = selCourse && list.some(c => c.id === selCourse.id) ? selCourse : list[0];
+    pickCohort(chosen.id, true);
   });
-  const all = Object.values(courseGroups).flat();
-  document.querySelectorAll('input[name=course]').forEach(r => r.onchange = () => selectCourse(all.find(c => c.id === r.value)));
-  // deep link: ?course=automation&date=2026-08-13&time=am|pm — matches family slug or any alt_slug
+}
+
+function wirePicks() {
+  document.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => pickCohort(el.dataset.pick, true));
+}
+
+// Single entry point for "student chose this class" — from the calendar, the agenda or a date chip.
+function pickCohort(id, scroll) {
+  const c = allCohorts.find(x => x.id === id);
+  if (!c) return;
+  if (calFilter && lvlOf(c.family_slug).key !== calFilter) { calFilter = ''; $('calfilter').value = ''; renderCards(); }
+  selectCourse(c);
+  document.querySelectorAll('.date-chip').forEach(b => b.classList.toggle('on', b.dataset.chip === id));
+  const card = document.querySelector(`.ccard[data-card="${c.family_slug}"]`);
+  if (card) {
+    document.querySelectorAll('.ccard').forEach(x => x.classList.toggle('active', x === card));
+    if (!document.querySelector(`.date-chip[data-chip="${id}"]`)) renderCards();
+    document.querySelectorAll('.date-chip').forEach(b => b.classList.toggle('on', b.dataset.chip === id));
+  }
+  if (scroll) $('bookcard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// deep link: ?course=automation&date=2026-08-13&time=am|pm — matches family slug or any alt_slug
+function applyDeepLink() {
   const asked = (params.get('course') || '').toLowerCase();
   const want = asked && Object.keys(courseGroups).find(s =>
     s === asked || (courseGroups[s][0].alt_slugs || []).includes(asked));
-  if (want) {
-    const gi = Object.keys(courseGroups).indexOf(want);
-    const panel = document.querySelector(`.course-dates[data-gd="${gi}"]`);
-    if (panel) panel.classList.remove('hidden');
-    const d = params.get('date');
-    const t = (params.get('time') || '').toLowerCase();
-    let target = d ? courseGroups[want].find(c => c.cohort_date === d && (!t || (c.session_time || '').toLowerCase().startsWith(t === 'am' ? '9' : '7'))) : null;
-    if (!target && d) target = courseGroups[want].find(c => c.cohort_date === d);
-    if (!target) target = courseGroups[want][0];
-    if (target) {
-      const radio = document.querySelector(`input[name=course][value="${target.id}"]`);
-      if (radio) { radio.checked = true; selectCourse(target); }
-      $('bookcard').scrollIntoView({ behavior: 'smooth' });
-    }
-  }
+  if (!want) return;
+  const d = params.get('date');
+  const t = (params.get('time') || '').toLowerCase();
+  let target = d ? courseGroups[want].find(c => c.cohort_date === d && (!t || (c.session_time || '').toLowerCase().startsWith(t === 'am' ? '9' : '7'))) : null;
+  if (!target && d) target = courseGroups[want].find(c => c.cohort_date === d);
+  if (!target) target = courseGroups[want][0];
+  if (target) pickCohort(target.id, true);
 }
+
+$('calfilter').onchange = () => { calFilter = $('calfilter').value; renderCalendar(); renderAgenda(); renderCards(); };
+$('calprev').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); };
+$('calnext').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); };
+$('tab-cal').onclick = () => switchView('cal');
+$('tab-list').onclick = () => switchView('list');
+function switchView(v) {
+  $('tab-cal').classList.toggle('on', v === 'cal');
+  $('tab-list').classList.toggle('on', v === 'list');
+  $('calview').classList.toggle('hidden', v !== 'cal');
+  $('listview').classList.toggle('hidden', v === 'cal');
+}
+// Phones get the agenda by default — a six-column grid is unreadable at 360px.
+if (window.matchMedia('(max-width: 640px)').matches) switchView('list');
 
 let coupon = null;  // { code, discount, label } once a valid code is applied
 
