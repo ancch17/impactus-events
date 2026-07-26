@@ -80,6 +80,14 @@
   .date-chip.full { cursor:default; background:#f4f6f9; border-style:dashed; }
   .date-chip.full strong { color:#8b93a1; }
   .date-chip.full:hover { border-color:var(--line); }
+  .pay-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+              margin-top:22px; padding-top:16px; border-top:2px solid var(--line); }
+  .pay-summary { border:1px solid var(--line); border-left:4px solid var(--accent,#101a2d); border-radius:10px;
+                 padding:12px 14px; margin-top:10px; background:#fff; }
+  .pay-summary .ps-pills { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
+  .pay-summary .ps-title { font-size:15px; font-weight:700; line-height:1.3; }
+  .pay-summary .ps-when { font-size:13.5px; margin-top:4px; }
+  .pay-summary .ps-when strong { color:#101a2d; }
   .online-tag { background:#eef1f6; color:#5b6472; font-size:9.5px; font-weight:800; letter-spacing:.4px; padding:1px 5px; border-radius:4px; }
   .calnav { display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:8px; font-size:14px; }
   .calnav button { background:#fff; border:1px solid var(--line); border-radius:8px; width:30px; height:30px; font-size:16px; line-height:1; cursor:pointer; color:#101a2d; padding:0; }
@@ -243,7 +251,13 @@
     <h2>Book a class</h2>
     <div id="courselist" class="muted">Loading classes…</div>
     <div id="bookform" class="hidden">
-      <div class="reflink" style="margin-top:0">
+      <div class="pay-head">
+        <h2 style="margin:0">Payment</h2>
+        <span class="muted" style="font-size:12.5px">Step 2 of 2</span>
+      </div>
+      <!-- Restates exactly what's being booked, so the student never pays without seeing it. -->
+      <div class="pay-summary" id="paysummary"></div>
+      <div class="reflink" style="margin-top:14px">
         <input type="text" id="couponcode" placeholder="Discount code (optional)" style="text-transform:uppercase">
         <button class="btn" id="couponbtn">Apply</button>
       </div>
@@ -645,7 +659,9 @@ function pickCohort(id, scroll) {
     if (!document.querySelector(`.date-chip[data-chip="${id}"]`)) renderCards();
     document.querySelectorAll('.date-chip').forEach(b => b.classList.toggle('on', b.dataset.chip === id));
   }
-  if (scroll) $('bookcard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Land on the Payment section itself — jumping to the top of the card left the
+  // student above every course card, still hunting for the bit that matters.
+  if (scroll) requestAnimationFrame(() => $('bookform').scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 
 // deep link: ?course=automation&date=2026-08-13&time=am|pm — matches family slug or any alt_slug
@@ -685,7 +701,22 @@ function selectCourse(c) {
   $('bookform').classList.remove('hidden');
   $('couponcode').value = ''; $('couponbtn').textContent = 'Apply'; $('couponbtn').disabled = false;
   $('couponmsg').className = 'msg'; $('couponmsg').textContent = '';
+  renderPaySummary(c);
   updateBreakdown();
+}
+
+// Echo the chosen class back at the student, in the same language as the card above.
+function renderPaySummary(c) {
+  const L = lvlOf(c.family_slug);
+  const box = $('paysummary');
+  box.style.setProperty('--accent', L.color);
+  box.innerHTML = `
+    <div class="ps-pills">
+      ${L.f2f ? '<span class="f2f-tag">F2F · in person</span>' : '<span class="online-tag">Online</span>'}
+      <span class="lvl-pill" style="background:${L.color}">${L.short}</span>
+    </div>
+    <div class="ps-title">${esc(L.title || c.family_name)}</div>
+    <div class="ps-when"><strong>${fdate(c.cohort_date)}</strong>${c.session_time ? ' · ' + esc(c.session_time) : ''}</div>`;
 }
 
 // Points are applied automatically — the student never picks an amount.
