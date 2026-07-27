@@ -183,10 +183,12 @@
         <div><label>Course</label>
           <select id="f-family"></select></div>
         <div><label>Date</label><input type="date" id="f-date"></div>
+        <!-- Online times by default; setSessionTime() swaps in the F2F set when an F2F course
+             is picked, so these three are only what an untouched blank form shows. -->
         <div><label>Session time (shown to students)</label><select id="f-time">
-          <option value="8:30am – 12:00pm">AM · 8:30am – 12:00pm</option>
-          <option value="1:30pm – 5:00pm">PM · 1:30pm – 5:00pm</option>
-          <option value="6:30pm – 10:00pm">Night · 6:30pm – 10:00pm</option>
+          <option value="9:00am – 12:00pm">AM · 9:00am – 12:00pm</option>
+          <option value="2:00pm – 5:00pm">PM · 2:00pm – 5:00pm</option>
+          <option value="7:00pm – 10:00pm">Night · 7:00pm – 10:00pm</option>
         </select></div>
         <div><label>Price (SGD)</label><input type="number" id="f-price" min="0" step="1" placeholder="180"></div>
       </div>
@@ -283,10 +285,11 @@
     <p class="muted" style="margin-top:-4px">Saved as a <strong>DRAFT</strong> — light grey on the calendar, hidden from students until you press CONFIRM.</p>
     <label>Course</label><select id="plan-family"></select>
     <label>Date</label><input type="date" id="plan-date">
+    <!-- Labels are rebuilt by renderPlanSlots(): online slots run 3h, F2F 3.5h. -->
     <label>Slot</label><select id="plan-slot">
-      <option value="am">Morning · 8:30am – 12:00pm</option>
-      <option value="pm">Afternoon · 1:30pm – 5:00pm</option>
-      <option value="n">Night · 6:30pm – 10:00pm</option></select>
+      <option value="am">Morning</option>
+      <option value="pm">Afternoon</option>
+      <option value="n">Night</option></select>
     <input type="hidden" id="plan-time">
     <label>Price (SGD)</label><input type="number" id="plan-price" min="0" step="1">
     <div style="display:flex;gap:8px;margin-top:16px">
@@ -560,21 +563,34 @@ function renderCalendar() {
 $('cal-print').onclick = () => window.print();
 $('cal-prev').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); };
 $('cal-next').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); };
-// Fixed house times — every class runs one of these three 3.5-hour slots, online or in person.
-// 3.5h since 2026-07-27 (was 3h): it lands the price at ~S$51/hr online, ~S$69/hr F2F, and lets
-// an AM and a PM cohort share one venue day with a real 90-minute break between them.
-const SLOT_TIMES = { am: '8:30am – 12:00pm', pm: '1:30pm – 5:00pm', n: '6:30pm – 10:00pm' };
-// The cohort form's time is a fixed three-way choice. Older cohorts may carry a legacy
-// string ("7:00pm-10:00pm SGT"); keep it selectable so editing one doesn't silently retime it.
+// Fixed house times — three slots, but ONLINE and F2F run different lengths.
+//   ONLINE 3 hours   ·  9:00am – 12:00pm  ·  2:00pm – 5:00pm  ·  7:00pm – 10:00pm
+//   F2F    3.5 hours ·  8:30am – 12:00pm  ·  1:30pm – 5:00pm  ·  6:30pm – 10:00pm
+// The extra half hour is part of what the higher F2F price buys, and it gives an AM and a PM
+// cohort sharing one venue day a real 90-minute break in between. (On 2026-07-27 both were
+// briefly moved to 3.5h; only F2F was meant to move, so online is back at 3h.)
+const SLOT_KEYS = ['am', 'pm', 'n'];
+const SLOT_TIMES_ONLINE = { am: '9:00am – 12:00pm', pm: '2:00pm – 5:00pm', n: '7:00pm – 10:00pm' };
+const SLOT_TIMES_F2F    = { am: '8:30am – 12:00pm', pm: '1:30pm – 5:00pm', n: '6:30pm – 10:00pm' };
+const HOUSE_TIMES = [...Object.values(SLOT_TIMES_ONLINE), ...Object.values(SLOT_TIMES_F2F)];
+// F2F families are the ones whose slug starts f2f- (f2f-claude, f2f-build, f2f-animation…).
+// Anything else — including a blank course on a fresh form — is online.
+const isF2FFamily = (famId) => /^f2f-/.test((families.find(f => f.id === famId) || {}).slug || '');
+const slotTimesFor = (famId) => isF2FFamily(famId) ? SLOT_TIMES_F2F : SLOT_TIMES_ONLINE;
+// The cohort form's time is a fixed three-way choice, and WHICH three depends on the course.
+// Older cohorts may carry a legacy string ("7:00pm-10:00pm SGT"); keep it selectable so
+// editing one doesn't silently retime it.
 function setSessionTime(v) {
   const sel = $('f-time');
-  [...sel.options].filter(o => o.dataset.legacy).forEach(o => o.remove());
-  if (v && ![...sel.options].some(o => o.value === v)) {
+  const T = slotTimesFor($('f-family').value);
+  const LBL = { am: 'AM', pm: 'PM', n: 'Night' };
+  sel.innerHTML = SLOT_KEYS.map(k => `<option value="${T[k]}">${LBL[k]} · ${T[k]}</option>`).join('');
+  if (v && !SLOT_KEYS.some(k => T[k] === v)) {
     const o = document.createElement('option');
     o.value = v; o.textContent = v + ' (existing)'; o.dataset.legacy = '1';
     sel.appendChild(o);
   }
-  sel.value = v || SLOT_TIMES.am;
+  sel.value = v || T.am;
 }
 
 // Calendar clicks drive the cohort form below, so it always shows what you just clicked.
@@ -589,27 +605,39 @@ window.calendarSlot = function (ev, iso, slot) {
   if (ev && ev.shiftKey) return planSlot(iso, slot);
   if (editingCourse) $('f-cancel').onclick();          // drop out of edit mode first
   $('f-date').value = iso;
-  setSessionTime(SLOT_TIMES[slot] || SLOT_TIMES.am);
+  const T = slotTimesFor($('f-family').value);   // no course picked yet -> online times; the
+  setSessionTime(T[slot] || T.am);               // f-family onchange re-times it if F2F is chosen
   $('formtitle').textContent = 'Add a new cohort — ' + fdate(iso);
   $('formmsg').className = 'msg'; $('formmsg').textContent = '';
   $('f-family').focus();
   $('f-save').scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
+// The slot dropdown shows the actual times, and those depend on the course picked above it
+// (online 3h, F2F 3.5h), so the labels are rebuilt whenever either changes.
+function renderPlanSlots() {
+  const T = slotTimesFor($('plan-family').value);
+  const LBL = { am: 'Morning', pm: 'Afternoon', n: 'Night' };
+  const cur = $('plan-slot').value || 'am';
+  $('plan-slot').innerHTML = SLOT_KEYS.map(k => `<option value="${k}">${LBL[k]} · ${T[k]}</option>`).join('');
+  $('plan-slot').value = cur;
+  $('plan-time').value = T[cur];
+}
 window.planSlot = function (iso, slot) {
   $('plan-date').value = iso;
-  $('plan-slot').value = slot || 'am';
   $('plan-family').innerHTML = '<option value="">— choose a course —</option>' + families.filter(f => f.status === 'active').map(f =>
     `<option value="${f.id}">${f.name}</option>`).join('');
-  $('plan-time').value = SLOT_TIMES[$('plan-slot').value];
+  $('plan-slot').value = slot || 'am';
+  renderPlanSlots();
   $('plan-price').value = '';
   $('plan-title').textContent = 'Plan a class — ' + fdate(iso);
   $('planmsg').className = 'msg'; $('planmsg').textContent = '';
   $('planbg').classList.remove('hidden');
 };
-$('plan-slot').onchange = () => { $('plan-time').value = SLOT_TIMES[$('plan-slot').value]; };
+$('plan-slot').onchange = renderPlanSlots;
 $('plan-family').onchange = () => {
   const f = families.find(x => x.id === $('plan-family').value);
   if (f && f.default_price_sgd != null) $('plan-price').value = f.default_price_sgd;
+  renderPlanSlots();
 };
 $('plan-close').onclick = () => $('planbg').classList.add('hidden');
 $('planbg').onclick = (e) => { if (e.target === $('planbg')) $('planbg').classList.add('hidden'); };
@@ -953,6 +981,10 @@ function renderForm() {
   $('f-family').onchange = () => {
     const f = families.find(x => x.id === $('f-family').value);
     if (f && f.default_price_sgd != null && !editingCourse) $('f-price').value = f.default_price_sgd;
+    // Online and F2F run different-length slots, so switching course keeps the SLOT (AM stays AM)
+    // and swaps the times to that course's house set. A legacy free-typed time is left alone.
+    const prev = $('f-time').value;
+    setSessionTime(HOUSE_TIMES.includes(prev) ? slotTimesFor($('f-family').value)[SLOT_KEYS[slotOf(prev)]] : prev);
   };
 }
 // The portal dropdown is a view over the two DB flags. is_full only ever applied while the
