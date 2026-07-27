@@ -65,6 +65,7 @@
   .pill.open { background:#e3f4ea; color:var(--green); }
   .pill.closed { background:#eee; color:#888; }
   .pill.cancelled { background:#fde8e8; color:var(--red); }
+  .pill.past { background:#eef0f4; color:#7b8494; }
   .pill.pending { background:#fdf3d7; color:var(--amber-d); }
   .pill.draft { background:#e9ebf1; color:#6c7688; border:1px dashed #b9c0cf; }
   .cal-ev.draftev { background:#c9cfda !important; color:#39404f; }
@@ -201,6 +202,7 @@
         <option value="full">Full — still listed, but greyed out with no price and not bookable</option>
         <option value="hidden">Hidden — not shown to students at all</option>
       </select>
+      <p class="muted hidden" id="f-portal-past" style="margin:6px 0 0;font-size:12.5px">This class has already run, so it closed automatically and stays hidden from students. To run it again, add a new cohort with a future date.</p>
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn" id="f-save">Save cohort</button>
         <button class="btn ghost hidden" id="f-cancel">Cancel edit</button>
@@ -386,6 +388,7 @@ async function loadAll() {
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || [];
   families = f.data || []; coupons = g.data || []; blocks = k.data || []; couponAudit = (ca && ca.data) || [];
+  await closePastCohorts();
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
   renderKPIs(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderCouponAudit(); renderEmailForm();
@@ -430,6 +433,24 @@ function renderKPIs() {
 }
 
 function cohortCount(cid) { return bookings.filter(b => b.course_id === cid && b.status === 'confirmed').length; }
+
+// A class whose date has gone by. Students can never book one (the open_cohorts view already
+// filters on cohort_date >= CURRENT_DATE), so leaving is_open=true only makes this admin list
+// lie about it. Drafts are excluded: an unconfirmed past draft is just clutter, not a live class.
+function isPast(c) { return !!c && !c.is_draft && !c.cancelled && c.cohort_date < today(); }
+
+// Safety net for the nightly pg_cron job `close-past-cohorts` (00:05 SGT, runs
+// public.close_past_cohorts()). If a class ran today and Andrew opens this page before midnight,
+// or cron ever misses a night, close the stragglers here so what he sees matches the database.
+// Silent by design — nothing to decide, and it must never block the dashboard from rendering.
+async function closePastCohorts() {
+  const stale = courses.filter(c => c.is_open && isPast(c));
+  if (!stale.length) return;
+  const ids = stale.map(c => c.id);
+  const { error } = await sb.from('courses').update({ is_open: false }).in('id', ids);
+  if (error) return;                        // leave the DB value showing; cron will catch it
+  stale.forEach(c => { c.is_open = false; });  // courses[] and byCourse share these objects
+}
 // Every seat is charged upfront, online and in person alike — there is no approval gate.
 
 // One source of truth for a cohort's buttons, used by both the Cohorts list row and the
@@ -437,8 +458,16 @@ function cohortCount(cid) { return bookings.filter(b => b.course_id === cid && b
 // the roster is rendered directly below it — and shows the live Zoom/WhatsApp links instead.
 function cohortActions(c, where) {
   const inForm = where === 'form';
-  const mkZoom = c.zoom_link ? '' : `<button class="btn ghost sm" onclick="createZoom(this,'${c.id}')">Create Zoom</button>`;
-  const mkWa = c.whatsapp_url ? '' : `<button class="btn ghost sm" onclick="createWhatsApp('${c.id}')">Create WhatsApp</button>`;
+  const past = isPast(c);
+  // Once a Zoom room or WhatsApp group exists the button stays put but goes dead and says so —
+  // Andrew scans the list for what still needs setting up, and a vanished button reads the same
+  // as a button that was never there. Past classes don't get the Create button at all.
+  const mkZoom = c.zoom_link
+    ? `<button class="btn ghost sm" disabled title="Zoom meeting already created for this class">Zoom ✓</button>`
+    : past ? '' : `<button class="btn ghost sm" onclick="createZoom(this,'${c.id}')">Create Zoom</button>`;
+  const mkWa = c.whatsapp_url
+    ? `<button class="btn ghost sm" disabled title="WhatsApp group already created for this class">WhatsApp ✓</button>`
+    : past ? '' : `<button class="btn ghost sm" onclick="createWhatsApp('${c.id}')">Create WhatsApp</button>`;
   const delZoom = c.zoom_meeting_id ? `<button class="btn ghost sm" style="color:var(--red)" onclick="deleteZoom(this,'${c.id}')">Delete Zoom</button>` : '';
   const links = !inForm ? '' :
     (c.zoom_link ? `<a class="btn ghost sm" href="${c.zoom_link}" target="_blank">Zoom ↗${c.zoom_password ? ` (pw ${c.zoom_password})` : ''}</a>` : '') +
@@ -449,6 +478,10 @@ function cohortActions(c, where) {
   if (c.is_draft) return `<button class="btn sm" style="background:var(--green);color:#fff" onclick="confirmDraft('${c.id}')">CONFIRM</button>
       ${mkZoom} ${mkWa} ${links} ${edit}
       <button class="btn ghost sm" style="color:var(--red)" onclick="deleteDraft('${c.id}')">Delete</button>`;
+  // A class that has already run can't be re-opened for booking (and the nightly job would just
+  // close it again), so the Open/Close toggle and Cancel class both go — you cancel a class that
+  // hasn't happened yet. Roster, Zoom/WhatsApp state and Edit stay: history is still worth reading.
+  if (past) return `${roster} ${mkZoom} ${mkWa} ${links} ${delZoom && inForm ? delZoom : ''} ${edit}`;
   return `${roster} ${mkZoom} ${mkWa} ${links} ${delZoom && inForm ? delZoom : ''} ${edit}
       <button class="btn ghost sm" onclick="toggleOpen('${c.id}', ${c.is_open})">${c.is_open ? 'Close' : 'Open'}</button>
       <button class="btn ghost sm" style="color:var(--red)" onclick="openCancel('${c.id}')">Cancel class</button>`;
@@ -472,13 +505,14 @@ function renderCohorts() {
   $('cohortlist').innerHTML = list.map(c => {
     const pill = c.cancelled ? '<span class="pill cancelled">CANCELLED</span>'
       : c.is_draft ? '<span class="pill draft">DRAFT</span>'
+      : isPast(c) ? '<span class="pill past">PAST</span>'
       : `<span class="pill ${c.is_open ? 'open' : 'closed'}">${c.is_open ? 'OPEN' : 'closed'}</span>` + (c.is_full ? '<span class="pill closed">FULL</span>' : '');
     const zoom = c.zoom_link ? ` · <a href="${c.zoom_link}" target="_blank">Zoom ↗</a>${c.zoom_password ? ` <span style="font-size:11px">(pw ${c.zoom_password})</span>` : ''}` : '';
     const wa = c.whatsapp_url ? ` · <a href="${c.whatsapp_url}" target="_blank">WhatsApp ↗</a>` : '';
     const actions = cohortActions(c, 'list');
     const sel = c.id === selectedCourse;
     return `
-    <div class="cohort-row${sel ? ' selected' : ''}"${c.cancelled ? ' style="opacity:.6"' : ''}>
+    <div class="cohort-row${sel ? ' selected' : ''}"${c.cancelled ? ' style="opacity:.6"' : isPast(c) ? ' style="opacity:.72"' : ''}>
       <div style="flex:1;min-width:220px">
         <strong>${c.name}</strong> ${pill}${sel ? ' <span class="selected-tag">SELECTED</span>' : ''}<br>
         <span class="muted">${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''} · ${fmt$(c.price_sgd)}${c.is_draft ? '' : ` · <strong>${cohortCount(c.id)}</strong> confirmed`}${zoom}${wa}</span>
@@ -951,6 +985,11 @@ function renderForm() {
 // cohort was open, so "not open" collapses to Hidden however is_full happens to be set.
 function setPortalState(c) {
   $('f-portal').value = !c || !c.is_open ? 'hidden' : (c.is_full ? 'full' : 'open');
+  // A past class is always hidden and can't be re-listed — say so instead of offering a choice
+  // that the nightly close-past-cohorts job would silently undo a few hours later.
+  const p = isPast(c);
+  $('f-portal').disabled = p;
+  $('f-portal-past').classList.toggle('hidden', !p);
 }
 function readPortalState() {
   const v = $('f-portal').value;
