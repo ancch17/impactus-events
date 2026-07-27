@@ -295,14 +295,17 @@
     <h2>Share the class</h2>
     <p class="muted">Enjoyed it? Send it to someone who'd get something out of it. Your link and QR are below — no codes to remember, they just tap or scan.</p>
     <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:14px">
-      <div id="refqr" style="background:#fff;padding:10px;border:1px solid var(--line);border-radius:12px"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div id="refqr" style="background:#fff;padding:10px;border:1px solid var(--line);border-radius:12px"></div>
+        <button class="btn ghost" id="dlqr" style="margin-top:0;width:auto;padding:8px 14px;font-size:12.5px;white-space:nowrap">⬇ Download QR</button>
+      </div>
       <div style="flex:1;min-width:230px">
         <button class="btn" id="waref" style="margin-top:0;background:#25D366;color:#fff">Share via WhatsApp</button>
         <div class="reflink">
           <input type="text" id="reflink" readonly>
           <button class="btn" id="copyref">Copy</button>
         </div>
-        <p class="muted" style="margin-top:8px">In class? Let your neighbour scan the QR with their phone camera.</p>
+        <p class="muted" style="margin-top:8px">In class? Let your neighbour scan the QR with their phone camera. Or tap Download QR for a shareable image.</p>
       </div>
     </div>
   </div>
@@ -434,7 +437,137 @@ async function showApp(session) {
   }
   $('waref').onclick = () => window.open('https://wa.me/?text=' + encodeURIComponent(
     "I've been taking Impactus Learning's AI masterclasses — really worth a look: " + reflink), '_blank');
+  $('dlqr').onclick = downloadShareCard;
   loadCourses(); loadHistory(); loadLedger();
+}
+
+// ---------- Downloadable "share the class" QR card ----------
+// Builds a self-contained PNG (QR + Impactus Learning branding/promo copy) entirely client-side —
+// no external image fetches, so it can't be blocked by CORS or a slow network.
+function wrapCanvasText(ctx, text, cx, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  words.forEach(w => {
+    const test = line ? line + ' ' + w : w;
+    if (line && ctx.measureText(test).width > maxWidth) { lines.push(line); line = w; }
+    else line = test;
+  });
+  if (line) lines.push(line);
+  lines.forEach((l, i) => ctx.fillText(l, cx, y + i * lineHeight));
+  return y + lines.length * lineHeight;
+}
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+async function downloadShareCard() {
+  const btn = $('dlqr');
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Preparing…';
+  try {
+    const qrCanvas = document.querySelector('#refqr canvas');
+    const qrImgEl = document.querySelector('#refqr img');
+    let qrDataUrl = null;
+    if (qrCanvas) { try { qrDataUrl = qrCanvas.toDataURL('image/png'); } catch (e) {} }
+    if (!qrDataUrl && qrImgEl && qrImgEl.src) qrDataUrl = qrImgEl.src;
+    if (!qrDataUrl) { alert("The QR code isn't ready yet — please try again in a moment."); return; }
+
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+    const qrImage = await new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = reject;
+      im.src = qrDataUrl;
+    });
+
+    const W = 900, H = 1150;
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#101a2d');
+    bg.addColorStop(1, '#1b2942');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // "SHARED BY <name>" eyebrow
+    const first = (student.preferred_name && student.preferred_name.trim()) || (student.name || '').split(' ')[0];
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f5b731';
+    ctx.font = '700 16px Inter, system-ui, sans-serif';
+    if (first) ctx.fillText(('SHARED BY ' + first).toUpperCase(), W / 2, 72);
+
+    // Logo lockup: "Impactus" (amber) + " Learning" (white)
+    ctx.font = '800 46px Inter, system-ui, sans-serif';
+    const partA = 'Impactus', partB = ' Learning';
+    const wA = ctx.measureText(partA).width, wB = ctx.measureText(partB).width;
+    let x0 = W / 2 - (wA + wB) / 2;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f5b731'; ctx.fillText(partA, x0, 138);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(partB, x0 + wA, 138);
+    ctx.textAlign = 'center';
+
+    // Promo headline
+    ctx.font = '800 40px Inter, system-ui, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    let y = wrapCanvasText(ctx, "Learn AI skills that actually stick.", W / 2, 210, 700, 48);
+
+    ctx.font = '600 21px Inter, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,.72)';
+    y = wrapCanvasText(ctx, 'Master Claude · AI Animation · AI Automation — hands-on masterclasses, taught live.', W / 2, y + 30, 620, 30);
+
+    // White QR panel
+    const panelW = 460, panelH = 480, panelX = W / 2 - panelW / 2, panelY = y + 50;
+    ctx.fillStyle = '#ffffff';
+    roundRectPath(ctx, panelX, panelY, panelW, panelH, 24);
+    ctx.fill();
+
+    const qrSize = 300;
+    ctx.drawImage(qrImage, W / 2 - qrSize / 2, panelY + 40, qrSize, qrSize);
+
+    ctx.font = '700 20px Inter, system-ui, sans-serif';
+    ctx.fillStyle = '#101a2d';
+    ctx.fillText('Scan to get started', W / 2, panelY + 40 + qrSize + 40);
+    ctx.font = '400 15px Inter, system-ui, sans-serif';
+    ctx.fillStyle = '#6b7486';
+    ctx.fillText('or open the link below', W / 2, panelY + 40 + qrSize + 68);
+
+    // Referral link pill
+    const link = $('reflink').value;
+    ctx.font = '600 16px Inter, system-ui, sans-serif';
+    let linkY = panelY + panelH + 60;
+    const pillW = Math.min(720, ctx.measureText(link).width + 60);
+    ctx.fillStyle = 'rgba(255,255,255,.08)';
+    roundRectPath(ctx, W / 2 - pillW / 2, linkY - 32, pillW, 46, 23);
+    ctx.fill();
+    ctx.fillStyle = '#f5b731';
+    ctx.fillText(link, W / 2, linkY);
+
+    // Footer
+    ctx.font = '600 15px Inter, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.fillText('events.impactuslearning.com · Rebates on every class you attend', W / 2, H - 50);
+
+    const finalUrl = cv.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = finalUrl;
+    a.download = 'impactus-learning-invite' + (student.referral_code ? '-' + student.referral_code : '') + '.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch (e) {
+    console.log('downloadShareCard failed:', e && e.message);
+    alert("Sorry, couldn't generate the image — please try again.");
+  } finally {
+    btn.disabled = false; btn.textContent = original;
+  }
 }
 
 let courseGroups = {};
