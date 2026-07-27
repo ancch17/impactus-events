@@ -41,6 +41,9 @@
   tr:last-child td { border-bottom:none; }
   tr.total td { font-weight:800; border-top:2px solid var(--ink); }
   .num { text-align:right; } th.num { text-align:right; }
+  th.sortable { cursor:pointer; user-select:none; }
+  th.sortable:hover { color:var(--ink); }
+  th .arr { color:var(--amber-d); margin-left:2px; }
   .pill { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:99px; background:#e8edfb; color:#3c5bd2; }
   footer { text-align:center; padding:26px 0 34px; }
 </style>
@@ -90,6 +93,7 @@
 
     <div class="card">
       <h2>By class</h2>
+      <p class="muted" style="margin:-4px 0 8px">Click any column heading to sort.</p>
       <div id="bycourse" style="overflow-x:auto">Loading…</div>
     </div>
 
@@ -97,6 +101,7 @@
       <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">By cohort
         <select id="cohort-filter"><option value="">All courses</option></select>
       </h2>
+      <p class="muted" style="margin:-4px 0 8px">Click any column heading to sort.</p>
       <div id="bycohort" style="overflow-x:auto">Loading…</div>
     </div>
 
@@ -227,22 +232,52 @@ $('p-week').onclick = () => setPeriod('week');
 $('p-month').onclick = () => setPeriod('month');
 $('p-year').onclick = () => setPeriod('year');
 
+// ---------- click-to-sort headings ----------
+// Numbers open high→low, text and dates A–Z / oldest-first on the second click.
+// The Total row is appended after sorting, so it always stays pinned at the bottom.
+function sortRows(list, key, dir, val) {
+  return list.slice().sort((a, b) => {
+    const va = val(a, key), vb = val(b, key);
+    const c = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+    return c * dir;
+  });
+}
+function headings(cols, key, dir, setter) {
+  return cols.map(c => `<th class="sortable${c.num ? ' num' : ''}" onclick="${setter}('${c.k}')">${c.label}${key === c.k ? `<span class="arr">${dir === 1 ? '▲' : '▼'}</span>` : ''}</th>`).join('');
+}
+
+let courseSort = 'cash', courseDir = -1;
+window.setCourseSort = function (k) {
+  if (courseSort === k) courseDir = -courseDir; else { courseSort = k; courseDir = k === 'n' ? 1 : -1; }
+  renderByCourse();
+};
+
 function renderByCourse() {
   const names = [...new Set(rows.map(r => r.course))];
-  const data = names.map(n => {
+  let data = names.map(n => {
     const rs = rows.filter(r => r.course === n);
     const cohorts = new Set(rs.map(r => r.date)).size;
     const cash = rs.reduce((s, r) => s + r.cash, 0);
     return { n, cohorts, students: rs.length, cash, pts: rs.reduce((s, r) => s + r.pts, 0), avg: cohorts ? cash / cohorts : 0 };
-  }).sort((a, b) => b.cash - a.cash);
+  });
   const all = data.reduce((s, d) => s + d.cash, 0);
-  $('bycourse').innerHTML = `<table><thead><tr><th>Class</th><th class="num">Cohorts</th><th class="num">Students</th><th class="num">Cash earned</th><th class="num">Avg / cohort</th><th class="num">Points used</th><th class="num">% of revenue</th></tr></thead><tbody>` +
+  data = sortRows(data, courseSort, courseDir, (d, k) => k === 'n' ? d.n.toLowerCase() : k === 'pct' ? d.cash : d[k]);
+  const cols = [{ k: 'n', label: 'Class' }, { k: 'cohorts', label: 'Cohorts', num: 1 }, { k: 'students', label: 'Students', num: 1 },
+    { k: 'cash', label: 'Cash earned', num: 1 }, { k: 'avg', label: 'Avg / cohort', num: 1 }, { k: 'pts', label: 'Points used', num: 1 },
+    { k: 'pct', label: '% of revenue', num: 1 }];
+  $('bycourse').innerHTML = `<table><thead><tr>${headings(cols, courseSort, courseDir, 'setCourseSort')}</tr></thead><tbody>` +
     data.map(d => `<tr><td><strong>${d.n}</strong></td><td class="num">${d.cohorts}</td><td class="num">${d.students}</td>
       <td class="num"><strong>${fmt$(d.cash)}</strong></td><td class="num">${fmt$(d.avg)}</td>
       <td class="num muted">${d.pts ? '−' + d.pts : '—'}</td>
       <td class="num muted">${all ? (d.cash / all * 100).toFixed(1) : 0}%</td></tr>`).join('') +
     `<tr class="total"><td>All classes</td><td class="num">${data.reduce((s,d)=>s+d.cohorts,0)}</td><td class="num">${data.reduce((s,d)=>s+d.students,0)}</td><td class="num">${fmt$(all)}</td><td></td><td class="num">−${data.reduce((s,d)=>s+d.pts,0)}</td><td class="num">100%</td></tr></tbody></table>`;
 }
+
+let cohortSort = 'date', cohortDir = -1;
+window.setCohortSort = function (k) {
+  if (cohortSort === k) cohortDir = -cohortDir; else { cohortSort = k; cohortDir = k === 'course' ? 1 : -1; }
+  renderByCohort();
+};
 
 function renderByCohort() {
   const flt = $('cohort-filter').value;
@@ -252,10 +287,12 @@ function renderByCohort() {
     const m = map[k] = map[k] || { course: r.course, date: r.date, students: 0, cash: 0, pts: 0 };
     m.students++; m.cash += r.cash; m.pts += r.pts;
   });
-  const list = Object.values(map).sort((a, b) => a.date < b.date ? 1 : -1);
+  const list = sortRows(Object.values(map), cohortSort, cohortDir, (m, k) => k === 'course' ? m.course.toLowerCase() : k === 'date' ? m.date : m[k]);
   if (!list.length) { $('bycohort').textContent = 'No cohorts.'; return; }
   const t = today();
-  $('bycohort').innerHTML = `<table><thead><tr><th>Date</th><th>Class</th><th class="num">Students</th><th class="num">Cash earned</th><th class="num">Points used</th></tr></thead><tbody>` +
+  const cols = [{ k: 'date', label: 'Date' }, { k: 'course', label: 'Class' }, { k: 'students', label: 'Students', num: 1 },
+    { k: 'cash', label: 'Cash earned', num: 1 }, { k: 'pts', label: 'Points used', num: 1 }];
+  $('bycohort').innerHTML = `<table><thead><tr>${headings(cols, cohortSort, cohortDir, 'setCohortSort')}</tr></thead><tbody>` +
     list.map(m => `<tr><td>${fdate(m.date)}${m.date >= t ? ' <span class="pill">upcoming</span>' : ''}</td><td>${m.course}</td>
       <td class="num">${m.students}</td><td class="num"><strong>${fmt$(m.cash)}</strong></td>
       <td class="num muted">${m.pts ? '−' + m.pts : '—'}</td></tr>`).join('') +

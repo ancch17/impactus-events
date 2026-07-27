@@ -224,8 +224,11 @@ function render() {
       </tr>`;
     }).join('') + '</tbody></table>';
 }
+// Numbers open high→low (most classes / most points first); text opens A–Z.
+const NUMERIC = new Set(['classes', 'points']);
 window.setSort = function (k) {
-  if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = 1; }
+  if (sortKey === k) sortDir = -sortDir;
+  else { sortKey = k; sortDir = NUMERIC.has(k) ? -1 : 1; }
   render();
 };
 $('stu-search').oninput = render;

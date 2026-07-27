@@ -34,6 +34,9 @@
   .kpi .sub { font-size:11.5px; color:var(--green); margin-top:2px; font-weight:600; }
   table { width:100%; border-collapse:collapse; font-size:13.5px; }
   th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); padding:8px 8px 6px 0; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th.sortable { cursor:pointer; user-select:none; }
+  th.sortable:hover { color:var(--ink); }
+  th .arr { color:var(--amber-d); margin-left:2px; }
   td { padding:9px 8px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
   tr:last-child td { border-bottom:none; }
   footer { text-align:center; padding:26px 0 34px; }
@@ -136,6 +139,23 @@ function renderKPIs() {
 
 // Referrals earn NO points automatically — this board exists so Andrew can see who is
 // actually bringing people in, and thank them by hand (🎁 button on the Students tab).
+// Click any heading to re-sort. Numbers start high→low (the interesting end first);
+// text starts A–Z. Cash is the default because that's the "who to thank" order.
+let sortKey = 'cash', sortDir = -1;
+const SORTVAL = {
+  referrer: (r) => (r.s.name || r.s.email || '').toLowerCase(),
+  code:     (r) => (r.s.referral_code || '').toLowerCase(),
+  signups:  (r) => r.signups,
+  converted:(r) => r.converted,
+  cash:     (r) => r.cash,
+};
+const NUMERIC = new Set(['signups', 'converted', 'cash']);
+window.setSort = function (k) {
+  if (sortKey === k) sortDir = -sortDir;
+  else { sortKey = k; sortDir = NUMERIC.has(k) ? -1 : 1; }
+  renderRefBoard();
+};
+
 function renderRefBoard() {
   const referrers = {};
   students.filter(s => s.referred_by).forEach(s => {
@@ -146,11 +166,16 @@ function renderRefBoard() {
     if (paid > 0) r.converted++;
     r.cash += paid;
   });
-  const rows = Object.keys(referrers).map(id => ({ s: byStudent[id], ...referrers[id] }))
-    .filter(r => r.s).sort((a, b) => b.cash - a.cash || b.signups - a.signups);
+  const rows = Object.keys(referrers).map(id => ({ s: byStudent[id], ...referrers[id] })).filter(r => r.s);
+  rows.sort((a, b) => {
+    const va = SORTVAL[sortKey](a), vb = SORTVAL[sortKey](b);
+    const c = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+    return c !== 0 ? c * sortDir : b.cash - a.cash || b.signups - a.signups;   // stable tie-break
+  });
   if (!rows.length) { $('refboard').textContent = 'No referrals yet.'; return; }
-  $('refboard').innerHTML = `<p class="muted" style="margin-top:-6px;margin-bottom:10px">No points are awarded for referrals — use the 🎁 button on the Students tab to thank someone.</p>
-    <table><thead><tr><th>Referrer</th><th>Code</th><th>Sign-ups</th><th>Paid for a class</th><th>Cash they brought in</th></tr></thead><tbody>` +
+  const th = (k, label) => `<th class="sortable" onclick="setSort('${k}')">${label}${sortKey === k ? `<span class="arr">${sortDir === 1 ? '▲' : '▼'}</span>` : ''}</th>`;
+  $('refboard').innerHTML = `<p class="muted" style="margin-top:-6px;margin-bottom:10px">No points are awarded for referrals — use the 🎁 button on the Students tab to thank someone. Click any column heading to sort.</p>
+    <table><thead><tr>${th('referrer', 'Referrer')}${th('code', 'Code')}${th('signups', 'Sign-ups')}${th('converted', 'Paid for a class')}${th('cash', 'Cash they brought in')}</tr></thead><tbody>` +
     rows.map(r => `<tr><td><strong>${esc(r.s.name)}</strong><br><span class="muted">${esc(r.s.email)}</span></td>
       <td>${esc(r.s.referral_code)}</td><td>${r.signups}</td><td>${r.converted}</td>
       <td style="color:var(--green);font-weight:700">${r.cash ? 'S$' + r.cash.toFixed(0) : '—'}</td></tr>`).join('') + '</tbody></table>';

@@ -52,6 +52,9 @@
   .msg.ok { color:var(--green); } .msg.err { color:var(--red); }
   table { width:100%; border-collapse:collapse; font-size:13.5px; }
   th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); padding:8px 8px 6px 0; border-bottom:1px solid var(--line); }
+  th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+  th.sortable:hover { color:var(--ink); }
+  th .arr { color:var(--amber-d); margin-left:2px; }
   td { padding:9px 8px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
   tr:last-child td { border-bottom:none; }
   .pill { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:99px; }
@@ -608,16 +611,38 @@ window.toggleRemarkDone = async function (bid, done) {
   renderFollowups(); if (rosterCourse) openRoster(rosterCourse);
 };
 
+// Roster sorting: default is confirmed-first (how Andrew reads a class list);
+// click a heading to re-sort. Paid opens high→low, names/status A–Z. The # column
+// is a row counter, so it always renumbers 1..n in whatever order is showing.
+let rosterSort = 'default', rosterDir = 1;
+const ROSTERVAL = {
+  name: (b) => ((byStudent[b.student_id] || {}).name || '').toLowerCase(),
+  contact: (b) => ((byStudent[b.student_id] || {}).email || '').toLowerCase(),
+  paid: (b) => Number(b.cash_paid_sgd || 0),
+  status: (b) => b.status || '',
+};
+window.setRosterSort = function (k) {
+  if (rosterSort === k) rosterDir = -rosterDir; else { rosterSort = k; rosterDir = k === 'paid' ? -1 : 1; }
+  openRoster(rosterCourse);
+};
+
 window.openRoster = function (cid) {
   rosterCourse = cid;
   const c = byCourse[cid];
-  const rows = bookings.filter(b => b.course_id === cid).sort((a, b) => (a.status === b.status ? 0 : a.status === 'confirmed' ? -1 : 1));
+  const rows = bookings.filter(b => b.course_id === cid);
+  if (rosterSort === 'default') rows.sort((a, b) => (a.status === b.status ? 0 : a.status === 'confirmed' ? -1 : 1));
+  else rows.sort((a, b) => {
+    const va = ROSTERVAL[rosterSort](a), vb = ROSTERVAL[rosterSort](b);
+    const c2 = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+    return c2 !== 0 ? c2 * rosterDir : ROSTERVAL.name(a).localeCompare(ROSTERVAL.name(b));
+  });
   $('rostercard').style.display = '';
   $('rostertitle').textContent = `Roster — ${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''}`;
   if (!rows.length) { $('roster').innerHTML = '<p class="muted">No bookings yet.</p>'; return; }
   const futureOthers = courses.filter(x => x.cohort_date >= today() && x.id !== cid && !x.is_draft)
     .map(x => `<option value="${x.id}">${x.name} — ${fdate(x.cohort_date)}${x.session_time ? ' (' + x.session_time + ')' : ''}</option>`).join('');
-  $('roster').innerHTML = `<table><thead><tr><th>#</th><th>Student</th><th>Contact</th><th>Other courses</th><th>Paid / Pts</th><th>Status</th><th>Follow-up</th><th></th></tr></thead><tbody>` +
+  const rth = (k, label) => `<th class="sortable" onclick="setRosterSort('${k}')">${label}${rosterSort === k ? `<span class="arr">${rosterDir === 1 ? '▲' : '▼'}</span>` : ''}</th>`;
+  $('roster').innerHTML = `<table><thead><tr><th>#</th>${rth('name', 'Student')}${rth('contact', 'Contact')}<th>Other courses</th>${rth('paid', 'Paid / Pts')}${rth('status', 'Status')}<th>Follow-up</th><th></th></tr></thead><tbody>` +
     rows.map((b, i) => {
       const s = byStudent[b.student_id] || { name: '?', email: '', mobile: '' };
       return `<tr${b.admin_remark && !b.admin_remark_done ? ' class="hasremark"' : ''}>
