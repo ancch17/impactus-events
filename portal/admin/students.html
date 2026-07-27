@@ -144,12 +144,17 @@ function referredByName(s) {
   return r ? (r.name || r.email) : '';
 }
 function referredCount(id) { return students.filter(x => x.referred_by === id).length; }
+const money = (n) => {
+  const v = Number(n || 0);
+  return '$' + (Math.round(v * 100) % 100 === 0 ? v.toFixed(0) : v.toFixed(2));
+};
 function attendedOf(id) {
   return bookings.filter(b => b.student_id === id && b.status === 'confirmed')
-    .map(b => byCourse[b.course_id]).filter(Boolean)
-    .sort((a, b) => a.cohort_date < b.cohort_date ? 1 : -1)
-    .map(c => ({ name: c.name, date: c.cohort_date, past: c.cohort_date < today() }));
+    .map(b => ({ b, c: byCourse[b.course_id] })).filter(x => x.c)
+    .sort((x, y) => x.c.cohort_date < y.c.cohort_date ? 1 : -1)
+    .map(({ b, c }) => ({ name: c.name, date: c.cohort_date, past: c.cohort_date < today(), paid: Number(b.cash_paid_sgd || 0) }));
 }
+function totalPaidOf(id) { return attendedOf(id).reduce((s, c) => s + c.paid, 0); }
 
 function filtered() {
   const q = ($('stu-search').value || '').toLowerCase().trim();
@@ -189,7 +194,9 @@ function render() {
     list.map(s => {
       const cls = attendedOf(s.id);
       const clsHtml = cls.length ? cls.map(c =>
-        `<div class="cls-line${c.past ? '' : ' up'}">${shortName(c.name)} · ${fdate(c.date)}${c.past ? '' : ' (upcoming)'}</div>`).join('') : '<span class="muted">—</span>';
+        `<div class="cls-line${c.past ? '' : ' up'}">${shortName(c.name)} · ${fdate(c.date)} (${money(c.paid)})${c.past ? '' : ' (upcoming)'}</div>`).join('')
+        + (cls.length > 1 ? `<div class="muted" style="font-size:11px;margin-top:2px">Total paid: <strong>${money(totalPaidOf(s.id))}</strong></div>` : '')
+        : '<span class="muted">—</span>';
       return `<tr>
         <td>
           <strong>${s.name || '—'}</strong>
@@ -299,15 +306,16 @@ $('stu-xlsx').onclick = () => {
       'Name': s.name || '',
       'Email': s.email || '',
       'Mobile': s.mobile || '',
-      'Classes Attended': cls.map(c => shortName(c.name) + ' (' + fdate(c.date) + (c.past ? '' : ', upcoming') + ')').join('; '),
+      'Classes Attended': cls.map(c => shortName(c.name) + ' · ' + fdate(c.date) + ' (' + money(c.paid) + (c.past ? '' : ', upcoming') + ')').join('; '),
       '# Classes': cls.length,
+      'Total Paid (S$)': totalPaidOf(s.id),
       'Points Balance': balanceOf(s.id),
       'Referral Code': s.referral_code || '',
       'Remarks': s.remarks || '',
     };
   });
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 14 }, { wch: 60 }, { wch: 9 }, { wch: 13 }, { wch: 13 }, { wch: 50 }];
+  ws['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 14 }, { wch: 60 }, { wch: 9 }, { wch: 14 }, { wch: 13 }, { wch: 13 }, { wch: 50 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Students');
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
