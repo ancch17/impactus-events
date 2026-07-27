@@ -60,7 +60,11 @@
 (function () {
   var h = location.hash || '';
   var q = new URLSearchParams(location.search);
-  if (h.indexOf('access_token') > -1 || h.indexOf('error') > -1 || q.has('preview')) {
+  // Anything the app itself needs to act on must reach app.html. Returning from Stripe
+  // used to land here instead, so a student who had just PAID saw "Coming soon".
+  var forward = ['preview', 'payment', 'setup', 'ref', 'course', 'date', 'time'];
+  var wanted = forward.some(function (k) { return q.has(k); });
+  if (h.indexOf('access_token') > -1 || h.indexOf('error') > -1 || wanted) {
     location.replace('app.html' + location.search + location.hash);
   }
 })();
