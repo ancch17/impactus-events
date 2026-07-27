@@ -164,9 +164,9 @@
           <select id="f-family"></select></div>
         <div><label>Date</label><input type="date" id="f-date"></div>
         <div><label>Session time (shown to students)</label><select id="f-time">
-          <option value="9:00am – 12:00pm">AM · 9:00am – 12:00pm</option>
-          <option value="2:00pm – 5:00pm">PM · 2:00pm – 5:00pm</option>
-          <option value="7:00pm – 10:00pm">Night · 7:00pm – 10:00pm</option>
+          <option value="8:30am – 12:00pm">AM · 8:30am – 12:00pm</option>
+          <option value="1:30pm – 5:00pm">PM · 1:30pm – 5:00pm</option>
+          <option value="6:30pm – 10:00pm">Night · 6:30pm – 10:00pm</option>
         </select></div>
         <div><label>Price (SGD)</label><input type="number" id="f-price" min="0" step="1" placeholder="180"></div>
       </div>
@@ -280,9 +280,9 @@
     <label>Course</label><select id="plan-family"></select>
     <label>Date</label><input type="date" id="plan-date">
     <label>Slot</label><select id="plan-slot">
-      <option value="am">Morning · 9:00am – 12:00pm</option>
-      <option value="pm">Afternoon · 2:00pm – 5:00pm</option>
-      <option value="n">Night · 7:00pm – 10:00pm</option></select>
+      <option value="am">Morning · 8:30am – 12:00pm</option>
+      <option value="pm">Afternoon · 1:30pm – 5:00pm</option>
+      <option value="n">Night · 6:30pm – 10:00pm</option></select>
     <input type="hidden" id="plan-time">
     <label>Price (SGD)</label><input type="number" id="plan-price" min="0" step="1">
     <div style="display:flex;gap:8px;margin-top:16px">
@@ -492,8 +492,10 @@ function renderCalendar() {
 $('cal-print').onclick = () => window.print();
 $('cal-prev').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); };
 $('cal-next').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); };
-// Fixed house times — every class runs one of these three slots, online or in person.
-const SLOT_TIMES = { am: '9:00am – 12:00pm', pm: '2:00pm – 5:00pm', n: '7:00pm – 10:00pm' };
+// Fixed house times — every class runs one of these three 3.5-hour slots, online or in person.
+// 3.5h since 2026-07-27 (was 3h): it lands the price at ~S$51/hr online, ~S$69/hr F2F, and lets
+// an AM and a PM cohort share one venue day with a real 90-minute break between them.
+const SLOT_TIMES = { am: '8:30am – 12:00pm', pm: '1:30pm – 5:00pm', n: '6:30pm – 10:00pm' };
 // The cohort form's time is a fixed three-way choice. Older cohorts may carry a legacy
 // string ("7:00pm-10:00pm SGT"); keep it selectable so editing one doesn't silently retime it.
 function setSessionTime(v) {
