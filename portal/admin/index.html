@@ -23,6 +23,8 @@
   .tab.active { background:rgba(255,255,255,.12); opacity:1; color:var(--amber); }
 
   .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; }
+  /* Header is sticky — keep scrollIntoView from parking a card title underneath it. */
+  #formcard, #rostercard, #cancelcard { scroll-margin-top:72px; }
   h1 { font-size:20px; font-weight:800; }
   h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
   .muted { color:var(--mut); font-size:13px; }
@@ -69,6 +71,10 @@
   .cohort-row { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:11px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
   .cohort-row:last-child { border-bottom:none; }
   .cohort-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  /* The cohort you are currently editing / whose roster is open, boxed in the list below. */
+  .cohort-row.selected { background:#fffaf0; border:2px solid var(--amber-d); border-radius:11px; padding:11px 12px; margin:5px 0; }
+  .cohort-row.selected + .cohort-row { border-top:none; }
+  .selected-tag { background:var(--amber-d); color:#fff; font-size:10px; font-weight:800; padding:1px 6px; border-radius:99px; vertical-align:2px; }
   .formgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0 14px; }
   .transfer-box { background:#f2f5fb; border-radius:10px; padding:10px; margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .transfer-box select { width:auto; flex:1; min-width:220px; }
@@ -152,14 +158,17 @@
         </span>
       </h2>
       <div id="calendar" style="overflow-x:auto"></div>
-      <p class="muted" style="margin-top:8px">Mon–Sat · slots by class start time (AM before 12pm · PM 12–6pm · N after 6pm). Click a class for its roster · click an empty day to add a cohort on that date.</p>
+      <p class="muted" style="margin-top:8px">Mon–Sat · slots by class start time (AM before 12pm · PM 12–6pm · N after 6pm). Click a class to open it below — edit form, its buttons and its roster, with the class boxed in the Cohorts list. Shift-click for the roster only · click an empty day to add a cohort on that date.</p>
       <div id="cal-legend" style="display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"></div>
     </div>
 
 
-    <div class="card">
+    <div class="card" id="formcard">
       <h2 id="formtitle">Add a new cohort</h2>
-      <div class="formgrid">
+      <!-- Same actions as the cohort row below, so a class clicked on the calendar is fully
+           workable from here without hunting for its row in the Cohorts list. -->
+      <div class="cohort-actions hidden" id="f-actions" style="margin:10px 0 2px"></div>
+      <div class="formgrid" style="margin-top:12px">
         <div><label>Course</label>
           <select id="f-family"></select></div>
         <div><label>Date</label><input type="date" id="f-date"></div>
@@ -182,14 +191,6 @@
       </div>
       <div class="msg" id="formmsg"></div>
     </div>
-
-    <div class="card">
-      <h2 style="display:flex;justify-content:space-between;align-items:center">Cohorts
-        <span><label style="display:inline;font-weight:400;margin:0"><input type="checkbox" id="showpast" style="width:auto;vertical-align:-2px"> show past</label></span>
-      </h2>
-      <div id="cohortlist" class="muted">Loading…</div>
-    </div>
-
 
     <div class="card" id="rostercard" style="display:none">
       <h2 id="rostertitle">Roster</h2>
@@ -224,6 +225,15 @@
         <button class="btn ghost sm" id="cx-close">Close</button>
       </div>
       <div class="msg" id="cancelmsg"></div>
+    </div>
+
+    <!-- Cohorts list sits BELOW the edit form + roster: pick a class up top, work it, then
+         browse the rest. The class you picked is boxed in this list. -->
+    <div class="card">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">Cohorts
+        <span><label style="display:inline;font-weight:400;margin:0"><input type="checkbox" id="showpast" style="width:auto;vertical-align:-2px"> show past</label></span>
+      </h2>
+      <div id="cohortlist" class="muted">Loading…</div>
     </div>
 
     <div class="card">
@@ -314,6 +324,8 @@ function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.
 let students = [], courses = [], bookings = [], ledger = [], families = [], coupons = [], blocks = [], couponAudit = [];
 let byStudent = {}, byCourse = {};
 let editingCourse = null, rosterCourse = null;
+// The cohort currently "picked" — boxed in the Cohorts list, loaded in the edit form above it.
+let selectedCourse = null;
 
 // surface auth errors from the magic link
 const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
@@ -362,7 +374,8 @@ async function loadAll() {
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
   renderKPIs(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderCouponAudit(); renderEmailForm();
-  if (rosterCourse) openRoster(rosterCourse);
+  renderFormActions(editingCourse);
+  if (rosterCourse) openRoster(rosterCourse, true);
 }
 
 function renderKPIs() {
@@ -391,6 +404,37 @@ function renderKPIs() {
 function cohortCount(cid) { return bookings.filter(b => b.course_id === cid && b.status === 'confirmed').length; }
 // Every seat is charged upfront, online and in person alike — there is no approval gate.
 
+// One source of truth for a cohort's buttons, used by both the Cohorts list row and the
+// "Edit cohort" card. `where`='form' drops Roster + Edit — you are already in the form and
+// the roster is rendered directly below it — and shows the live Zoom/WhatsApp links instead.
+function cohortActions(c, where) {
+  const inForm = where === 'form';
+  const mkZoom = c.zoom_link ? '' : `<button class="btn ghost sm" onclick="createZoom(this,'${c.id}')">Create Zoom</button>`;
+  const mkWa = c.whatsapp_url ? '' : `<button class="btn ghost sm" onclick="createWhatsApp('${c.id}')">Create WhatsApp</button>`;
+  const delZoom = c.zoom_meeting_id ? `<button class="btn ghost sm" style="color:var(--red)" onclick="deleteZoom(this,'${c.id}')">Delete Zoom</button>` : '';
+  const links = !inForm ? '' :
+    (c.zoom_link ? `<a class="btn ghost sm" href="${c.zoom_link}" target="_blank">Zoom ↗${c.zoom_password ? ` (pw ${c.zoom_password})` : ''}</a>` : '') +
+    (c.whatsapp_url ? `<a class="btn ghost sm" href="${c.whatsapp_url}" target="_blank">WhatsApp ↗</a>` : '');
+  const roster = inForm ? '' : `<button class="btn sm" onclick="openRoster('${c.id}')">Roster</button>`;
+  const edit = inForm ? '' : `<button class="btn ghost sm" onclick="selectCohort('${c.id}')">Edit</button>`;
+  if (c.cancelled) return links + roster + delZoom;
+  if (c.is_draft) return `<button class="btn sm" style="background:var(--green);color:#fff" onclick="confirmDraft('${c.id}')">CONFIRM</button>
+      ${mkZoom} ${mkWa} ${links} ${edit}
+      <button class="btn ghost sm" style="color:var(--red)" onclick="deleteDraft('${c.id}')">Delete</button>`;
+  return `${roster} ${mkZoom} ${mkWa} ${links} ${delZoom && inForm ? delZoom : ''} ${edit}
+      <button class="btn ghost sm" onclick="toggleOpen('${c.id}', ${c.is_open})">${c.is_open ? 'Close' : 'Open'}</button>
+      <button class="btn ghost sm" style="color:var(--red)" onclick="openCancel('${c.id}')">Cancel class</button>`;
+}
+
+// The action bar inside the "Edit cohort" card. Hidden while adding a brand-new cohort.
+function renderFormActions(cid) {
+  const el = $('f-actions');
+  const c = cid && byCourse[cid];
+  if (!c) { el.innerHTML = ''; el.classList.add('hidden'); return; }
+  el.innerHTML = cohortActions(c, 'form');
+  el.classList.remove('hidden');
+}
+
 function renderCohorts() {
   const showPast = $('showpast').checked;
   let list = courses.slice().sort((a, b) => a.cohort_date < b.cohort_date ? -1 : 1);
@@ -403,24 +447,12 @@ function renderCohorts() {
       : `<span class="pill ${c.is_open ? 'open' : 'closed'}">${c.is_open ? 'OPEN' : 'closed'}</span>` + (c.is_full ? '<span class="pill closed">FULL</span>' : '');
     const zoom = c.zoom_link ? ` · <a href="${c.zoom_link}" target="_blank">Zoom ↗</a>${c.zoom_password ? ` <span style="font-size:11px">(pw ${c.zoom_password})</span>` : ''}` : '';
     const wa = c.whatsapp_url ? ` · <a href="${c.whatsapp_url}" target="_blank">WhatsApp ↗</a>` : '';
-    const mkZoom = c.zoom_link ? '' : `<button class="btn ghost sm" onclick="createZoom(this,'${c.id}')">Create Zoom</button>`;
-    const mkWa = c.whatsapp_url ? '' : `<button class="btn ghost sm" onclick="createWhatsApp('${c.id}')">Create WhatsApp</button>`;
-    const actions = c.cancelled
-      ? `<button class="btn sm" onclick="openRoster('${c.id}')">Roster</button>${c.zoom_meeting_id ? ` <button class="btn ghost sm" style="color:var(--red)" onclick="deleteZoom(this,'${c.id}')">Delete Zoom</button>` : ''}`
-      : c.is_draft
-      ? `<button class="btn sm" style="background:var(--green);color:#fff" onclick="confirmDraft('${c.id}')">CONFIRM</button>
-        ${mkZoom} ${mkWa}
-        <button class="btn ghost sm" onclick="editCohort('${c.id}')">Edit</button>
-        <button class="btn ghost sm" style="color:var(--red)" onclick="deleteDraft('${c.id}')">Delete</button>`
-      : `<button class="btn sm" onclick="openRoster('${c.id}')">Roster</button>
-        ${mkZoom} ${mkWa}
-        <button class="btn ghost sm" onclick="editCohort('${c.id}')">Edit</button>
-        <button class="btn ghost sm" onclick="toggleOpen('${c.id}', ${c.is_open})">${c.is_open ? 'Close' : 'Open'}</button>
-        <button class="btn ghost sm" style="color:var(--red)" onclick="openCancel('${c.id}')">Cancel class</button>`;
+    const actions = cohortActions(c, 'list');
+    const sel = c.id === selectedCourse;
     return `
-    <div class="cohort-row"${c.cancelled ? ' style="opacity:.6"' : ''}>
+    <div class="cohort-row${sel ? ' selected' : ''}"${c.cancelled ? ' style="opacity:.6"' : ''}>
       <div style="flex:1;min-width:220px">
-        <strong>${c.name}</strong> ${pill}<br>
+        <strong>${c.name}</strong> ${pill}${sel ? ' <span class="selected-tag">SELECTED</span>' : ''}<br>
         <span class="muted">${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''} · ${fmt$(c.price_sgd)}${c.is_draft ? '' : ` · <strong>${cohortCount(c.id)}</strong> confirmed`}${zoom}${wa}</span>
       </div>
       <div class="cohort-actions">${actions}</div>
@@ -480,8 +512,8 @@ function renderCalendar() {
           `<div class="cal-ev" style="background:${x.color || '#475569'}" title="${x.note || x.title}${x.session_time ? ' · ' + x.session_time : ''}" onclick="event.stopPropagation()">${x.title}</div>`
         ).join('') +
         slots[si].map(c => c.is_draft
-          ? `<div class="cal-ev draftev" title="DRAFT — ${c.name}${c.session_time ? ' · ' + c.session_time : ''}" onclick="event.stopPropagation();editCohort('${c.id}')">✎ ${shortName(c.name)}</div>`
-          : `<div class="cal-ev ${c.is_open ? '' : 'closed'}" style="background:${courseColor(c.name)}" title="${c.name} · ${c.session_time || ''} · ${cohortCount(c.id)} confirmed — click to edit, shift-click for the roster" onclick="event.stopPropagation();calendarPick(event,'${c.id}')">${shortName(c.name)} · ${cohortCount(c.id)}</div>`
+          ? `<div class="cal-ev draftev" title="DRAFT — ${c.name}${c.session_time ? ' · ' + c.session_time : ''}" onclick="event.stopPropagation();selectCohort('${c.id}')">✎ ${shortName(c.name)}</div>`
+          : `<div class="cal-ev ${c.is_open ? '' : 'closed'}" style="background:${courseColor(c.name)}" title="${c.name} · ${c.session_time || ''} · ${cohortCount(c.id)} confirmed — click to open it below, shift-click for the roster only" onclick="event.stopPropagation();calendarPick(event,'${c.id}')">${shortName(c.name)} · ${cohortCount(c.id)}</div>`
         ).join('') + '</div></div>').join('');
       html += `<td class="${out ? 'out' : ''} ${iso === tod ? 'today' : ''}" onclick="calendarSlot(event,'${iso}','am')"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
     }
@@ -510,12 +542,12 @@ function setSessionTime(v) {
 }
 
 // Calendar clicks drive the cohort form below, so it always shows what you just clicked.
-// Click an existing class  -> load it into "Edit cohort".   Shift-click -> its roster.
+// Click an existing class  -> load it into "Edit cohort" WITH its actions + roster below.
 // Click an empty slot      -> prefill "Add a new cohort" with that date and session time.
 // Shift-click an empty slot-> the quick "Plan a class" draft modal.
 window.calendarPick = function (ev, cid) {
   if (ev && ev.shiftKey) return openRoster(cid);
-  editCohort(cid);
+  selectCohort(cid);
 };
 window.calendarSlot = function (ev, iso, slot) {
   if (ev && ev.shiftKey) return planSlot(iso, slot);
@@ -628,9 +660,11 @@ window.setRosterSort = function (k) {
   openRoster(rosterCourse);
 };
 
-window.openRoster = function (cid) {
-  rosterCourse = cid;
+window.openRoster = function (cid, noScroll) {
+  rosterCourse = cid; selectedCourse = cid;
   const c = byCourse[cid];
+  if (!c) return;
+  renderCohorts();
   const rows = bookings.filter(b => b.course_id === cid);
   if (rosterSort === 'default') rows.sort((a, b) => (a.status === b.status ? 0 : a.status === 'confirmed' ? -1 : 1));
   else rows.sort((a, b) => {
@@ -640,7 +674,11 @@ window.openRoster = function (cid) {
   });
   $('rostercard').style.display = '';
   $('rostertitle').textContent = `Roster — ${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''}`;
-  if (!rows.length) { $('roster').innerHTML = '<p class="muted">No bookings yet.</p>'; return; }
+  if (!rows.length) {
+    $('roster').innerHTML = '<p class="muted">No bookings yet.</p>';
+    if (!noScroll) $('rostercard').scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
   const futureOthers = courses.filter(x => x.cohort_date >= today() && x.id !== cid && !x.is_draft)
     .map(x => `<option value="${x.id}">${x.name} — ${fdate(x.cohort_date)}${x.session_time ? ' (' + x.session_time + ')' : ''}</option>`).join('');
   const rth = (k, label) => `<th class="sortable" onclick="setRosterSort('${k}')">${label}${rosterSort === k ? `<span class="arr">${rosterDir === 1 ? '▲' : '▼'}</span>` : ''}</th>`;
@@ -666,7 +704,7 @@ window.openRoster = function (cid) {
           </div></td>
       </tr>`;
     }).join('') + '</tbody></table>';
-  $('rostercard').scrollIntoView({ behavior: 'smooth' });
+  if (!noScroll) $('rostercard').scrollIntoView({ behavior: 'smooth' });
 };
 
 window.showTransfer = (bid) => $('tf-' + bid).classList.toggle('hidden');
@@ -841,9 +879,17 @@ function renderForm() {
     if (f && f.default_price_sgd != null && !editingCourse) $('f-price').value = f.default_price_sgd;
   };
 }
-window.editCohort = function (cid) {
+// Pick a cohort: load it into the edit form, populate the roster right below, box its row
+// in the Cohorts list, and put the whole lot on screen starting at the form.
+window.selectCohort = function (cid) {
+  if (!byCourse[cid]) return;
+  editCohort(cid, true);
+  openRoster(cid, true);
+  $('formcard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+window.editCohort = function (cid, noScroll) {
   const c = byCourse[cid];
-  editingCourse = cid;
+  editingCourse = cid; selectedCourse = cid;
   $('formtitle').textContent = 'Edit cohort — ' + c.name + ' · ' + fdate(c.cohort_date);
   $('f-family').value = c.family_id || ''; $('f-date').value = c.cohort_date;
   setSessionTime(c.session_time); $('f-price').value = c.price_sgd;
@@ -851,9 +897,10 @@ window.editCohort = function (cid) {
   $('f-full').checked = !!c.is_full;
   $('f-whatsapp').value = c.whatsapp_url || '';
   $('f-cancel').classList.remove('hidden');
-  $('f-save').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  renderFormActions(cid); renderCohorts();
+  if (!noScroll) $('formcard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
-$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-price','f-details','f-whatsapp'].forEach(i => $(i).value = ''); setSessionTime(null);$('f-open').checked = false; $('f-full').checked = false; $('f-cancel').classList.add('hidden'); };
+$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-price','f-details','f-whatsapp'].forEach(i => $(i).value = ''); setSessionTime(null);$('f-open').checked = false; $('f-full').checked = false; $('f-cancel').classList.add('hidden'); renderFormActions(null); selectedCourse = rosterCourse; renderCohorts(); };
 $('f-save').onclick = async () => {
   const fam = families.find(f => f.id === $('f-family').value);
   if (!fam) return msg('formmsg', 'err', 'Pick a course — cohorts without one never reach the student portal.');
@@ -872,6 +919,9 @@ window.toggleOpen = async function (cid, cur) {
   const { error } = await sb.from('courses').update({ is_open: !cur }).eq('id', cid);
   if (error) return alert(error.message);
   await loadAll();
+  // Keep the form's own checkbox honest if we just toggled the cohort loaded in it —
+  // otherwise a later "Save cohort" would write the stale value straight back.
+  if (editingCourse === cid && byCourse[cid]) $('f-open').checked = byCourse[cid].is_open;
 };
 window.confirmDraft = async function (cid) {
   const c = byCourse[cid];
