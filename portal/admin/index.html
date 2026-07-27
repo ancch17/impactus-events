@@ -399,12 +399,28 @@ async function loadAll() {
 
 function renderKPIs() {
   const confirmed = bookings.filter(b => b.status === 'confirmed');
-  const cash = confirmed.reduce((t, b) => t + Number(b.cash_paid_sgd || 0), 0);
   const mo = new Date().toISOString().slice(0, 7);
-  const cashMo = confirmed.filter(b => (b.created_at || '').slice(0, 7) === mo).reduce((t, b) => t + Number(b.cash_paid_sgd || 0), 0);
+  const byStudent = Object.fromEntries(students.map(x => [x.id, x]));
+  const byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
+  // Revenue = cash from the student + the invoiced value of a corp-sponsored seat.
+  // A corp seat shows S$0 cash on the booking but is real money, and it earns points,
+  // so the dashboard total must match the Earnings tab exactly. See earnings.html loadAll().
+  const rev = confirmed.map(b => {
+    const st = byStudent[b.student_id];
+    const cash = Number(b.cash_paid_sgd || 0);
+    const reason = cash > 0 ? null : (b.free_reason || (st && st.corp_name ? 'corp' : null));
+    const corp = reason === 'corp' ? Number((st && st.corp_seat_price_sgd) || b.price_sgd || 0) : 0;
+    return { cash, corp, total: cash + corp, booked: (b.created_at || '').slice(0, 7),
+             classMo: ((byCourse[b.course_id] || {}).cohort_date || '').slice(0, 7) };
+  });
+  const cash = rev.reduce((t, r) => t + r.cash, 0);
+  const corpAll = rev.reduce((t, r) => t + r.corp, 0);
+  const revenue = cash + corpAll;
+  const revClassMo = rev.filter(r => r.classMo === mo).reduce((t, r) => t + r.total, 0);
+  const revBookedMo = rev.filter(r => r.booked === mo).reduce((t, r) => t + r.total, 0);
   const bookMo = confirmed.filter(b => (b.created_at || '').slice(0, 7) === mo).length;
   const liability = ledger.reduce((t, l) => t + l.points, 0);
-  const cap = Math.round(cash * 0.20);
+  const cap = Math.round(revenue * 0.20);
   const pct = cap ? Math.min(100, Math.round(liability / cap * 100)) : 0;
   const gcls = pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : '';
   const newMo = students.filter(x => (x.created_at || '').slice(0, 7) === mo).length;
@@ -412,7 +428,8 @@ function renderKPIs() {
   const upcoming = courses.filter(c => c.cohort_date >= today());
   const seats = bookings.filter(b => b.status === 'confirmed' && upcoming.some(c => c.id === b.course_id)).length;
   $('kpis').innerHTML = `
-    <div class="kpi"><div class="v">${fmt$(cash)}</div><div class="l">Cash revenue (all-time)</div><div class="sub">${fmt$(cashMo)} this month</div></div>
+    <div class="kpi"><div class="v">${fmt$(revenue)}</div><div class="l">Total revenue (all-time)${corpAll ? ` — ${fmt$(cash)} cash + ${fmt$(corpAll)} 🏢 corp inv` : ''}</div>
+      <div class="sub">${fmt$(revClassMo)} classes this month · ${fmt$(revBookedMo)} booked this month</div></div>
     <div class="kpi"><div class="v">${confirmed.length}</div><div class="l">Confirmed bookings</div><div class="sub">${bookMo} this month</div></div>
     <div class="kpi"><div class="v">${liability.toLocaleString()} pts</div><div class="l">Points liability (S$${liability.toLocaleString()}) — ${pct}% of 20% cap (${fmt$(cap)})</div>
       <div class="gauge"><i class="${gcls}" style="width:${pct}%"></i></div></div>
