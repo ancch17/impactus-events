@@ -33,7 +33,12 @@
   .cls-line.up { color:var(--mut); font-style:italic; }
   .rm-input { width:160px; max-width:170px; font:inherit; font-size:12px; padding:5px 6px; border:1px solid var(--line); border-radius:6px; resize:vertical; }
   .rm-row { display:flex; gap:8px; align-items:center; margin-top:4px; }
-  .rm-done { font-size:12px; color:var(--mut); display:flex; align-items:center; gap:3px; cursor:pointer; }
+  /* Pin, not a tickbox. Light = saved but not triaged · red = pinned to the card up top ·
+     grey = dealt with (the remark text stays as the record). Click cycles light/grey -> red -> grey. */
+  .pin { background:none; border:none; cursor:pointer; font-size:16px; line-height:1; padding:2px 4px; border-radius:6px; filter:grayscale(1); opacity:.35; }
+  .pin:hover { background:#f1f3f8; opacity:.75; }
+  .pin.on { filter:none; opacity:1; transform:scale(1.15); }
+  .pin.off { opacity:.28; }
   tr.hasremark { background:#fff7e6; }
   .hidden { display:none !important; }
   .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:16px; }
@@ -143,7 +148,7 @@
 
     <div class="card" id="followupcard" style="display:none;border-left:4px solid var(--amber)">
       <h2 style="display:flex;justify-content:space-between;align-items:center">📌 Follow-ups
-        <span class="muted" style="font-weight:400;font-size:12px">Open student remarks · you also get a daily 8am email digest</span>
+        <span class="muted" style="font-weight:400;font-size:12px">Whatever you've pinned 📌 on a roster · Done unpins it, the note itself stays on the roster</span>
       </h2>
       <div id="followups"></div>
     </div>
@@ -604,9 +609,20 @@ function otherCoursesCell(studentId, excludeCid) {
   if (!list.length) return '<span class="muted">—</span>';
   return list.map(c => `<div class="cls-line${c.past ? '' : ' up'}">${shortName(c.name)} · ${fdate(c.date)}${c.past ? '' : ' (upcoming)'}</div>`).join('');
 }
-// Dashboard card: every open (unresolved) student remark, class-date order, next-3-days highlighted.
+// The pin on a roster row. Red = pinned to the dashboard card. Light = saved but never pinned.
+// Grey = handled — the remark text stays put as the record, it just stops shouting.
+function pinButton(b) {
+  const on = !!b.admin_remark_pinned;
+  const cls = on ? 'pin on' : (b.admin_remark_done ? 'pin off' : 'pin');
+  const title = on ? 'Pinned to the Follow-ups card at the top — click to clear it'
+    : b.admin_remark_done ? 'Handled. Click to pin it back to the top.'
+    : 'Click to pin this to the Follow-ups card at the top';
+  return `<button class="${cls}" title="${title}" onclick="togglePin('${b.id}')">📌</button>`;
+}
+
+// Dashboard card: the remarks Andrew has PINNED, class-date order, next-3-days highlighted.
 function renderFollowups() {
-  const open = bookings.filter(b => b.admin_remark && !b.admin_remark_done)
+  const open = bookings.filter(b => b.admin_remark && b.admin_remark_pinned)
     .sort((a, b) => ((byCourse[a.course_id] || {}).cohort_date || '') < ((byCourse[b.course_id] || {}).cohort_date || '') ? -1 : 1);
   if (!open.length) { $('followupcard').style.display = 'none'; return; }
   $('followupcard').style.display = '';
@@ -620,7 +636,7 @@ function renderFollowups() {
         <td>${esc(shortName(c.name))} · ${c.cohort_date ? fdate(c.cohort_date) : '—'}${soon ? ' <span class="pill pending">soon</span>' : ''}</td>
         <td>${esc(b.admin_remark)}</td>
         <td style="white-space:nowrap"><button class="btn ghost sm" onclick="openRoster('${b.course_id}')">Open roster</button>
-            <button class="btn ghost sm" onclick="toggleRemarkDone('${b.id}', true)">Mark done</button></td>
+            <button class="btn ghost sm" onclick="unpinRemark('${b.id}')">Done</button></td>
       </tr>`;
     }).join('') + '</tbody></table>';
 }
@@ -629,20 +645,35 @@ window.saveRemark = async function (bid) {
   const b = bookings.find(x => x.id === bid); if (!b) return;
   const val = ($('rm-' + bid).value || '').trim();
   const patch = { admin_remark: val || null, admin_remark_at: new Date().toISOString() };
-  if (!val) patch.admin_remark_done = false;
+  // Clearing the text retires the note entirely — no orphan pin left behind.
+  if (!val) { patch.admin_remark_done = false; patch.admin_remark_pinned = false; }
   const { error } = await sb.from('bookings').update(patch).eq('id', bid);
   if (error) return msg('rostermsg', 'err', error.message);
   Object.assign(b, patch);
-  msg('rostermsg', 'ok', val ? "Follow-up saved — I'll remind you (dashboard + daily 8am email)." : 'Follow-up cleared.');
-  renderFollowups(); openRoster(rosterCourse);
+  msg('rostermsg', 'ok', val ? 'Follow-up saved — click its 📌 to pin it to the top of the dashboard.' : 'Follow-up cleared.');
+  renderFollowups(); openRoster(rosterCourse, true);
 };
 
-window.toggleRemarkDone = async function (bid, done) {
+// One click cycles the pin: light or grey -> red (pinned, shows up top) -> grey (handled).
+window.togglePin = async function (bid) {
   const b = bookings.find(x => x.id === bid); if (!b) return;
-  const { error } = await sb.from('bookings').update({ admin_remark_done: done }).eq('id', bid);
+  const patch = b.admin_remark_pinned
+    ? { admin_remark_pinned: false, admin_remark_done: true }
+    : { admin_remark_pinned: true, admin_remark_done: false };
+  const { error } = await sb.from('bookings').update(patch).eq('id', bid);
   if (error) return msg('rostermsg', 'err', error.message);
-  b.admin_remark_done = done;
-  renderFollowups(); if (rosterCourse) openRoster(rosterCourse);
+  Object.assign(b, patch);
+  renderFollowups(); if (rosterCourse) openRoster(rosterCourse, true);
+};
+
+// "Done" on the dashboard card: unpin it, but never touch the remark text.
+window.unpinRemark = async function (bid) {
+  const b = bookings.find(x => x.id === bid); if (!b) return;
+  const patch = { admin_remark_pinned: false, admin_remark_done: true };
+  const { error } = await sb.from('bookings').update(patch).eq('id', bid);
+  if (error) return msg('rostermsg', 'err', error.message);
+  Object.assign(b, patch);
+  renderFollowups(); if (rosterCourse) openRoster(rosterCourse, true);
 };
 
 // Roster sorting: default is confirmed-first (how Andrew reads a class list);
@@ -685,7 +716,7 @@ window.openRoster = function (cid, noScroll) {
   $('roster').innerHTML = `<table><thead><tr><th>#</th>${rth('name', 'Student')}${rth('contact', 'Contact')}<th>Other courses</th>${rth('paid', 'Paid / Pts')}${rth('status', 'Status')}<th>Follow-up</th><th></th></tr></thead><tbody>` +
     rows.map((b, i) => {
       const s = byStudent[b.student_id] || { name: '?', email: '', mobile: '' };
-      return `<tr${b.admin_remark && !b.admin_remark_done ? ' class="hasremark"' : ''}>
+      return `<tr${b.admin_remark_pinned ? ' class="hasremark"' : ''}>
         <td>${i + 1}</td>
         <td><strong>${s.name}</strong>${b.note ? `<br><span class="muted">${b.note}</span>` : ''}</td>
         <td>${s.email}<br><span class="muted">${s.mobile || '—'}</span></td>
@@ -694,7 +725,7 @@ window.openRoster = function (cid, noScroll) {
         <td><span class="pill ${b.status === 'confirmed' ? 'open' : b.status === 'pending' ? 'pending' : b.status}">${b.status}</span></td>
         <td class="remarkcell">
           <textarea id="rm-${b.id}" class="rm-input" rows="2" placeholder="Add follow-up…">${esc(b.admin_remark)}</textarea>
-          <div class="rm-row"><button class="btn sm" onclick="saveRemark('${b.id}')">Save</button>${b.admin_remark ? `<label class="rm-done"><input type="checkbox" ${b.admin_remark_done ? 'checked' : ''} onchange="toggleRemarkDone('${b.id}', this.checked)"> done</label>` : ''}</div>
+          <div class="rm-row"><button class="btn sm" onclick="saveRemark('${b.id}')">Save</button>${b.admin_remark ? pinButton(b) : ''}</div>
         </td>
         <td><button class="btn ghost sm" onclick="showTransfer('${b.id}')">Transfer</button>
           <div class="transfer-box hidden" id="tf-${b.id}">
@@ -871,9 +902,14 @@ $('em-send').onclick = async () => {
 
 // ---------- Cohort form ----------
 function renderForm() {
+  // Rebuilding the options wipes the selection, and loadAll() runs on every background refresh
+  // (Create Zoom, Close/Open from the action bar…). Without this the Course field silently
+  // blanks itself mid-edit and the next "Save cohort" fails with "Pick a course".
+  const keep = $('f-family').value;
   // Cohorts must belong to a course family, or they won't show on the student portal.
   $('f-family').innerHTML = '<option value="">— choose a course —</option>' + families.map(f =>
     `<option value="${f.id}">${f.name}${f.status !== 'active' ? ' (' + f.status + ')' : ''}</option>`).join('');
+  if (keep) $('f-family').value = keep;
   $('f-family').onchange = () => {
     const f = families.find(x => x.id === $('f-family').value);
     if (f && f.default_price_sgd != null && !editingCourse) $('f-price').value = f.default_price_sgd;
