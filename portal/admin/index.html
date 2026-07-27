@@ -88,6 +88,13 @@
   .cal td { border:1px solid var(--line); padding:3px 3px 4px; vertical-align:top; height:92px; cursor:pointer; }
   .cal td:hover { background:#fdf8ec; }
   .cal td.out { background:#fbfbfd; } .cal td.out .dnum { opacity:.35; }
+  /* Days already gone: greyed back so the eye lands on what's still ahead.
+     Still fully clickable — hovering a past day brings it back to full strength. */
+  .cal td.past { background:#fafbfc; }
+  .cal td.past .dnum { opacity:.4; }
+  .cal td.past .cal-ev { opacity:.4; }
+  .cal td.past:hover { background:#fdf8ec; }
+  .cal td.past:hover .cal-ev { opacity:1; }
   .cal td.today .dnum { background:var(--amber); color:var(--navy); border-radius:99px; }
   .dnum { font-size:11px; font-weight:700; display:inline-block; padding:1px 5px; margin-bottom:2px; }
   .cal-slot { display:flex; gap:2px; align-items:flex-start; min-height:17px; }
@@ -527,7 +534,7 @@ function renderCalendar() {
           ? `<div class="cal-ev draftev" title="DRAFT — ${c.name}${c.session_time ? ' · ' + c.session_time : ''}" onclick="event.stopPropagation();selectCohort('${c.id}')">✎ ${shortName(c.name)}</div>`
           : `<div class="cal-ev ${c.is_open ? '' : 'closed'}" style="background:${courseColor(c.name)}" title="${c.name} · ${c.session_time || ''} · ${cohortCount(c.id)} confirmed — click to open it below, shift-click for the roster only" onclick="event.stopPropagation();calendarPick(event,'${c.id}')">${shortName(c.name)} · ${cohortCount(c.id)}</div>`
         ).join('') + '</div></div>').join('');
-      html += `<td class="${out ? 'out' : ''} ${iso === tod ? 'today' : ''}" onclick="calendarSlot(event,'${iso}','am')"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
+      html += `<td class="${out ? 'out' : ''} ${iso < tod ? 'past' : ''} ${iso === tod ? 'today' : ''}" onclick="calendarSlot(event,'${iso}','am')"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
     }
     html += '</tr>';
   }
