@@ -139,6 +139,36 @@
   .date-chip.on { border-color:var(--accent); background:var(--accent); }
   .date-chip.on strong, .date-chip.on span { color:#fff; }
   .book-btn { margin-top:13px; border:0; }
+  /* ---------- Held seats (reserved, not paid for yet) ---------- */
+  #holdcard { border-color:#f0d089; background:#fffdf6; }
+  .hold { border:1px solid #f0d089; background:#fff; border-radius:12px; padding:13px 14px; margin-bottom:10px; }
+  .hold:last-child { margin-bottom:0; }
+  .hold-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; }
+  .hold-title { font-size:15px; font-weight:700; line-height:1.3; }
+  .hold-when { font-size:13px; color:var(--mut); margin-top:3px; }
+  .hold-due { font-size:19px; font-weight:800; white-space:nowrap; }
+  .hold-lines { font-size:12.5px; color:var(--mut); margin-top:7px; line-height:1.5; }
+  .hold-clock { display:inline-block; margin-top:9px; background:#fdf3d7; color:var(--amber-d);
+                font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; }
+  .hold-clock.soon { background:#fdeaea; color:#c0392b; }
+  .hold-acts { display:flex; gap:9px; margin-top:12px; flex-wrap:wrap; }
+  .hold-acts .btn { margin-top:0; width:auto; flex:1; min-width:130px; padding:10px 14px; font-size:14px; }
+  .hold-acts .btn.rel { background:#fff; border:1px solid var(--line); color:#c0392b; font-weight:600; flex:0 1 auto; }
+  /* ---------- Payment method chooser (our order, not Stripe's) ---------- */
+  .pm-label { font-size:13px; font-weight:700; color:var(--mut); margin:16px 0 9px; }
+  .pm { display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:#fff;
+        border:1.5px solid var(--line); border-radius:12px; padding:13px 15px; margin-bottom:9px;
+        cursor:pointer; font-family:inherit; transition:border-color .12s, box-shadow .12s; }
+  .pm:hover { border-color:var(--navy); box-shadow:0 2px 10px rgba(16,26,45,.08); }
+  .pm:disabled { opacity:.55; cursor:default; box-shadow:none; border-color:var(--line); }
+  .pm-ico { width:40px; height:40px; border-radius:9px; flex:none; display:flex; align-items:center;
+            justify-content:center; font-size:19px; background:var(--bg); }
+  .pm-txt { flex:1; min-width:0; }
+  .pm-name { font-size:15px; font-weight:700; }
+  .pm-sub { font-size:12.5px; color:var(--mut); margin-top:2px; }
+  .pm-best { background:#e3f4ea; color:var(--green); font-size:10.5px; font-weight:800; letter-spacing:.3px;
+             padding:2px 8px; border-radius:20px; margin-left:7px; vertical-align:middle; }
+  .pm-go { color:#c3c9d4; font-size:19px; flex:none; }
   @media (max-width:640px) {
     .up-head { align-items:flex-start; }
     .up-controls { width:100%; }
@@ -230,6 +260,15 @@
     <p class="muted" style="color:#cfd6e4;margin-top:4px">Points never expire, and they come off your next class automatically.</p>
   </div>
 
+  <!-- Seats reserved but not paid for. Previously these were invisible: they quietly held
+       the student's points and blocked re-booking, with no way to see or clear them. -->
+  <div class="card hidden" id="holdcard">
+    <h2 style="margin-bottom:4px">⏳ Seats you're holding</h2>
+    <p class="muted" style="margin-bottom:12px">Reserved for you, but not paid for yet. Pay to confirm your place — or release the seat and your points go straight back.</p>
+    <div id="holdlist"></div>
+    <div class="msg" id="holdmsg"></div>
+  </div>
+
   <div class="card" id="upcomingcard">
     <div class="up-head">
       <h2 style="margin:0">Upcoming classes</h2>
@@ -275,7 +314,29 @@
         <div class="row hidden" id="bd-pts-row"><span id="bd-pts-label">Your points applied</span><span class="pts" id="bd-pts">− S$0</span></div>
         <div class="row total"><span>You pay</span><span id="bd-total"></span></div>
       </div>
-      <button class="btn" id="paybtn">Continue</button>
+      <p class="muted hidden" id="bd-lock" style="margin-top:9px;font-size:12.5px;color:#c78d0a"></p>
+      <!-- Our page, our order: PayNow first, GrabPay second, card last. Stripe's hosted
+           page reorders a multi-method list for conversion and can front it with a Link
+           prompt, so the choice is made here and Stripe is handed exactly one method. -->
+      <div id="paymethods" class="hidden">
+        <div class="pm-label" id="pmlabel">How would you like to pay?</div>
+        <button type="button" class="pm" data-pm="paynow">
+          <span class="pm-ico">🇸🇬</span>
+          <span class="pm-txt"><span class="pm-name">PayNow<span class="pm-best">FASTEST</span></span>
+            <span class="pm-sub">Scan the QR with your banking app</span></span>
+          <span class="pm-go">›</span></button>
+        <button type="button" class="pm" data-pm="grabpay">
+          <span class="pm-ico">🟢</span>
+          <span class="pm-txt"><span class="pm-name">GrabPay</span>
+            <span class="pm-sub">Pay from your Grab wallet</span></span>
+          <span class="pm-go">›</span></button>
+        <button type="button" class="pm" data-pm="card">
+          <span class="pm-ico">💳</span>
+          <span class="pm-txt"><span class="pm-name">Card</span>
+            <span class="pm-sub">Visa, Mastercard or Amex</span></span>
+          <span class="pm-go">›</span></button>
+      </div>
+      <button class="btn hidden" id="paybtn">Book now — pay S$0</button>
     </div>
     <div class="msg" id="bookmsg"></div>
   </div>
@@ -345,12 +406,19 @@ const F2F_MIN_PAX = 5;
   }
   let ok = false;
   try { ok = localStorage.getItem('ilPreview') === PREVIEW_TOKEN; } catch (e) {}
+  // Anyone already signed in was invited in deliberately — don't shut them out of their
+  // own account (or a half-finished payment) because they opened the portal on a phone
+  // that never saw the ?preview= link.
+  if (!ok) { try { ok = Object.keys(localStorage).some(k => /^sb-.+-auth-token$/.test(k)); } catch (e) {} }
   if (GATE_OPEN || ok) return;              // authorised → normal portal
   $('view-soon').classList.remove('hidden'); // otherwise show "coming soon" and stop
   window.__gated = true;
 })();
 
 let student = null, balance = 0, courses = [], selCourse = null, myEmail = '';
+// Seats reserved but unpaid. They ring-fence points, so the portal must price against
+// them — quoting the raw balance is what made the page and Stripe disagree.
+let holds = [], holdTick = null;
 
 // referral code from ?ref=
 // Surface auth errors from the magic link (expired / already used)
@@ -376,6 +444,10 @@ async function init() {
   if (params.get('payment') === 'done') {
     history.replaceState({}, '', location.pathname);
     setTimeout(() => msg('bookmsg', 'ok', 'Payment received! Your booking is confirmed and points are updated. (Refresh if you don\'t see it yet.)'), 800);
+  }
+  if (params.get('payment') === 'cancelled') {
+    history.replaceState({}, '', location.pathname);
+    setTimeout(() => msg('bookmsg', 'ok', 'No payment was taken. Your seat is still held for a short while — pick it up under “Seats you\'re holding” above whenever you\'re ready.'), 800);
   }
   if (params.get('setup') === 'done') {
     history.replaceState({}, '', location.pathname);
@@ -438,7 +510,126 @@ async function showApp(session) {
   $('waref').onclick = () => window.open('https://wa.me/?text=' + encodeURIComponent(
     "I've been taking Impactus Learning's AI masterclasses — really worth a look: " + reflink), '_blank');
   $('dlqr').onclick = downloadShareCard;
+  await loadHolds();                        // before loadCourses: the breakdown prices against holds
   loadCourses(); loadHistory(); loadLedger();
+}
+
+// ---------- Held seats ----------
+// A seat is held from the moment checkout starts until the student pays, releases it,
+// or the 30-minute clock runs out (Stripe expires its session and the sweeper tidies up).
+async function loadHolds() {
+  const { data } = await sb.from('student_holds').select('*').order('created_at');
+  const now = Date.now();
+  holds = (data || []).filter(h => !h.hold_expires_at || new Date(h.hold_expires_at).getTime() > now);
+  renderHolds();
+}
+
+// Points the student can actually spend right now. Mirrors the server exactly: a seat
+// held for THIS class is about to be replaced by the new checkout, so its points are
+// spendable again — any other hold's points are not.
+function spendablePoints(forCourseId) {
+  const locked = holds.reduce((s, h) =>
+    s + (h.course_id === forCourseId ? 0 : (Number(h.points_redeemed) || 0)), 0);
+  return Math.max(0, balance - locked);
+}
+
+function countdownText(iso) {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return null;
+  const mins = Math.floor(ms / 60000), secs = Math.floor((ms % 60000) / 1000);
+  return mins >= 1 ? `Held for another ${mins} min` : `Held for another ${secs} sec`;
+}
+
+function renderHolds() {
+  const card = $('holdcard');
+  if (!holds.length) {
+    card.classList.add('hidden');
+    if (holdTick) { clearInterval(holdTick); holdTick = null; }
+    return;
+  }
+  card.classList.remove('hidden');
+  $('holdlist').innerHTML = holds.map(h => {
+    const L = lvlOf(h.family_slug);
+    const bits = [];
+    if (Number(h.discount_sgd) > 0) bits.push(`${h.coupon_code ? 'Code ' + esc(h.coupon_code) : 'Discount'} − ${fmt$(h.discount_sgd)}`);
+    if (Number(h.points_redeemed) > 0) bits.push(`${h.points_redeemed} of your points − ${fmt$(h.points_redeemed)}`);
+    return `<div class="hold" data-hold="${h.id}">
+      <div class="hold-top">
+        <div style="flex:1;min-width:180px">
+          <div class="hold-title">${esc(L.title || h.course)}</div>
+          <div class="hold-when">${fdate(h.cohort_date)}${h.session_time ? ' · ' + esc(h.session_time) : ''}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="hold-due">${fmt$(h.amount_due)}</div>
+          <div class="hold-when">still to pay</div>
+        </div>
+      </div>
+      ${bits.length ? `<div class="hold-lines">${fmt$(h.price_sgd)} class fee${bits.map(b => '<br>' + b).join('')}</div>` : ''}
+      <div><span class="hold-clock" data-clock="${esc(h.hold_expires_at || '')}"></span></div>
+      <div class="hold-acts">
+        <button type="button" class="btn" data-payhold="${h.id}">Pay ${fmt$(h.amount_due)}</button>
+        <button type="button" class="btn rel" data-rel="${h.id}">Release seat</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('[data-payhold]').forEach(b => b.onclick = () => resumeHold(b.dataset.payhold));
+  document.querySelectorAll('[data-rel]').forEach(b => b.onclick = () => releaseHold(b.dataset.rel, b));
+  tickHolds();
+  if (!holdTick) holdTick = setInterval(tickHolds, 1000);
+}
+
+function tickHolds() {
+  let expired = false;
+  document.querySelectorAll('[data-clock]').forEach(el => {
+    const t = countdownText(el.dataset.clock);
+    if (!t) { expired = true; return; }
+    el.textContent = t;
+    el.classList.toggle('soon', new Date(el.dataset.clock).getTime() - Date.now() < 5 * 60000);
+  });
+  if (expired) refreshAfterHoldChange();   // clock ran out — the seat is gone, re-read the truth
+}
+
+// Picking a held seat back up: select that class, restore its discount code, and let the
+// student choose how to pay. The server retires the old hold and issues a fresh one.
+function resumeHold(id) {
+  const h = holds.find(x => x.id === id);
+  if (!h) return;
+  const c = allCohorts.find(x => x.id === h.course_id);
+  if (!c) { msg('holdmsg', 'err', 'That class is no longer open for booking — please release the seat and email us.'); return; }
+  pickCohort(c.id, true);
+  if (h.coupon_code && Number(h.discount_sgd) > 0) {
+    coupon = { code: h.coupon_code, discount: Number(h.discount_sgd), label: 'Code ' + h.coupon_code };
+    $('couponcode').value = h.coupon_code;
+    msg('couponmsg', 'ok', 'Code ' + h.coupon_code + ' applied ✓');
+    updateBreakdown();
+  }
+}
+
+async function releaseHold(id, btn) {
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Releasing…';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(SUPABASE_URL + '/functions/v1/release-hold', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ booking_id: id }),
+    });
+    const out = await res.json();
+    if (!res.ok) throw new Error(out.error || 'Could not release that seat');
+    msg('holdmsg', 'ok', 'Seat released — your points are available again.');
+    await refreshAfterHoldChange();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = original;
+    msg('holdmsg', 'err', e.message);
+  }
+}
+
+async function refreshAfterHoldChange() {
+  await loadHolds();
+  if (selCourse) updateBreakdown();
+  loadHistory(); loadLedger();
 }
 
 // ---------- Downloadable "share the class" QR card ----------
@@ -867,7 +1058,7 @@ function renderPaySummary(c) {
 // (The server recomputes this independently; this is only the on-screen preview.)
 function autoPoints() {
   const discounted = Number(selCourse.price_sgd) - (coupon ? coupon.discount : 0);
-  return Math.max(0, Math.min(balance, Math.floor(discounted)));
+  return Math.max(0, Math.min(spendablePoints(selCourse.id), Math.floor(discounted)));
 }
 
 $('couponbtn').onclick = async () => {
@@ -904,28 +1095,45 @@ function updateBreakdown() {
     $('bd-pts').textContent = '− ' + fmt$(pts);
   } else pr.classList.add('hidden');
   $('bd-total').textContent = fmt$(pay);
+
+  // If another held seat is sitting on some of this student's points, say so here rather
+  // than letting them wonder why fewer points came off than their balance suggests.
+  const locked = balance - spendablePoints(selCourse.id);
+  const lockNote = $('bd-lock');
+  if (locked > 0) {
+    lockNote.classList.remove('hidden');
+    lockNote.textContent = `${locked} of your ${balance} points are reserved by another seat you're holding. Release it above to use them here.`;
+  } else lockNote.classList.add('hidden');
+
   // Every seat is paid for upfront — online and in person alike.
-  const cardNeeded = pay > 0 && !PAYMENTS_LIVE;
-  $('paybtn').disabled = cardNeeded;
-  $('paybtn').textContent = cardNeeded
-    ? 'Card payment — coming soon'
-    : (pay === 0 ? 'Book now — pay S$0' : `Pay ${fmt$(pay)} with PayNow, card or GrabPay`);
+  const blocked = pay > 0 && !PAYMENTS_LIVE;
+  $('paymethods').classList.toggle('hidden', pay === 0 || blocked);
+  $('paybtn').classList.toggle('hidden', pay > 0 && !blocked);
+  $('paybtn').disabled = blocked;
+  $('paybtn').textContent = blocked ? 'Card payment — coming soon' : 'Book now — pay S$0';
+  $('pmlabel').textContent = `How would you like to pay ${fmt$(pay)}?`;
+  document.querySelectorAll('.pm').forEach(b => { b.disabled = false; });
   $('bookmsg').className = 'msg';
-  if (cardNeeded) msg('bookmsg', 'ok', 'Card / PayNow / GrabPay checkout goes live shortly. For now you can book any class fully covered by points or a code.');
+  if (blocked) msg('bookmsg', 'ok', 'Card / PayNow / GrabPay checkout goes live shortly. For now you can book any class fully covered by points or a code.');
 }
 
-$('paybtn').onclick = async () => {
+const METHOD_NAME = { paynow: 'PayNow', grabpay: 'GrabPay', card: 'card' };
+
+// One path for both the S$0 booking and every paid one. `method` is null when nothing is
+// owed; otherwise it's the single method the student picked, which is all Stripe is told.
+async function startCheckout(method) {
   if (!selCourse) return;
   const payNow = Number(selCourse.price_sgd) - (coupon ? coupon.discount : 0) - autoPoints();
   if (payNow > 0 && !PAYMENTS_LIVE) return;   // card checkout not live yet
+  document.querySelectorAll('.pm').forEach(b => { b.disabled = true; });
   $('paybtn').disabled = true;
-  msg('bookmsg', 'ok', 'Preparing your booking…');
+  msg('bookmsg', 'ok', method ? `Setting up your ${METHOD_NAME[method]} payment…` : 'Preparing your booking…');
   try {
     const { data: { session } } = await sb.auth.getSession();
     const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      body: JSON.stringify({ course_id: selCourse.id, coupon_code: coupon ? coupon.code : null }),
+      body: JSON.stringify({ course_id: selCourse.id, coupon_code: coupon ? coupon.code : null, pay_method: method }),
     });
     const out = await res.json();
     if (!res.ok) throw new Error(out.error || 'Something went wrong');
@@ -934,10 +1142,15 @@ $('paybtn').onclick = async () => {
       const { data: { session: s2 } } = await sb.auth.getSession(); await showApp(s2);
     } else if (out.url) {
       location.href = out.url;
+      return;                                  // leaving the page; leave the buttons disabled
     }
   } catch (e) { msg('bookmsg', 'err', e.message); }
+  document.querySelectorAll('.pm').forEach(b => { b.disabled = false; });
   $('paybtn').disabled = false;
-};
+}
+
+document.querySelectorAll('.pm').forEach(b => b.onclick = () => startCheckout(b.dataset.pm));
+$('paybtn').onclick = () => startCheckout(null);
 
 async function loadHistory() {
   const { data } = await sb.from('student_history').select('*').order('cohort_date', { ascending: false });
