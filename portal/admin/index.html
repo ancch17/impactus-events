@@ -188,8 +188,15 @@
       <input id="f-details" placeholder="Optional description">
       <label style="margin-top:12px">WhatsApp group invite link (added as a footnote to this class's emails)</label>
       <input id="f-whatsapp" placeholder="https://chat.whatsapp.com/…">
-      <label style="margin-top:12px"><input type="checkbox" id="f-open" style="width:auto;vertical-align:-2px"> Open for booking on the student portal</label>
-      <label style="margin-top:6px"><input type="checkbox" id="f-full" style="width:auto;vertical-align:-2px"> Closed / full &mdash; still shown on the student portal, but greyed out with no price and not bookable</label>
+      <!-- One three-way setting, not two checkboxes: "full" only ever meant anything while
+           the cohort was also open, so the old pair could be set to a combination that did
+           nothing at all. is_open / is_full are still what gets written to the DB. -->
+      <label style="margin-top:12px">Student portal</label>
+      <select id="f-portal" style="max-width:520px">
+        <option value="open">Open for booking — listed with its price, students can book</option>
+        <option value="full">Full — still listed, but greyed out with no price and not bookable</option>
+        <option value="hidden">Hidden — not shown to students at all</option>
+      </select>
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn" id="f-save">Save cohort</button>
         <button class="btn ghost hidden" id="f-cancel">Cancel edit</button>
@@ -915,6 +922,16 @@ function renderForm() {
     if (f && f.default_price_sgd != null && !editingCourse) $('f-price').value = f.default_price_sgd;
   };
 }
+// The portal dropdown is a view over the two DB flags. is_full only ever applied while the
+// cohort was open, so "not open" collapses to Hidden however is_full happens to be set.
+function setPortalState(c) {
+  $('f-portal').value = !c || !c.is_open ? 'hidden' : (c.is_full ? 'full' : 'open');
+}
+function readPortalState() {
+  const v = $('f-portal').value;
+  return { is_open: v !== 'hidden', is_full: v === 'full' };
+}
+
 // Pick a cohort: load it into the edit form, populate the roster right below, box its row
 // in the Cohorts list, and put the whole lot on screen starting at the form.
 window.selectCohort = function (cid) {
@@ -929,19 +946,18 @@ window.editCohort = function (cid, noScroll) {
   $('formtitle').textContent = 'Edit cohort — ' + c.name + ' · ' + fdate(c.cohort_date);
   $('f-family').value = c.family_id || ''; $('f-date').value = c.cohort_date;
   setSessionTime(c.session_time); $('f-price').value = c.price_sgd;
-  $('f-details').value = c.details || ''; $('f-open').checked = c.is_open;
-  $('f-full').checked = !!c.is_full;
+  $('f-details').value = c.details || ''; setPortalState(c);
   $('f-whatsapp').value = c.whatsapp_url || '';
   $('f-cancel').classList.remove('hidden');
   renderFormActions(cid); renderCohorts();
   if (!noScroll) $('formcard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
-$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-price','f-details','f-whatsapp'].forEach(i => $(i).value = ''); setSessionTime(null);$('f-open').checked = false; $('f-full').checked = false; $('f-cancel').classList.add('hidden'); renderFormActions(null); selectedCourse = rosterCourse; renderCohorts(); };
+$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-price','f-details','f-whatsapp'].forEach(i => $(i).value = ''); setSessionTime(null); setPortalState(null); $('f-cancel').classList.add('hidden'); renderFormActions(null); selectedCourse = rosterCourse; renderCohorts(); };
 $('f-save').onclick = async () => {
   const fam = families.find(f => f.id === $('f-family').value);
   if (!fam) return msg('formmsg', 'err', 'Pick a course — cohorts without one never reach the student portal.');
   const rec = { family_id: fam.id, name: fam.name, cohort_date: $('f-date').value, session_time: $('f-time').value.trim() || null,
-    price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, whatsapp_url: $('f-whatsapp').value.trim() || null, is_open: $('f-open').checked, is_full: $('f-full').checked };
+    price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, whatsapp_url: $('f-whatsapp').value.trim() || null, ...readPortalState() };
   if (!rec.cohort_date || !(rec.price_sgd >= 0)) return msg('formmsg', 'err', 'Date and price are required.');
   let error;
   if (editingCourse) ({ error } = await sb.from('courses').update(rec).eq('id', editingCourse));
@@ -957,7 +973,7 @@ window.toggleOpen = async function (cid, cur) {
   await loadAll();
   // Keep the form's own checkbox honest if we just toggled the cohort loaded in it —
   // otherwise a later "Save cohort" would write the stale value straight back.
-  if (editingCourse === cid && byCourse[cid]) $('f-open').checked = byCourse[cid].is_open;
+  if (editingCourse === cid && byCourse[cid]) setPortalState(byCourse[cid]);
 };
 window.confirmDraft = async function (cid) {
   const c = byCourse[cid];
