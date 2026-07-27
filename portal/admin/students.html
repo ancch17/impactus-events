@@ -39,6 +39,12 @@
   th .arr { color:var(--amber-d); }
   td { padding:9px 8px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
   tr:last-child td { border-bottom:none; }
+  /* Same pin as the dashboard roster: red = shown on the pinned card at the top of both tabs. */
+  .pin { background:none; border:none; cursor:pointer; font-size:15px; line-height:1; padding:1px 3px; border-radius:5px; filter:grayscale(1); opacity:.35; }
+  .pin:hover { background:#f1f3f8; opacity:.75; }
+  .pin.on { filter:none; opacity:1; }
+  .pin.off { opacity:.28; }
+  tr.haspin { background:#fff7e6; }
   .cls-line { white-space:nowrap; font-size:12.5px; }
   .cls-line.up { color:var(--mut); font-style:italic; }
   footer { text-align:center; padding:26px 0 34px; }
@@ -72,6 +78,13 @@
   </div>
 
   <div id="view-app" class="hidden">
+    <div class="card" id="pincard" style="display:none">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">📌 Pinned remarks
+        <span class="muted" style="font-weight:400;font-size:12px">The same list the dashboard shows · Done unpins it, the remark itself stays</span>
+      </h2>
+      <div id="pinned"></div>
+    </div>
+
     <div class="card">
       <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">Students <span class="muted" id="stu-count" style="font-size:13px;font-weight:400"></span></h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -134,6 +147,9 @@ async function loadAll() {
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
   const names = [...new Set(courses.map(x => x.name))].sort();
   $('stu-course').innerHTML = '<option value="">All courses</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
+  // ?q=… lands here pre-filtered — the dashboard roster links each student across by email.
+  const q = new URLSearchParams(location.search).get('q');
+  if (q && !$('stu-search').value) $('stu-search').value = q;
   render();
 }
 
@@ -178,7 +194,55 @@ function filtered() {
   return list;
 }
 
+// The pin lives on the student (students.remark_pinned/remark_done), exactly as on the
+// dashboard roster — these are the same rows, so a change here shows up there and vice versa.
+function pinButton(st) {
+  const on = !!st.remark_pinned;
+  const cls = on ? 'pin on' : (st.remark_done ? 'pin off' : 'pin');
+  const title = on ? 'Pinned to the top of both admin tabs — click to clear it'
+    : st.remark_done ? 'Handled. Click to pin it back to the top.'
+    : 'Click to pin this to the top of both admin tabs';
+  return `<button class="${cls}" title="${title}" onclick="togglePin('${st.id}')">📌</button>`;
+}
+function nextClassOf(id) {
+  return bookings.filter(b => b.student_id === id && b.status === 'confirmed' && byCourse[b.course_id])
+    .map(b => byCourse[b.course_id]).filter(c => c.cohort_date >= today())
+    .sort((a, b) => a.cohort_date < b.cohort_date ? -1 : 1)[0] || null;
+}
+function renderPinned() {
+  const open = students.filter(st => st.remarks && st.remark_pinned)
+    .map(st => ({ st, c: nextClassOf(st.id) }))
+    .sort((a, b) => ((a.c || {}).cohort_date || '9999') < ((b.c || {}).cohort_date || '9999') ? -1 : 1);
+  if (!open.length) { $('pincard').style.display = 'none'; return; }
+  $('pincard').style.display = '';
+  $('pinned').innerHTML = `<table><thead><tr><th>Student</th><th>Next class</th><th>Remark</th><th></th></tr></thead><tbody>` +
+    open.map(({ st, c }) => `<tr>
+      <td><strong>${esc(st.name || st.email || '—')}</strong></td>
+      <td>${c ? esc(shortName(c.name)) + ' · ' + fdate(c.cohort_date) : '<span class="muted">no upcoming class</span>'}</td>
+      <td>${esc(st.remarks)}</td>
+      <td style="white-space:nowrap"><button class="btn ghost sm" onclick="unpinRemark('${st.id}')">Done</button></td>
+    </tr>`).join('') + '</tbody></table>';
+}
+window.togglePin = async function (id) {
+  const st = students.find(x => x.id === id); if (!st) return;
+  const patch = st.remark_pinned ? { remark_pinned: false, remark_done: true }
+                                 : { remark_pinned: true, remark_done: false };
+  const { error } = await sb.from('students').update(patch).eq('id', id);
+  if (error) return msg('stu-msg', 'err', error.message);
+  Object.assign(st, patch);
+  render();
+};
+window.unpinRemark = async function (id) {
+  const st = students.find(x => x.id === id); if (!st) return;
+  const patch = { remark_pinned: false, remark_done: true };
+  const { error } = await sb.from('students').update(patch).eq('id', id);
+  if (error) return msg('stu-msg', 'err', error.message);
+  Object.assign(st, patch);
+  render();
+};
+
 function render() {
+  renderPinned();
   const list = filtered();
   const filteredNote = ($('stu-search').value.trim() || $('stu-course').value) ? ' of ' + students.length : '';
   $('stu-count').textContent = `(${list.length}${filteredNote})`;
@@ -198,7 +262,7 @@ function render() {
         `<div class="cls-line${c.past ? '' : ' up'}">${shortName(c.name)} · ${fdate(c.date)} (${money(c.paid)})${c.past ? '' : ' (upcoming)'}</div>`).join('')
         + (cls.length > 1 ? `<div class="muted" style="font-size:11px;margin-top:2px">Total paid: <strong>${money(totalPaidOf(s.id))}</strong></div>` : '')
         : '<span class="muted">—</span>';
-      return `<tr>
+      return `<tr${s.remark_pinned ? ' class="haspin"' : ''}>
         <td>
           <strong>${s.name || '—'}</strong>
           <div id="prefcell-${s.id}" style="margin-top:2px">
@@ -219,7 +283,10 @@ function render() {
         </td>
         <td id="remcell-${s.id}" style="max-width:250px;min-width:140px">
           <div class="muted" style="font-size:12px;white-space:pre-wrap">${esc(s.remarks || '')}</div>
-          <button class="btn ghost sm" onclick="editRemark('${s.id}')" style="margin-top:3px;padding:2px 8px;font-size:11px">${s.remarks ? '✎ edit' : '+ add'}</button>
+          <div style="display:flex;align-items:center;gap:2px;margin-top:3px">
+            <button class="btn ghost sm" onclick="editRemark('${s.id}')" style="padding:2px 8px;font-size:11px">${s.remarks ? '✎ edit' : '+ add'}</button>
+            ${s.remarks ? pinButton(s) : ''}
+          </div>
         </td>
       </tr>`;
     }).join('') + '</tbody></table>';
@@ -289,9 +356,11 @@ window.editRemark = function (id) {
 };
 window.saveRemark = async function (id) {
   const val = $('remta-' + id).value.trim();
-  const { error } = await sb.from('students').update({ remarks: val || null }).eq('id', id);
+  const patch = { remarks: val || null, remark_at: new Date().toISOString() };
+  if (!val) { patch.remark_pinned = false; patch.remark_done = false; }
+  const { error } = await sb.from('students').update(patch).eq('id', id);
   if (error) return msg('stu-msg', 'err', error.message);
-  students.find(x => x.id === id).remarks = val || null;
+  Object.assign(students.find(x => x.id === id), patch);
   msg('stu-msg', 'ok', 'Remark saved.');
   render();
 };
@@ -316,10 +385,11 @@ $('stu-xlsx').onclick = () => {
       'Points Balance': balanceOf(s.id),
       'Referral Code': s.referral_code || '',
       'Remarks': s.remarks || '',
+      'Pinned': s.remark_pinned ? 'yes' : '',
     };
   });
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 14 }, { wch: 60 }, { wch: 9 }, { wch: 14 }, { wch: 13 }, { wch: 13 }, { wch: 50 }];
+  ws['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 14 }, { wch: 60 }, { wch: 9 }, { wch: 14 }, { wch: 13 }, { wch: 13 }, { wch: 50 }, { wch: 8 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Students');
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
