@@ -98,6 +98,11 @@
   table.scal td { border:1px solid var(--line); vertical-align:top; padding:3px; height:64px; background:#fff; }
   table.scal td.out { background:#fafbfd; }
   table.scal td.out .dnum { color:#c6ccd6; }
+  /* Dates that have already passed fade back so only what's still bookable stands out. */
+  table.scal td.past { background:#fafbfd; }
+  table.scal td.past .dnum { color:#c6ccd6; }
+  table.scal td.past .scal-ev { opacity:.38; }
+  table.scal td.past .scal-ev:hover { opacity:.55; filter:none; }
   table.scal td.today { box-shadow:inset 0 0 0 2px #f5b731; }
   .dnum { font-size:10.5px; font-weight:700; color:#6b7280; display:block; margin-bottom:2px; }
   .scal-slot { display:flex; gap:2px; align-items:flex-start; min-height:15px; }
@@ -691,7 +696,7 @@ function renderCalendar() {
             title="${tip} · ${fmt$(c.price_sgd)}">
             ${L.f2f ? '<span class="evf2f">F2F</span>' : ''}${L.short}</button>`;
         }).join('') + '</div></div>').join('');
-      html += `<td class="${out ? 'out' : ''}${iso === tod ? ' today' : ''}${any ? ' has' : ''}"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
+      html += `<td class="${out ? 'out' : ''}${iso < tod ? ' past' : ''}${iso === tod ? ' today' : ''}${any ? ' has' : ''}"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
     }
     html += '</tr>';
   }
