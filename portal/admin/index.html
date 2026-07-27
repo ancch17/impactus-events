@@ -45,9 +45,6 @@
   .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
   .kpi .v { font-size:21px; font-weight:800; } .kpi .l { font-size:11.5px; color:var(--mut); margin-top:2px; }
   .kpi .sub { font-size:11.5px; color:var(--green); margin-top:2px; font-weight:600; }
-  .gauge { height:8px; background:#eee; border-radius:99px; margin-top:8px; overflow:hidden; }
-  .gauge i { display:block; height:100%; background:var(--green); border-radius:99px; }
-  .gauge i.warn { background:var(--amber-d); } .gauge i.danger { background:var(--red); }
   input, select, textarea { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; font-family:inherit; background:#fff; }
   label { font-size:12px; font-weight:600; color:var(--mut); display:block; margin-top:10px; margin-bottom:4px; }
   .btn { display:inline-block; padding:9px 16px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit; }
@@ -340,7 +337,7 @@ const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d
 function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok' && id !== 'loginmsg') setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 
-let students = [], courses = [], bookings = [], ledger = [], families = [], coupons = [], blocks = [], couponAudit = [];
+let students = [], courses = [], bookings = [], families = [], coupons = [], blocks = [], couponAudit = [];
 let byStudent = {}, byCourse = {};
 let editingCourse = null, rosterCourse = null;
 // The cohort currently "picked" — boxed in the Cohorts list, loaded in the edit form above it.
@@ -378,17 +375,16 @@ $('signout').onclick = () => sb.auth.signOut();
 $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
-  const [s, c, b, l, f, g, ca, k] = await Promise.all([
+  const [s, c, b, f, g, ca, k] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select('*').order('cohort_date'),
     sb.from('bookings').select('*'),
-    sb.from('points_ledger').select('*'),
     sb.from('course_families').select('*').order('sort_order'),
     sb.from('coupons').select('*').order('created_at', { ascending: false }),
     sb.from('coupon_audit').select('*').order('created_at', { ascending: false }),
     sb.from('calendar_blocks').select('*'),
   ]);
-  students = s.data || []; courses = c.data || []; bookings = b.data || []; ledger = l.data || [];
+  students = s.data || []; courses = c.data || []; bookings = b.data || [];
   families = f.data || []; coupons = g.data || []; blocks = k.data || []; couponAudit = (ca && ca.data) || [];
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
@@ -400,18 +396,20 @@ async function loadAll() {
 function renderKPIs() {
   const confirmed = bookings.filter(b => b.status === 'confirmed');
   const mo = new Date().toISOString().slice(0, 7);
-  const byStudent = Object.fromEntries(students.map(x => [x.id, x]));
-  const byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
+  // Built locally, not from the module-level byStudent/byCourse: if those are ever stale the
+  // corp lookup fails SILENTLY and a S$120 corp seat is billed at its S$180 list price.
+  const byStu = Object.fromEntries(students.map(x => [x.id, x]));
+  const byCrs = Object.fromEntries(courses.map(x => [x.id, x]));
   // Revenue = cash from the student + the invoiced value of a corp-sponsored seat.
   // A corp seat shows S$0 cash on the booking but is real money, and it earns points,
   // so the dashboard total must match the Earnings tab exactly. See earnings.html loadAll().
   const rev = confirmed.map(b => {
-    const st = byStudent[b.student_id];
+    const st = byStu[b.student_id];
     const cash = Number(b.cash_paid_sgd || 0);
     const reason = cash > 0 ? null : (b.free_reason || (st && st.corp_name ? 'corp' : null));
     const corp = reason === 'corp' ? Number((st && st.corp_seat_price_sgd) || b.price_sgd || 0) : 0;
     return { cash, corp, total: cash + corp, booked: (b.created_at || '').slice(0, 7),
-             classMo: ((byCourse[b.course_id] || {}).cohort_date || '').slice(0, 7) };
+             classMo: ((byCrs[b.course_id] || {}).cohort_date || '').slice(0, 7) };
   });
   const cash = rev.reduce((t, r) => t + r.cash, 0);
   const corpAll = rev.reduce((t, r) => t + r.corp, 0);
@@ -419,10 +417,6 @@ function renderKPIs() {
   const revClassMo = rev.filter(r => r.classMo === mo).reduce((t, r) => t + r.total, 0);
   const revBookedMo = rev.filter(r => r.booked === mo).reduce((t, r) => t + r.total, 0);
   const bookMo = confirmed.filter(b => (b.created_at || '').slice(0, 7) === mo).length;
-  const liability = ledger.reduce((t, l) => t + l.points, 0);
-  const cap = Math.round(revenue * 0.20);
-  const pct = cap ? Math.min(100, Math.round(liability / cap * 100)) : 0;
-  const gcls = pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : '';
   const newMo = students.filter(x => (x.created_at || '').slice(0, 7) === mo).length;
   const refMo = students.filter(x => x.referred_by && (x.created_at || '').slice(0, 7) === mo).length;
   const upcoming = courses.filter(c => c.cohort_date >= today());
@@ -431,8 +425,6 @@ function renderKPIs() {
     <div class="kpi"><div class="v">${fmt$(revenue)}</div><div class="l">Total revenue (all-time)${corpAll ? ` — ${fmt$(cash)} cash + ${fmt$(corpAll)} 🏢 corp inv` : ''}</div>
       <div class="sub">${fmt$(revClassMo)} classes this month · ${fmt$(revBookedMo)} booked this month</div></div>
     <div class="kpi"><div class="v">${confirmed.length}</div><div class="l">Confirmed bookings</div><div class="sub">${bookMo} this month</div></div>
-    <div class="kpi"><div class="v">${liability.toLocaleString()} pts</div><div class="l">Points liability (S$${liability.toLocaleString()}) — ${pct}% of 20% cap (${fmt$(cap)})</div>
-      <div class="gauge"><i class="${gcls}" style="width:${pct}%"></i></div></div>
     <div class="kpi"><div class="v">${students.length}</div><div class="l">Students</div><div class="sub">+${newMo} this month · ${refMo} via referral</div></div>
     <div class="kpi"><div class="v">${seats}</div><div class="l">Seats booked, upcoming classes (${upcoming.filter(c=>c.is_open||bookings.some(b=>b.course_id===c.id)).length} cohorts)</div></div>`;
 }
