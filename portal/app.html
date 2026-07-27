@@ -799,7 +799,7 @@ function pickCohort(id, scroll) {
   if (scroll) requestAnimationFrame(() => $('bookform').scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 
-// deep link: ?course=automation&date=2026-08-13&time=am|pm — matches family slug or any alt_slug
+// deep link: ?course=automation&date=2026-08-13&time=am|pm|n — matches family slug or any alt_slug
 function applyDeepLink() {
   const asked = (params.get('course') || '').toLowerCase();
   const want = asked && Object.keys(courseGroups).find(s =>
@@ -809,7 +809,9 @@ function applyDeepLink() {
   if (!open.length) return;
   const d = params.get('date');
   const t = (params.get('time') || '').toLowerCase();
-  let target = d ? open.find(c => c.cohort_date === d && (!t || (c.session_time || '').toLowerCase().startsWith(t === 'am' ? '9' : '7'))) : null;
+  // Match by parsed slot, not by leading digit — house times move (8:30 / 1:30 / 6:30), digits don't survive that.
+  const wantSlot = { am: 0, pm: 1, n: 2, night: 2 }[t];
+  let target = d ? open.find(c => c.cohort_date === d && (wantSlot === undefined || slotOf(c.session_time) === wantSlot)) : null;
   if (!target && d) target = open.find(c => c.cohort_date === d);
   if (!target) target = open[0];
   if (target) pickCohort(target.id, true);
