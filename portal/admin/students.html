@@ -47,8 +47,19 @@
   tr.haspin { background:#fff7e6; }
   .cls-line { white-space:nowrap; font-size:12.5px; }
   .cls-line.up { color:var(--mut); font-style:italic; }
+  /* Funding badges — a S$0 seat must always say WHY it was S$0. */
+  .bdg { display:inline-block; font-size:10.5px; font-weight:700; padding:1px 6px; border-radius:20px; border:1px solid var(--line); background:#f3f5f9; color:var(--mut); white-space:nowrap; }
+  .bdg.corp { background:#eef2ff; border-color:#c9d3ff; color:#3b4fc4; }
+  .bdg.comp { background:#eaf7ef; border-color:#bfe4cd; color:#187a4a; }
+  .bdg.makeup { background:#fdf3e3; border-color:#f0dcb4; color:#96690b; }
+  .bdg.refunded { background:#f4f0fb; border-color:#ddd2f0; color:#6b4bab; }
+  .bdg.test { background:#f1f3f8; }
+  .bdg.warn { background:#fdeaea; border-color:#f2c2c2; color:var(--red); }
+  .bdg.paid { background:#eaf7ef; border-color:#bfe4cd; color:#187a4a; }
+  #auditcard { border-color:#f2c2c2; background:#fffafa; }
+  .num { text-align:right; }
   footer { text-align:center; padding:26px 0 34px; }
-  @media (max-width:720px){ th:nth-child(5),td:nth-child(5){display:none;} }
+  @media (max-width:720px){ th:nth-child(6),td:nth-child(6){display:none;} }
 </style>
 </head>
 <body>
@@ -85,15 +96,47 @@
       <div id="pinned"></div>
     </div>
 
+    <div class="card" id="auditcard" style="display:none">
+      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">⚠ Free seats to validate
+        <span class="muted" style="font-weight:400;font-size:12px">Every S$0 seat should say why it was S$0 — otherwise it may be a missed payment</span>
+      </h2>
+      <div id="auditlist"></div>
+    </div>
+
     <div class="card">
       <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">Students <span class="muted" id="stu-count" style="font-size:13px;font-weight:400"></span></h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input id="stu-search" placeholder="Search name, email, mobile or referral code…" style="flex:1;min-width:220px">
-        <select id="stu-course" style="min-width:200px"><option value="">All courses</option></select>
+        <input id="stu-search" placeholder="Search name, email, mobile, company or referral code…" style="flex:1;min-width:220px">
+        <select id="stu-course" style="min-width:180px"><option value="">All courses</option></select>
         <button class="btn ghost sm" id="stu-copy">Copy emails</button>
         <button class="btn xl sm" id="stu-xlsx">⬇ Download Excel</button>
       </div>
-      <p class="muted" style="margin-top:8px">Click any column heading to sort A–Z / Z–A. The Excel download exports exactly what's filtered below.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+        <select id="stu-amount" style="min-width:190px">
+          <option value="">Any amount paid</option>
+          <option value="zero">S$0 — nothing paid at all</option>
+          <option value="paid">Paid something (&gt; S$0)</option>
+          <option value="lt100">Under S$100</option>
+          <option value="100">S$100 – S$199</option>
+          <option value="200">S$200 and up</option>
+        </select>
+        <input id="stu-min" type="number" min="0" step="10" placeholder="min S$" style="width:96px">
+        <input id="stu-max" type="number" min="0" step="10" placeholder="max S$" style="width:96px">
+        <select id="stu-funding" style="min-width:210px">
+          <option value="">Any funding type</option>
+          <option value="unval">⚠ Unvalidated S$0 seat</option>
+          <option value="corp">🏢 Corp invoice</option>
+          <option value="corp_unpaid">🏢 Corp invoice NOT yet paid</option>
+          <option value="comp">🎁 Comp / free gift</option>
+          <option value="makeup">♻️ Make-up seat</option>
+          <option value="refunded">↩︎ Refunded</option>
+          <option value="test">🧪 Test account</option>
+          <option value="selfonly">Self-paid only (no free seats)</option>
+          <option value="anyfree">Any free seat</option>
+        </select>
+        <button class="btn ghost sm" id="stu-clear">Clear filters</button>
+      </div>
+      <p class="muted" style="margin-top:8px">Click any column heading to sort. <strong>Paid</strong> counts cash from the student <em>plus</em> seats a company paid for by invoice (🏢) — so a sponsored student is not mistaken for a freebie. The Excel download exports exactly what's filtered below.</p>
       <div id="studentlist" class="muted" style="margin-top:12px">Loading…</div>
       <div class="msg" id="stu-msg"></div>
     </div>
@@ -165,26 +208,94 @@ const money = (n) => {
   const v = Number(n || 0);
   return '$' + (Math.round(v * 100) % 100 === 0 ? v.toFixed(0) : v.toFixed(2));
 };
-function attendedOf(id) {
+// ---------- funding model ----------
+// Corporate sponsorship is a property of the STUDENT: a company buys a seat for a named person,
+// who may pick any date later (that is why corp_name lives on students, not on one booking).
+// A S$0 seat then carries free_reason as its audit label. free_reason NULL on a S$0 seat means
+// NOBODY HAS SAID WHY IT WAS FREE — that is either a gift you forgot to record or a payment you
+// never received, so it is flagged red at the top of this page until you label it.
+const FREE = {
+  corp:     { icon: '🏢', label: 'corp inv',  revenue: true  },
+  comp:     { icon: '🎁', label: 'comp',      revenue: false },
+  makeup:   { icon: '♻️', label: 'make-up',   revenue: false },
+  refunded: { icon: '↩︎', label: 'refunded',  revenue: false },
+  test:     { icon: '🧪', label: 'test',      revenue: false },
+  other:    { icon: '•',  label: 'other',     revenue: false },
+};
+const studentOf = (id) => students.find(x => x.id === id);
+// What the company is invoiced for one seat: the student's agreed rate, else the class list price.
+function seatPrice(st, b) { return Number((st && st.corp_seat_price_sgd) || b.price_sgd || 0); }
+// A corp student's S$0 seats count as corp automatically — no per-booking tagging needed.
+function reasonOf(st, b) {
+  if (Number(b.cash_paid_sgd || 0) > 0) return null;
+  return b.free_reason || (st && st.corp_name ? 'corp' : null);
+}
+const isCorp = (st) => !!(st && st.corp_name);
+const corpPaid = (st) => isCorp(st) && st.corp_invoice_status === 'paid';
+
+function seatsOf(id) {
+  const st = studentOf(id);
   return bookings.filter(b => b.student_id === id && b.status === 'confirmed')
     .map(b => ({ b, c: byCourse[b.course_id] })).filter(x => x.c)
     .sort((x, y) => x.c.cohort_date < y.c.cohort_date ? 1 : -1)
-    .map(({ b, c }) => ({ name: c.name, date: c.cohort_date, past: c.cohort_date < today(), paid: Number(b.cash_paid_sgd || 0) }));
+    .map(({ b, c }) => {
+      const cash = Number(b.cash_paid_sgd || 0);
+      const reason = reasonOf(st, b);
+      const corp = reason === 'corp' ? seatPrice(st, b) : 0;
+      return {
+        id: b.id, b, name: c.name, date: c.cohort_date, past: c.cohort_date < today(),
+        paid: cash, reason, corp, value: cash + corp,
+        credited: ledger.some(l => l.booking_id === b.id && l.points > 0),
+      };
+    });
 }
-function totalPaidOf(id) { return attendedOf(id).reduce((s, c) => s + c.paid, 0); }
+const attendedOf = seatsOf;                                   // kept: older call sites read .name/.date/.paid
+const cashOf = (id) => seatsOf(id).reduce((s, c) => s + c.paid, 0);
+const corpOf = (id) => seatsOf(id).reduce((s, c) => s + c.corp, 0);
+function totalPaidOf(id) { return cashOf(id) + corpOf(id); }  // "amount paid" = money received either way
+const freeSeatsOf = (id) => seatsOf(id).filter(c => c.reason && c.reason !== 'corp');
+const unvalidatedOf = (id) => seatsOf(id).filter(c => c.paid === 0 && !c.reason);
+// Corp seats owe the student the normal 10% cash-back, even though the company paid.
+const corpUncredited = (id) => seatsOf(id).filter(c => c.reason === 'corp' && c.corp > 0 && !c.credited);
 
+function amountOk(total) {
+  const band = $('stu-amount').value;
+  const min = $('stu-min').value === '' ? null : Number($('stu-min').value);
+  const max = $('stu-max').value === '' ? null : Number($('stu-max').value);
+  if (min !== null && total < min) return false;
+  if (max !== null && total > max) return false;
+  if (band === 'zero') return total === 0;
+  if (band === 'paid') return total > 0;
+  if (band === 'lt100') return total < 100;
+  if (band === '100') return total >= 100 && total < 200;
+  if (band === '200') return total >= 200;
+  return true;
+}
+function fundingOk(s) {
+  const f = $('stu-funding').value;
+  if (!f) return true;
+  const seats = seatsOf(s.id);
+  if (f === 'unval') return seats.some(c => c.paid === 0 && !c.reason);
+  if (f === 'corp') return isCorp(s) || seats.some(c => c.reason === 'corp');
+  if (f === 'corp_unpaid') return (isCorp(s) || seats.some(c => c.reason === 'corp')) && !corpPaid(s);
+  if (f === 'selfonly') return seats.length > 0 && seats.every(c => c.paid > 0);   // every seat paid for out of their own pocket
+  if (f === 'anyfree') return seats.some(c => c.reason);
+  return seats.some(c => c.reason === f);
+}
 function filtered() {
   const q = ($('stu-search').value || '').toLowerCase().trim();
   const courseName = $('stu-course').value;
   let list = students.slice();
-  if (q) list = list.filter(s => [s.name, s.email, s.mobile, s.referral_code].some(v => (v || '').toLowerCase().includes(q)));
-  if (courseName) list = list.filter(s => attendedOf(s.id).some(c => c.name === courseName));
+  if (q) list = list.filter(s => [s.name, s.email, s.mobile, s.referral_code, s.corp_name, s.corp_invoice_ref].some(v => (v || '').toLowerCase().includes(q)));
+  if (courseName) list = list.filter(s => seatsOf(s.id).some(c => c.name === courseName));
+  list = list.filter(s => amountOk(totalPaidOf(s.id)) && fundingOk(s));
   const dir = sortDir;
   list.sort((a, b) => {
     let va, vb;
     if (sortKey === 'name') { va = a.name || ''; vb = b.name || ''; }
     else if (sortKey === 'contact') { va = a.email || ''; vb = b.email || ''; }
-    else if (sortKey === 'classes') { va = attendedOf(a.id).length; vb = attendedOf(b.id).length; }
+    else if (sortKey === 'classes') { va = seatsOf(a.id).length; vb = seatsOf(b.id).length; }
+    else if (sortKey === 'paid') { va = totalPaidOf(a.id); vb = totalPaidOf(b.id); }
     else if (sortKey === 'points') { va = balanceOf(a.id); vb = balanceOf(b.id); }
     else if (sortKey === 'remarks') { va = a.remarks || ''; vb = b.remarks || ''; }
     else { va = a.referral_code || ''; vb = b.referral_code || ''; }
@@ -241,27 +352,151 @@ window.unpinRemark = async function (id) {
   render();
 };
 
+// ---------- S$0 audit ----------
+// Two things get flagged: a S$0 seat with no reason (possible missed payment), and a corp seat
+// whose 10% cash-back has not been credited back to the student yet.
+function renderAudit() {
+  const bad = [], owed = [];
+  students.forEach(st => {
+    unvalidatedOf(st.id).forEach(c => bad.push({ st, c }));
+    corpUncredited(st.id).forEach(c => owed.push({ st, c }));
+  });
+  if (!bad.length && !owed.length) { $('auditcard').style.display = 'none'; return; }
+  $('auditcard').style.display = '';
+  const rows = bad.map(({ st, c }) => `<tr>
+      <td><strong>${esc(st.name || st.email || '—')}</strong><div class="muted" style="font-size:11px">${esc(st.email || '')}</div></td>
+      <td>${esc(shortName(c.name))} · ${fdate(c.date)}</td>
+      <td><span class="bdg warn">S$0 · reason?</span></td>
+      <td>${reasonPicker(c.id)}</td>
+    </tr>`).join('');
+  const owedRows = owed.map(({ st, c }) => `<tr>
+      <td><strong>${esc(st.name || st.email || '—')}</strong><div class="muted" style="font-size:11px">${esc(st.corp_name || '')}</div></td>
+      <td>${esc(shortName(c.name))} · ${fdate(c.date)}</td>
+      <td><span class="bdg corp">🏢 ${money(c.corp)} invoiced</span></td>
+      <td><button class="btn sm" onclick="creditCorp('${c.id}')">Credit ${Math.round(c.corp * 0.1)} pts</button></td>
+    </tr>`).join('');
+  $('auditlist').innerHTML =
+    (bad.length ? `<p class="muted" style="margin-bottom:6px"><strong>${bad.length} seat(s) at S$0 with no reason.</strong> Pick one — 🏢 corp inv also credits the student their 10%.</p>
+      <table><tbody>${rows}</tbody></table>` : '') +
+    (owed.length ? `<p class="muted" style="margin:${bad.length ? '14px' : '0'} 0 6px"><strong>${owed.length} corp seat(s) with no cash-back credited yet.</strong> The company paid, so the student still earns their 10%.</p>
+      <table><tbody>${owedRows}</tbody></table>` : '');
+}
+function reasonPicker(bid) {
+  return `<select onchange="setReason('${bid}', this.value)" style="font-size:12px;padding:5px 8px">
+      <option value="">— why was this free? —</option>
+      <option value="corp">🏢 Company paid by invoice</option>
+      <option value="comp">🎁 Comp / free gift</option>
+      <option value="makeup">♻️ Make-up for a class already paid</option>
+      <option value="refunded">↩︎ Paid then refunded</option>
+      <option value="test">🧪 Test account</option>
+      <option value="other">Other</option>
+    </select>`;
+}
+window.setReason = async function (bid, val) {
+  if (!val) return;
+  const b = bookings.find(x => x.id === bid); if (!b) return;
+  const st = studentOf(b.student_id);
+  if (val === 'corp' && !isCorp(st)) {
+    alert(`${st.name || st.email} has no company on file yet.\n\nI'll mark the seat as corp — add the company name and invoice number with the 🏢 button on their row so it shows up on the invoice reports.`);
+  }
+  const { error } = await sb.from('bookings').update({ free_reason: val }).eq('id', bid);
+  if (error) return msg('stu-msg', 'err', error.message);
+  b.free_reason = val;
+  msg('stu-msg', 'ok', `Seat marked ${FREE[val].icon} ${FREE[val].label}.`);
+  render();
+};
+// 10% cash-back on the seat the company paid for, credited to the student's own balance.
+window.creditCorp = async function (bid) {
+  const b = bookings.find(x => x.id === bid); if (!b) return;
+  const st = studentOf(b.student_id);
+  const value = seatPrice(st, b);
+  const pts = Math.round(value * 0.1);
+  const label = st.corp_name ? `${st.corp_name}${st.corp_invoice_ref ? ' · ' + st.corp_invoice_ref : ''}` : 'your company';
+  const note = `10% credit on your ${shortName(byCourse[b.course_id].name)} seat (paid by ${label})`;
+  if (!confirm(`Credit ${pts} points to ${st.name || st.email}?\n\nThey will see: "${note}"`)) return;
+  const { data, error } = await sb.from('points_ledger')
+    .insert({ student_id: st.id, booking_id: b.id, type: 'earn', points: pts, note }).select().single();
+  if (error) return msg('stu-msg', 'err', error.message);
+  ledger.push(data);
+  msg('stu-msg', 'ok', `${pts} pts credited to ${st.name || st.email}.`);
+  render();
+};
+
+// ---------- corp / invoice editor (lives on the student, not the booking) ----------
+window.editCorp = function (id) {
+  const s = studentOf(id);
+  const cell = $('corpcell-' + id);
+  cell.innerHTML = `<div style="margin-top:4px;padding:8px;border:1px solid var(--line);border-radius:9px;background:#fbfcfe">
+      <input id="cn-${id}" placeholder="Company name (blank = not corp)" value="${esc(s.corp_name || '')}" style="font-size:12px;padding:4px 7px;width:100%">
+      <div style="display:flex;gap:4px;margin-top:4px">
+        <input id="ci-${id}" placeholder="Invoice #" value="${esc(s.corp_invoice_ref || '')}" style="font-size:12px;padding:4px 7px;width:50%">
+        <input id="cp-${id}" type="number" min="0" step="10" placeholder="S$/seat" value="${s.corp_seat_price_sgd ?? ''}" style="font-size:12px;padding:4px 7px;width:50%">
+      </div>
+      <select id="cs-${id}" style="font-size:12px;padding:4px 7px;width:100%;margin-top:4px">
+        <option value="">Invoice status…</option>
+        <option value="sent"${s.corp_invoice_status === 'sent' ? ' selected' : ''}>Invoice sent — not paid yet</option>
+        <option value="paid"${s.corp_invoice_status === 'paid' ? ' selected' : ''}>Invoice paid</option>
+      </select>
+      <div style="display:flex;gap:6px;margin-top:5px">
+        <button class="btn sm" onclick="saveCorp('${id}')">Save</button>
+        <button class="btn ghost sm" onclick="render()">✕</button>
+      </div>
+      <div class="muted" style="font-size:10.5px;margin-top:5px">Blank S$/seat = use the class list price. Their S$0 seats then read 🏢 corp inv and count as revenue.</div>
+    </div>`;
+  $('cn-' + id).focus();
+};
+window.saveCorp = async function (id) {
+  const name = $('cn-' + id).value.trim();
+  const price = $('cp-' + id).value.trim();
+  const patch = {
+    corp_name: name || null,
+    corp_invoice_ref: $('ci-' + id).value.trim() || null,
+    corp_seat_price_sgd: price === '' ? null : Number(price),
+    corp_invoice_status: name ? ($('cs-' + id).value || 'sent') : null,
+  };
+  const { error } = await sb.from('students').update(patch).eq('id', id);
+  if (error) return msg('stu-msg', 'err', error.message);
+  Object.assign(studentOf(id), patch);
+  msg('stu-msg', 'ok', name ? `Marked as corporate — ${name}.` : 'Corporate details cleared.');
+  render();
+};
+
 function render() {
   renderPinned();
+  renderAudit();
   const list = filtered();
-  const filteredNote = ($('stu-search').value.trim() || $('stu-course').value) ? ' of ' + students.length : '';
-  $('stu-count').textContent = `(${list.length}${filteredNote})`;
+  const anyFilter = $('stu-search').value.trim() || $('stu-course').value || $('stu-amount').value || $('stu-funding').value || $('stu-min').value || $('stu-max').value;
+  const tCash = list.reduce((t, s) => t + cashOf(s.id), 0);
+  const tCorp = list.reduce((t, s) => t + corpOf(s.id), 0);
+  const tFree = list.reduce((t, s) => t + freeSeatsOf(s.id).length, 0);
+  $('stu-count').innerHTML = `(${list.length}${anyFilter ? ' of ' + students.length : ''}) · ${money(tCash + tCorp)} received` +
+    (tCorp ? ` <span class="bdg corp">${money(tCorp)} 🏢 corp inv</span>` : '') +
+    (tFree ? ` <span class="bdg">${tFree} free seat${tFree > 1 ? 's' : ''}</span>` : '');
   if (!list.length) { $('studentlist').textContent = 'No students match.'; return; }
   const arr = (k) => sortKey === k ? ` <span class="arr">${sortDir === 1 ? '▲' : '▼'}</span>` : '';
   $('studentlist').innerHTML = `<table><thead><tr>
       <th onclick="setSort('name')">Name${arr('name')}</th>
       <th onclick="setSort('contact')">Contact${arr('contact')}</th>
       <th onclick="setSort('classes')">Classes attended${arr('classes')}</th>
+      <th class="num" onclick="setSort('paid')">Paid${arr('paid')}</th>
       <th onclick="setSort('points')">Points${arr('points')}</th>
       <th onclick="setSort('referral')">Referral${arr('referral')}</th>
       <th onclick="setSort('remarks')">Remarks${arr('remarks')}</th>
     </tr></thead><tbody>` +
     list.map(s => {
-      const cls = attendedOf(s.id);
+      const cls = seatsOf(s.id);
+      const seatBadge = (c) => {
+        if (!c.reason) return c.paid > 0 ? '' : ` <span class="bdg warn">S$0 · reason?</span>`;
+        const f = FREE[c.reason];
+        return ` <span class="bdg ${c.reason}">${f.icon} ${f.label}${c.corp ? ' ' + money(c.corp) : ''}</span>`;
+      };
       const clsHtml = cls.length ? cls.map(c =>
-        `<div class="cls-line${c.past ? '' : ' up'}">${shortName(c.name)} · ${fdate(c.date)} (${money(c.paid)})${c.past ? '' : ' (upcoming)'}</div>`).join('')
-        + (cls.length > 1 ? `<div class="muted" style="font-size:11px;margin-top:2px">Total paid: <strong>${money(totalPaidOf(s.id))}</strong></div>` : '')
+        `<div class="cls-line${c.past ? '' : ' up'}">${shortName(c.name)} · ${fdate(c.date)} (${money(c.paid)})${seatBadge(c)}${c.past ? '' : ' (upcoming)'}</div>`).join('')
         : '<span class="muted">—</span>';
+      const cash = cashOf(s.id), corp = corpOf(s.id), freeN = freeSeatsOf(s.id).length;
+      const paidHtml = `<strong>${money(cash + corp)}</strong>` +
+        (corp ? `<div class="muted" style="font-size:11px">${money(cash)} cash<br>${money(corp)} 🏢 inv</div>` : '') +
+        (!corp && freeN ? `<div class="muted" style="font-size:11px">${freeN} free seat${freeN > 1 ? 's' : ''}</div>` : '');
       return `<tr${s.remark_pinned ? ' class="haspin"' : ''}>
         <td>
           <strong>${s.name || '—'}</strong>
@@ -269,9 +504,16 @@ function render() {
             <span class="muted" style="font-size:11.5px">Greeted as: <strong>${esc(s.preferred_name || (s.name || '').split(' ')[0] || '—')}</strong></span>
             <button class="btn ghost sm" onclick="editPreferredName('${s.id}')" style="margin-left:4px;padding:1px 6px;font-size:10.5px">✎</button>
           </div>
+          <div id="corpcell-${s.id}" style="margin-top:3px">
+            ${isCorp(s) ? `<span class="bdg corp">🏢 ${esc(s.corp_name)}</span>
+                ${s.corp_invoice_ref ? `<span class="bdg" style="margin-left:2px">${esc(s.corp_invoice_ref)}</span>` : ''}
+                <span class="bdg ${corpPaid(s) ? 'paid' : 'warn'}" style="margin-left:2px">${corpPaid(s) ? 'inv paid' : 'inv unpaid'}</span>` : ''}
+            <button class="btn ghost sm" onclick="editCorp('${s.id}')" style="padding:1px 6px;font-size:10.5px" title="Company pays this student's seats by invoice">${isCorp(s) ? '✎' : '🏢 corp'}</button>
+          </div>
         </td>
         <td>${s.email || '—'}<br><span class="muted">${s.mobile || '—'}</span></td>
         <td>${clsHtml}</td>
+        <td class="num">${paidHtml}</td>
         <td id="ptscell-${s.id}" style="min-width:110px">
           <span style="font-weight:700;color:var(--green)">${balanceOf(s.id)}</span>
           <button class="btn ghost sm" onclick="grantPoints('${s.id}')" style="margin-left:4px;padding:1px 6px;font-size:10.5px" title="Give ad-hoc thank-you points">🎁</button>
@@ -292,7 +534,7 @@ function render() {
     }).join('') + '</tbody></table>';
 }
 // Numbers open high→low (most classes / most points first); text opens A–Z.
-const NUMERIC = new Set(['classes', 'points']);
+const NUMERIC = new Set(['classes', 'points', 'paid']);
 window.setSort = function (k) {
   if (sortKey === k) sortDir = -sortDir;
   else { sortKey = k; sortDir = NUMERIC.has(k) ? -1 : 1; }
@@ -300,6 +542,14 @@ window.setSort = function (k) {
 };
 $('stu-search').oninput = render;
 $('stu-course').onchange = render;
+$('stu-amount').onchange = render;
+$('stu-funding').onchange = render;
+$('stu-min').oninput = render;
+$('stu-max').oninput = render;
+$('stu-clear').onclick = () => {
+  ['stu-search', 'stu-course', 'stu-amount', 'stu-funding', 'stu-min', 'stu-max'].forEach(id => $(id).value = '');
+  render();
+};
 
 window.editPreferredName = function (id) {
   const s = students.find(x => x.id === id);
@@ -374,14 +624,24 @@ $('stu-copy').onclick = () => {
 $('stu-xlsx').onclick = () => {
   const list = filtered();
   const rows = list.map(s => {
-    const cls = attendedOf(s.id);
+    const cls = seatsOf(s.id);
     return {
       'Name': s.name || '',
       'Email': s.email || '',
       'Mobile': s.mobile || '',
-      'Classes Attended': cls.map(c => shortName(c.name) + ' · ' + fdate(c.date) + ' (' + money(c.paid) + (c.past ? '' : ', upcoming') + ')').join('; '),
+      'Classes Attended': cls.map(c => shortName(c.name) + ' · ' + fdate(c.date) + ' (' + money(c.paid)
+        + (c.reason ? ', ' + FREE[c.reason].label + (c.corp ? ' ' + money(c.corp) : '') : '')
+        + (c.paid === 0 && !c.reason ? ', REASON MISSING' : '')
+        + (c.past ? '' : ', upcoming') + ')').join('; '),
       '# Classes': cls.length,
-      'Total Paid (S$)': totalPaidOf(s.id),
+      'Total Received (S$)': totalPaidOf(s.id),
+      'Cash from Student (S$)': cashOf(s.id),
+      'Corp Invoiced (S$)': corpOf(s.id),
+      'Company': s.corp_name || '',
+      'Invoice #': s.corp_invoice_ref || '',
+      'Invoice Status': s.corp_name ? (s.corp_invoice_status || 'sent') : '',
+      'Free Seats': freeSeatsOf(s.id).length || '',
+      'S$0 Unvalidated': unvalidatedOf(s.id).length || '',
       'Points Balance': balanceOf(s.id),
       'Referral Code': s.referral_code || '',
       'Remarks': s.remarks || '',
@@ -389,7 +649,8 @@ $('stu-xlsx').onclick = () => {
     };
   });
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 14 }, { wch: 60 }, { wch: 9 }, { wch: 14 }, { wch: 13 }, { wch: 13 }, { wch: 50 }, { wch: 8 }];
+  ws['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 14 }, { wch: 60 }, { wch: 9 }, { wch: 16 }, { wch: 18 }, { wch: 15 },
+    { wch: 22 }, { wch: 14 }, { wch: 13 }, { wch: 10 }, { wch: 14 }, { wch: 13 }, { wch: 13 }, { wch: 50 }, { wch: 8 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Students');
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');

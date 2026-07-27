@@ -88,7 +88,7 @@
       </h2>
       <div style="position:relative;height:300px"><canvas id="chart"></canvas></div>
       <div id="periodtable" style="margin-top:14px;overflow-x:auto"></div>
-      <p class="muted" style="margin-top:8px">Cash collected (SGD), attributed to the class date. Cancelled bookings excluded. Future class dates = cash already collected for upcoming cohorts.</p>
+      <p class="muted" style="margin-top:8px">Revenue (SGD), attributed to the class date. Cancelled bookings excluded. Future class dates = money already committed for upcoming cohorts. Seats a company pays for by invoice (🏢) are included at the invoiced rate and broken out separately — comp, make-up and refunded seats count as zero.</p>
     </div>
 
     <div class="card">
@@ -144,19 +144,30 @@ $('signout').onclick = () => sb.auth.signOut();
 $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
-  const [c, b] = await Promise.all([
+  const [c, b, s] = await Promise.all([
     sb.from('courses').select('*'),
     sb.from('bookings').select('*'),
+    sb.from('students').select('id,corp_name,corp_invoice_ref,corp_invoice_status,corp_seat_price_sgd'),
   ]);
   courses = c.data || []; bookings = b.data || [];
   const byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
-  // one row per confirmed booking with course info
-  rows = bookings.filter(b => b.status === 'confirmed' && byCourse[b.course_id]).map(b => ({
-    cash: Number(b.cash_paid_sgd || 0),
-    pts: Number(b.points_redeemed || 0),
-    course: byCourse[b.course_id].name,
-    date: byCourse[b.course_id].cohort_date,
-  }));
+  const byStudent = Object.fromEntries((s.data || []).map(x => [x.id, x]));
+  // one row per confirmed booking with course info.
+  // A seat a company paid for by invoice shows S$0 cash on the booking but is real revenue —
+  // it is counted here as `corp` and kept separate so cash-in-hand is never overstated.
+  rows = bookings.filter(b => b.status === 'confirmed' && byCourse[b.course_id]).map(b => {
+    const st = byStudent[b.student_id];
+    const cash = Number(b.cash_paid_sgd || 0);
+    const reason = cash > 0 ? null : (b.free_reason || (st && st.corp_name ? 'corp' : null));
+    const corp = reason === 'corp' ? Number((st && st.corp_seat_price_sgd) || b.price_sgd || 0) : 0;
+    return {
+      cash, corp, total: cash + corp,
+      corpDue: corp && !(st && st.corp_invoice_status === 'paid') ? corp : 0,
+      pts: Number(b.points_redeemed || 0),
+      course: byCourse[b.course_id].name,
+      date: byCourse[b.course_id].cohort_date,
+    };
+  });
   const names = [...new Set(rows.map(r => r.course))].sort();
   $('cohort-filter').innerHTML = '<option value="">All courses</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
   renderKPIs(); renderChart(); renderByCourse(); renderByCohort();
@@ -182,11 +193,14 @@ function periodLabel(k) {
 function renderKPIs() {
   const t = today();
   const wk = mondayOf(t), mo = t.slice(0, 7), yr = t.slice(0, 4);
-  const sum = (f) => rows.filter(f).reduce((s, r) => s + r.cash, 0);
+  const sum = (f) => rows.filter(f).reduce((s, r) => s + r.total, 0);
   const all = sum(() => true);
-  const cohortSet = new Set(rows.filter(r => r.cash > 0).map(r => r.course + r.date));
+  const corpAll = rows.reduce((s, r) => s + r.corp, 0);
+  const corpDue = rows.reduce((s, r) => s + r.corpDue, 0);
+  const cohortSet = new Set(rows.filter(r => r.total > 0).map(r => r.course + r.date));
   $('kpis').innerHTML = `
-    <div class="kpi"><div class="v">${fmt$(all)}</div><div class="l">All-time</div><div class="sub">${rows.filter(r=>r.cash>0).length} paid bookings</div></div>
+    <div class="kpi"><div class="v">${fmt$(all)}</div><div class="l">All-time</div><div class="sub">${rows.filter(r=>r.total>0).length} paid bookings${corpAll ? ` · ${fmt$(all - corpAll)} cash + ${fmt$(corpAll)} 🏢 corp inv` : ''}</div></div>
+    ${corpDue ? `<div class="kpi"><div class="v" style="color:var(--red)">${fmt$(corpDue)}</div><div class="l">🏢 Invoiced, not yet paid</div><div class="sub">chase these companies</div></div>` : ''}
     <div class="kpi"><div class="v">${fmt$(sum(r => r.date.slice(0,4) === yr))}</div><div class="l">This year (${yr})</div></div>
     <div class="kpi"><div class="v">${fmt$(sum(r => r.date.slice(0,7) === mo))}</div><div class="l">This month</div></div>
     <div class="kpi"><div class="v">${fmt$(sum(r => mondayOf(r.date) === wk))}</div><div class="l">This week</div></div>
@@ -198,7 +212,7 @@ function renderChart() {
   const names = [...new Set(rows.map(r => r.course))].sort();
   const datasets = names.map(n => ({
     label: shortName(n),
-    data: keys.map(k => rows.filter(r => r.course === n && periodKey(r.date) === k).reduce((s, r) => s + r.cash, 0)),
+    data: keys.map(k => rows.filter(r => r.course === n && periodKey(r.date) === k).reduce((s, r) => s + r.total, 0)),
     backgroundColor: courseColor(n),
     stack: 's',
   }));
@@ -215,9 +229,9 @@ function renderChart() {
     },
   });
   // period table
-  const totals = keys.map(k => ({ k, cash: rows.filter(r => periodKey(r.date) === k).reduce((s, r) => s + r.cash, 0), n: rows.filter(r => periodKey(r.date) === k && r.cash > 0).length }));
+  const totals = keys.map(k => ({ k, cash: rows.filter(r => periodKey(r.date) === k).reduce((s, r) => s + r.total, 0), n: rows.filter(r => periodKey(r.date) === k && r.total > 0).length }));
   const all = totals.reduce((s, t) => s + t.cash, 0);
-  $('periodtable').innerHTML = `<table><thead><tr><th>Period</th><th class="num">Paid bookings</th><th class="num">Cash earned</th><th class="num">% of all-time</th></tr></thead><tbody>` +
+  $('periodtable').innerHTML = `<table><thead><tr><th>Period</th><th class="num">Paid bookings</th><th class="num">Revenue</th><th class="num">% of all-time</th></tr></thead><tbody>` +
     totals.slice().reverse().map(t => `<tr><td>${periodLabel(t.k)}${t.k >= periodKey(today()) && period !== 'year' && t.k > periodKey(today()) ? ' <span class="pill">upcoming</span>' : ''}</td>
       <td class="num">${t.n}</td><td class="num"><strong>${fmt$(t.cash)}</strong></td>
       <td class="num muted">${all ? (t.cash / all * 100).toFixed(1) : 0}%</td></tr>`).join('') +
@@ -257,20 +271,21 @@ function renderByCourse() {
   let data = names.map(n => {
     const rs = rows.filter(r => r.course === n);
     const cohorts = new Set(rs.map(r => r.date)).size;
-    const cash = rs.reduce((s, r) => s + r.cash, 0);
-    return { n, cohorts, students: rs.length, cash, pts: rs.reduce((s, r) => s + r.pts, 0), avg: cohorts ? cash / cohorts : 0 };
+    const cash = rs.reduce((s, r) => s + r.total, 0);
+    const corp = rs.reduce((s, r) => s + r.corp, 0);
+    return { n, cohorts, students: rs.length, cash, corp, pts: rs.reduce((s, r) => s + r.pts, 0), avg: cohorts ? cash / cohorts : 0 };
   });
   const all = data.reduce((s, d) => s + d.cash, 0);
   data = sortRows(data, courseSort, courseDir, (d, k) => k === 'n' ? d.n.toLowerCase() : k === 'pct' ? d.cash : d[k]);
   const cols = [{ k: 'n', label: 'Class' }, { k: 'cohorts', label: 'Cohorts', num: 1 }, { k: 'students', label: 'Students', num: 1 },
-    { k: 'cash', label: 'Cash earned', num: 1 }, { k: 'avg', label: 'Avg / cohort', num: 1 }, { k: 'pts', label: 'Points used', num: 1 },
+    { k: 'cash', label: 'Revenue', num: 1 }, { k: 'corp', label: 'of which 🏢 inv', num: 1 }, { k: 'avg', label: 'Avg / cohort', num: 1 }, { k: 'pts', label: 'Points used', num: 1 },
     { k: 'pct', label: '% of revenue', num: 1 }];
   $('bycourse').innerHTML = `<table><thead><tr>${headings(cols, courseSort, courseDir, 'setCourseSort')}</tr></thead><tbody>` +
     data.map(d => `<tr><td><strong>${d.n}</strong></td><td class="num">${d.cohorts}</td><td class="num">${d.students}</td>
-      <td class="num"><strong>${fmt$(d.cash)}</strong></td><td class="num">${fmt$(d.avg)}</td>
+      <td class="num"><strong>${fmt$(d.cash)}</strong></td><td class="num muted">${d.corp ? fmt$(d.corp) : '—'}</td><td class="num">${fmt$(d.avg)}</td>
       <td class="num muted">${d.pts ? '−' + d.pts : '—'}</td>
       <td class="num muted">${all ? (d.cash / all * 100).toFixed(1) : 0}%</td></tr>`).join('') +
-    `<tr class="total"><td>All classes</td><td class="num">${data.reduce((s,d)=>s+d.cohorts,0)}</td><td class="num">${data.reduce((s,d)=>s+d.students,0)}</td><td class="num">${fmt$(all)}</td><td></td><td class="num">−${data.reduce((s,d)=>s+d.pts,0)}</td><td class="num">100%</td></tr></tbody></table>`;
+    `<tr class="total"><td>All classes</td><td class="num">${data.reduce((s,d)=>s+d.cohorts,0)}</td><td class="num">${data.reduce((s,d)=>s+d.students,0)}</td><td class="num">${fmt$(all)}</td><td class="num">${fmt$(data.reduce((s,d)=>s+d.corp,0))}</td><td></td><td class="num">−${data.reduce((s,d)=>s+d.pts,0)}</td><td class="num">100%</td></tr></tbody></table>`;
 }
 
 let cohortSort = 'date', cohortDir = -1;
@@ -284,19 +299,19 @@ function renderByCohort() {
   const map = {};
   rows.filter(r => !flt || r.course === flt).forEach(r => {
     const k = r.course + '|' + r.date;
-    const m = map[k] = map[k] || { course: r.course, date: r.date, students: 0, cash: 0, pts: 0 };
-    m.students++; m.cash += r.cash; m.pts += r.pts;
+    const m = map[k] = map[k] || { course: r.course, date: r.date, students: 0, cash: 0, corp: 0, pts: 0 };
+    m.students++; m.cash += r.total; m.corp += r.corp; m.pts += r.pts;
   });
   const list = sortRows(Object.values(map), cohortSort, cohortDir, (m, k) => k === 'course' ? m.course.toLowerCase() : k === 'date' ? m.date : m[k]);
   if (!list.length) { $('bycohort').textContent = 'No cohorts.'; return; }
   const t = today();
   const cols = [{ k: 'date', label: 'Date' }, { k: 'course', label: 'Class' }, { k: 'students', label: 'Students', num: 1 },
-    { k: 'cash', label: 'Cash earned', num: 1 }, { k: 'pts', label: 'Points used', num: 1 }];
+    { k: 'cash', label: 'Revenue', num: 1 }, { k: 'corp', label: 'of which 🏢 inv', num: 1 }, { k: 'pts', label: 'Points used', num: 1 }];
   $('bycohort').innerHTML = `<table><thead><tr>${headings(cols, cohortSort, cohortDir, 'setCohortSort')}</tr></thead><tbody>` +
     list.map(m => `<tr><td>${fdate(m.date)}${m.date >= t ? ' <span class="pill">upcoming</span>' : ''}</td><td>${m.course}</td>
-      <td class="num">${m.students}</td><td class="num"><strong>${fmt$(m.cash)}</strong></td>
+      <td class="num">${m.students}</td><td class="num"><strong>${fmt$(m.cash)}</strong></td><td class="num muted">${m.corp ? fmt$(m.corp) : '—'}</td>
       <td class="num muted">${m.pts ? '−' + m.pts : '—'}</td></tr>`).join('') +
-    `<tr class="total"><td colspan="2">Total</td><td class="num">${list.reduce((s,m)=>s+m.students,0)}</td><td class="num">${fmt$(list.reduce((s,m)=>s+m.cash,0))}</td><td class="num">−${list.reduce((s,m)=>s+m.pts,0)}</td></tr></tbody></table>`;
+    `<tr class="total"><td colspan="2">Total</td><td class="num">${list.reduce((s,m)=>s+m.students,0)}</td><td class="num">${fmt$(list.reduce((s,m)=>s+m.cash,0))}</td><td class="num">${fmt$(list.reduce((s,m)=>s+m.corp,0))}</td><td class="num">−${list.reduce((s,m)=>s+m.pts,0)}</td></tr></tbody></table>`;
 }
 $('cohort-filter').onchange = renderByCohort;
 
