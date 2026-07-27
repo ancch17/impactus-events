@@ -103,6 +103,7 @@
     <a class="tab active" href="./">Dashboard</a>
     <a class="tab" href="students.html" target="_blank">Students ↗</a>
     <a class="tab" href="earnings.html" target="_blank">Earnings ↗</a>
+    <a class="tab" href="referrals.html" target="_blank">Referrals ↗</a>
   </nav>
   <button class="signout hidden" id="signout">Sign out</button>
 </div></header>
@@ -266,11 +267,6 @@
       <div class="msg" id="em-msg"></div>
     </div>
 
-    <div class="card">
-      <h2>Referral leaderboard</h2>
-      <div id="refboard" class="muted">Loading…</div>
-    </div>
-
   </div>
 </div>
 
@@ -362,7 +358,7 @@ async function loadAll() {
   families = f.data || []; coupons = g.data || []; blocks = k.data || []; couponAudit = (ca && ca.data) || [];
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
-  renderKPIs(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderCouponAudit(); renderEmailForm(); renderRefBoard();
+  renderKPIs(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderCouponForm(); renderCoupons(); renderCouponAudit(); renderEmailForm();
   if (rosterCourse) openRoster(rosterCourse);
 }
 
@@ -988,30 +984,6 @@ function renderCouponAudit() {
       <td>S$${Number(r.discount_sgd).toFixed(2)}</td>
       <td>${r.coupon_deleted ? '<span class="pill cancelled">code deleted</span>' : ''}${r.booking_status && r.booking_status !== 'confirmed' ? `<span class="pill closed">${r.booking_status}</span>` : ''}</td>
     </tr>`).join('') + '</tbody></table>';
-}
-
-// ---------- Referral leaderboard ----------
-
-// Referrals earn NO points automatically — this board exists so Andrew can see who is
-// actually bringing people in, and thank them by hand (🎁 button on the Students tab).
-function renderRefBoard() {
-  const referrers = {};
-  students.filter(s => s.referred_by).forEach(s => {
-    const r = referrers[s.referred_by] = referrers[s.referred_by] || { signups: 0, converted: 0, cash: 0 };
-    r.signups++;
-    const paid = bookings.filter(b => b.student_id === s.id && b.status === 'confirmed')
-      .reduce((t, b) => t + Number(b.cash_paid_sgd || 0), 0);
-    if (paid > 0) r.converted++;
-    r.cash += paid;
-  });
-  const rows = Object.keys(referrers).map(id => ({ s: byStudent[id], ...referrers[id] }))
-    .filter(r => r.s).sort((a, b) => b.cash - a.cash || b.signups - a.signups);
-  if (!rows.length) { $('refboard').textContent = 'No referrals yet.'; return; }
-  $('refboard').innerHTML = `<p class="muted" style="margin-top:-6px;margin-bottom:10px">No points are awarded for referrals — use the 🎁 button on the Students tab to thank someone.</p>
-    <table><thead><tr><th>Referrer</th><th>Code</th><th>Sign-ups</th><th>Paid for a class</th><th>Cash they brought in</th></tr></thead><tbody>` +
-    rows.map(r => `<tr><td><strong>${r.s.name}</strong><br><span class="muted">${r.s.email}</span></td>
-      <td>${r.s.referral_code}</td><td>${r.signups}</td><td>${r.converted}</td>
-      <td style="color:var(--green);font-weight:700">${r.cash ? 'S$' + r.cash.toFixed(0) : '—'}</td></tr>`).join('') + '</tbody></table>';
 }
 
 init();
