@@ -40,6 +40,12 @@
   .neg { color:#c0392b; font-weight:700; }
   .hist-course { font-weight:600; }
   .hist-sub { font-size:12.5px; color:var(--mut); margin-top:2px; }
+  /* Closing total under the points ledger — the balance is the one number students came for. */
+  .ledger-total { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap;
+    background:#e9f6ef; border:1px solid #cfe9dc; border-radius:10px; padding:13px 15px; margin-top:14px; }
+  .lt-label { font-weight:700; color:var(--ink); }
+  .lt-val { color:var(--green); font-weight:800; font-size:18px; white-space:nowrap; }
+  .lt-sub { display:block; font-size:12.5px; font-weight:600; color:var(--mut); margin-top:2px; }
   input[type=range] { flex:1; accent-color:var(--amber-d); padding:0; }
   .breakdown { background:var(--bg); border-radius:10px; padding:14px; margin-top:14px; font-size:14.5px; }
   .breakdown .row { border-bottom:none; padding:4px 0; }
@@ -342,14 +348,14 @@
   </div>
 
   <div class="card">
-    <h2>Your points</h2>
-    <p class="muted" style="margin-top:-4px;margin-bottom:10px">Every point you've earned and every point you've used, newest first.</p>
-    <div id="ptshistory" class="muted">Loading…</div>
+    <h2>Your classes</h2>
+    <div id="history" class="muted">Loading…</div>
   </div>
 
   <div class="card">
-    <h2>Your classes</h2>
-    <div id="history" class="muted">Loading…</div>
+    <h2>Your points</h2>
+    <p class="muted" style="margin-top:-4px;margin-bottom:10px">Every point you've earned and every point you've used, newest first.</p>
+    <div id="ptshistory" class="muted">Loading…</div>
   </div>
 
   <div class="card">
@@ -1202,6 +1208,13 @@ async function loadLedger() {
       <div style="text-align:right"><div class="${p >= 0 ? 'pts' : 'neg'}"><strong>${p >= 0 ? '+' : '−'}${Math.abs(p)} pts</strong></div>
       <div class="muted" style="font-size:12px">balance ${r.running}</div></div></div>`;
   }).join('');
+
+  // Close the ledger on the balance, stated in money — an abstract point count doesn't
+  // tell a student what it's worth. `run` is the final oldest-first total, so it always
+  // matches the running balance printed on the top (newest) row.
+  $('ptshistory').insertAdjacentHTML('beforeend',
+    `<div class="ledger-total"><span class="lt-label">Points available</span>
+      <span class="lt-val">${run} pts${run > 0 ? `<span class="lt-sub">S$${run} off your next class</span>` : ''}</span></div>`);
 }
 
 function esc(s) {
