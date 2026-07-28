@@ -2995,6 +2995,35 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   .foot a{color:var(--on-brown);}
 
   /* Floating CTA */
+
+  /* ── FORMAT TOGGLE + LADDER ── */
+  .fmt{display:inline-flex;padding:5px;background:var(--paper-2);border:1px solid var(--line);border-radius:50px;gap:4px;}
+  .fmt__btn{appearance:none;border:0;cursor:pointer;font-family:var(--sans);font-size:14.5px;font-weight:600;color:var(--ink-soft);background:transparent;border-radius:50px;padding:11px 26px;transition:all .25s var(--ease);display:inline-flex;align-items:center;gap:8px;}
+  .fmt__btn[aria-selected="true"]{background:var(--brand);color:#fff;box-shadow:0 6px 18px rgba(122,59,16,.28);}
+  @media(max-width:460px){ .fmt{width:100%;} .fmt__btn{flex:1;justify-content:center;padding:11px 10px;font-size:13.5px;} }
+  .fmt-panel[hidden]{display:none;}
+  .fmt-strip{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 20px;margin:24px auto 0;font-size:15px;color:var(--ink-soft);max-width:720px;}
+  .fmt-strip b{color:var(--ink);font-weight:700;}
+  .fmt-strip .dot{width:4px;height:4px;border-radius:50%;background:var(--ink-faint);}
+  .fmt-note{margin:30px auto 0;max-width:640px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:var(--r-md);padding:18px 22px;font-size:15px;color:var(--ink-soft);line-height:1.65;text-align:left;}
+  .fmt-note b{color:var(--ink);font-weight:700;}
+  .sescard--static{cursor:default;}
+  .ladder{border-top:1px solid var(--line);}
+  .lrow{display:grid;grid-template-columns:120px 1fr 1fr;gap:14px;padding:18px 0;border-top:1px solid var(--line);align-items:stretch;}
+  .lrow:last-child{border-bottom:1px solid var(--line);}
+  @media(max-width:760px){ .lrow{grid-template-columns:1fr;gap:10px;} }
+  .lfam{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);display:flex;align-items:center;}
+  .rung{display:block;border:1px solid var(--line);background:var(--card);border-radius:var(--r-md);padding:16px 18px;transition:border-color .25s,transform .25s;}
+  .rung:hover{border-color:var(--gold);transform:translateY(-2px);}
+  .rung__l{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--brand-2);margin-bottom:6px;}
+  .rung__n{font-family:var(--serif);font-weight:600;font-size:1.02rem;letter-spacing:-.015em;margin-bottom:4px;}
+  .rung__d{font-size:13.5px;color:var(--ink-soft);line-height:1.5;}
+  .rung--here{background:var(--brown);border-color:var(--brown);}
+  .rung--here:hover{transform:none;border-color:var(--brown);}
+  .rung--here .rung__l{color:var(--amber);}
+  .rung--here .rung__n{color:#fff;}
+  .rung--here .rung__d{color:var(--on-brown-mut);}
+  .rung--here .rung__n::after{content:'YOU ARE HERE';font-family:var(--sans);font-size:9px;font-weight:700;letter-spacing:.13em;color:var(--brown);background:var(--amber);border-radius:4px;padding:2px 7px;margin-left:9px;vertical-align:middle;}
   .float-cta{position:fixed;right:24px;bottom:24px;z-index:60;display:inline-flex;align-items:center;gap:9px;background:var(--brand);color:#fff;font-family:var(--sans);font-size:14px;font-weight:600;padding:15px 26px;border-radius:50px;box-shadow:0 10px 34px rgba(122,59,16,.4);opacity:0;transform:translateY(24px) scale(.9);pointer-events:none;transition:opacity .4s var(--ease),transform .4s var(--ease),background .3s;}
   .float-cta.is-vis{opacity:1;transform:none;pointer-events:auto;}
   .float-cta:hover{background:var(--brand-dark);transform:translateY(-2px);}
@@ -3167,35 +3196,142 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="section__head section__head--center reveal">
       <span class="eyebrow eyebrow--center">Pick a date</span>
       <h2 class="h2" style="margin-top:20px;">Reserve your <em>seat.</em></h2>
-      <p class="section__intro">Choose the session that fits your schedule. Each date links straight to its registration page — seats are limited per intake, so secure yours early.</p>
+      <p class="section__intro">Same class, two ways to sit it. Choose your format, then your date &mdash; booking and everything after it lives in the Student Portal.</p>
     </div>
-    <div class="ses__grid">
-      <a class="sescard reveal" href="https://lu.ma/guhki689" target="_blank" rel="noopener" data-ga-event="cta_click" data-ga-label="reserve_seat" data-ga-location="session_card">
-        <span class="sescard__dow">Thursday</span><span class="sescard__num">23</span><span class="sescard__mon">Jul 2026</span>
-        <span class="sescard__time">7:00 PM <span class="sescard__tz">SGT</span></span>
-        <span class="sescard__cta">Reserve <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </a>
-      <a class="sescard reveal" style="--d:140ms;" href="https://lu.ma/impactus-ff69" target="_blank" rel="noopener" data-ga-event="cta_click" data-ga-label="reserve_seat" data-ga-location="session_card">
-        <span class="sescard__dow">Saturday</span><span class="sescard__num">25</span><span class="sescard__mon">Jul 2026</span>
-        <span class="sescard__time">9:00 AM <span class="sescard__tz">SGT</span></span>
-        <span class="sescard__cta">Reserve <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </a>
-      <a class="sescard reveal" style="--d:210ms;" href="https://luma.com/o7xp1j48" target="_blank" rel="noopener" data-ga-event="cta_click" data-ga-label="reserve_seat" data-ga-location="session_card">
+
+    <div style="text-align:center;" class="reveal">
+      <div class="fmt" role="tablist" aria-label="Choose class format">
+        <button class="fmt__btn" role="tab" id="tab-online" aria-controls="panel-online" aria-selected="true" data-fmt="online">Online</button>
+        <button class="fmt__btn" role="tab" id="tab-f2f" aria-controls="panel-f2f" aria-selected="false" data-fmt="f2f">In person</button>
+      </div>
+    </div>
+
+    <div class="fmt-panel" id="panel-online" role="tabpanel" aria-labelledby="tab-online">
+      <div class="fmt-strip">
+        <span><b>S$180</b> per person</span><span class="dot"></span>
+        <span><b>3 hours</b> live on Zoom</span><span class="dot"></span>
+        <span><b>Max 20</b> per class</span><span class="dot"></span>
+        <span>Your own setup, no travel</span>
+      </div>
+      <div class="ses__grid" style="margin-top:34px;">
+      <div class="sescard sescard--static reveal">
+        <span class="sescard__dow">Wednesday</span><span class="sescard__num">5</span><span class="sescard__mon">Aug 2026</span>
+        <span class="sescard__time">9:00 AM – 12:00 PM <span class="sescard__tz">SGT</span></span>
+        <span class="sescard__cta" style="font-size:12px;">Online · S$180</span>
+      </div>
+      <div class="sescard sescard--static reveal">
         <span class="sescard__dow">Wednesday</span><span class="sescard__num">12</span><span class="sescard__mon">Aug 2026</span>
-        <span class="sescard__time">7:00 PM <span class="sescard__tz">SGT</span></span>
-        <span class="sescard__cta">Reserve <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </a>
-      <a class="sescard reveal" href="https://luma.com/bvtwx477" target="_blank" rel="noopener" data-ga-event="cta_click" data-ga-label="reserve_seat" data-ga-location="session_card">
+        <span class="sescard__time">7:00 PM – 10:00 PM <span class="sescard__tz">SGT</span></span>
+        <span class="sescard__cta" style="font-size:12px;">Online · S$180</span>
+      </div>
+      <div class="sescard sescard--static reveal">
         <span class="sescard__dow">Friday</span><span class="sescard__num">14</span><span class="sescard__mon">Aug 2026</span>
-        <span class="sescard__time">9:00 AM <span class="sescard__tz">SGT</span></span>
-        <span class="sescard__cta">Reserve <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </a>
+        <span class="sescard__time">9:00 AM – 12:00 PM <span class="sescard__tz">SGT</span></span>
+        <span class="sescard__cta" style="font-size:12px;">Online · S$180</span>
+      </div>
+      <div class="sescard sescard--static reveal">
+        <span class="sescard__dow">Saturday</span><span class="sescard__num">29</span><span class="sescard__mon">Aug 2026</span>
+        <span class="sescard__time">9:00 AM – 12:00 PM <span class="sescard__tz">SGT</span></span>
+        <span class="sescard__cta" style="font-size:12px;">Online · S$180</span>
+      </div>
+      <div class="sescard sescard--static reveal">
+        <span class="sescard__dow">Monday</span><span class="sescard__num">31</span><span class="sescard__mon">Aug 2026</span>
+        <span class="sescard__time">7:00 PM – 10:00 PM <span class="sescard__tz">SGT</span></span>
+        <span class="sescard__cta" style="font-size:12px;">Online · S$180</span>
+      </div>
+      <div class="sescard sescard--static reveal">
+        <span class="sescard__dow">Saturday</span><span class="sescard__num">12</span><span class="sescard__mon">Sep 2026</span>
+        <span class="sescard__time">9:00 AM – 12:00 PM <span class="sescard__tz">SGT</span></span>
+        <span class="sescard__cta" style="font-size:12px;">Online · S$180</span>
+      </div>
+      <div class="sescard sescard--static reveal">
+        <span class="sescard__dow">Tuesday</span><span class="sescard__num">22</span><span class="sescard__mon">Sep 2026</span>
+        <span class="sescard__time">7:00 PM – 10:00 PM <span class="sescard__tz">SGT</span></span>
+        <span class="sescard__cta" style="font-size:12px;">Online · S$180</span>
+      </div>
+      </div>
     </div>
-    <p class="reveal" style="text-align:center;margin:36px auto 0;max-width:560px;font-size:15.5px;color:var(--ink-soft);line-height:1.65;">
-      <span style="font-family:var(--serif);font-size:24px;color:var(--brand);">SGD 180</span><br>
-      Three hours live with Dr. Andrew Chew — 100% hands-on, with follow-up query support after class.<br>
-      <span style="font-size:13px;color:var(--ink-faint);">That's less than S$60 an hour for skills you'll use the very next day.</span>
-    </p>
+
+    <div class="fmt-panel" id="panel-f2f" role="tabpanel" aria-labelledby="tab-f2f" hidden>
+      <div class="fmt-strip">
+        <span><b>S$240</b> per person</span><span class="dot"></span>
+        <span><b>3.5 hours</b> in the room</span><span class="dot"></span>
+        <span><b>Paya Lebar Square</b></span><span class="dot"></span>
+        <span>Max 20 &middot; min 5 to run</span>
+      </div>
+      <div class="ses__grid" style="margin-top:34px;">
+      <div class="sescard sescard--static reveal">
+        <span class="sescard__dow">Monday</span><span class="sescard__num">17</span><span class="sescard__mon">Aug 2026</span>
+        <span class="sescard__time">8:30 AM – 12:00 PM <span class="sescard__tz">SGT</span></span>
+        <span class="sescard__cta" style="font-size:12px;">In person · S$240</span>
+      </div>
+      <div class="sescard sescard--static reveal">
+        <span class="sescard__dow">Saturday</span><span class="sescard__num">22</span><span class="sescard__mon">Aug 2026</span>
+        <span class="sescard__time">8:30 AM – 12:00 PM <span class="sescard__tz">SGT</span></span>
+        <span class="sescard__cta" style="font-size:12px;">In person · S$240</span>
+      </div>
+      <div class="sescard sescard--static reveal">
+        <span class="sescard__dow">Monday</span><span class="sescard__num">14</span><span class="sescard__mon">Sep 2026</span>
+        <span class="sescard__time">8:30 AM – 12:00 PM <span class="sescard__tz">SGT</span></span>
+        <span class="sescard__cta" style="font-size:12px;">In person · S$240</span>
+      </div>
+      <div class="sescard sescard--static reveal">
+        <span class="sescard__dow">Saturday</span><span class="sescard__num">19</span><span class="sescard__mon">Sep 2026</span>
+        <span class="sescard__time">8:30 AM – 12:00 PM <span class="sescard__tz">SGT</span></span>
+        <span class="sescard__cta" style="font-size:12px;">In person · S$240</span>
+      </div>
+      </div>
+    </div>
+
+    <div class="fmt-note reveal">
+      <b>What's actually different:</b> in person you get an extra 30 minutes and Andrew at your shoulder when something breaks. Online you keep your own setup and skip the travel. The teaching, the tools and what you walk away with are the same either way. In-person classes need a minimum number of participants to go ahead &mdash; if a date doesn't reach it we may ask you to move to another, and everything you've paid carries over.
+    </div>
+
+    <div style="text-align:center;margin-top:34px;" class="reveal">
+      <a href="https://events.impactuslearning.com/portal/" class="btn btn--amber btn--lg btn--shine" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="session_card">Student Portal. Book and Manage Courses.
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <p style="margin:16px auto 0;max-width:520px;font-size:13.5px;color:var(--ink-faint);line-height:1.6;">Every seat earns you <b style="color:var(--ink-soft);">10% back in points</b> towards your next class. A Claude Pro subscription is required &mdash; you'll be working in your own account throughout.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE LADDER ============ -->
+<section class="section ladder" id="ladder">
+  <div class="wrap">
+    <div class="section__head section__head--center reveal">
+      <span class="eyebrow eyebrow--center">Where this class sits</span>
+      <h2 class="h2" style="margin-top:20px;">Level 1 is <em>here.</em></h2>
+      <p class="section__intro">Level is what you can make. Format is how you learn it &mdash; you picked that above.</p>
+    </div>
+    <div class="reveal">
+      <div class="lrow">
+        <div class="lfam">Claude</div>
+        <div class="rung rung--here">
+          <div class="rung__l">Level 1</div>
+          <div class="rung__n">Master Claude &ndash; Agentic AI</div>
+          <div class="rung__d">From zero to a working app in one session. Online or in person.</div>
+        </div>
+        <a class="rung" href="https://events.impactuslearning.com/claudebuild/">
+          <div class="rung__l">Level 2</div>
+          <div class="rung__n">Claude Masterclass &ndash; Build</div>
+          <div class="rung__d">You build the real thing, in the room. In person only.</div>
+        </a>
+      </div>
+      <div class="lrow">
+        <div class="lfam">Animation</div>
+        <a class="rung" href="https://events.impactuslearning.com/animation/">
+          <div class="rung__l">Level 1</div>
+          <div class="rung__n">AI Animation Masterclass</div>
+          <div class="rung__d">You direct every shot by hand. Online or in person.</div>
+        </a>
+        <a class="rung" href="https://events.impactuslearning.com/animationautomation/">
+          <div class="rung__l">Level 2</div>
+          <div class="rung__n">AI Animation &ndash; Automation</div>
+          <div class="rung__d">The agent runs the pipeline. You supervise. In person only.</div>
+        </a>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -3212,7 +3348,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         Limited seats per intake
       </div>
       <div class="invite__btns">
-        <a href="#sessions" class="btn btn--amber btn--lg btn--shine" data-ga-event="cta_click" data-ga-label="reserve_seat" data-ga-location="final_cta">Reserve your seat today
+        <a href="https://events.impactuslearning.com/portal/" class="btn btn--amber btn--lg btn--shine" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="final_cta">Student Portal. Book and Manage Courses.
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a>
       </div>
@@ -3235,7 +3371,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 </footer>
 
 <!-- Floating CTA -->
-<a href="#sessions" class="float-cta" id="floatCta" data-ga-event="cta_click" data-ga-label="reserve_seat" data-ga-location="float">Reserve your seat
+<a href="https://events.impactuslearning.com/portal/" class="float-cta" id="floatCta" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="float" style="max-width:190px;line-height:1.3;text-align:center;border-radius:22px;">Student Portal. Book and Manage Courses.
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
 </a>
 
@@ -3289,5 +3425,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   }
 })();
 </script>
-<a href="https://events.impactuslearning.com/portal/" style="position:fixed;bottom:74px;right:16px;z-index:9999;background:#f5b731;color:#101a2d;font-weight:700;padding:12px 18px;border-radius:99px;text-decoration:none;font-family:Inter,system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3)" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="float">Student Portal. Book and Manage Courses.</a></body>
+<script>
+(function(){
+  var btns=document.querySelectorAll('.fmt__btn');
+  var map={online:'panel-online', f2f:'panel-f2f'};
+  function show(f){
+    Object.keys(map).forEach(function(k){
+      var el=document.getElementById(map[k]); if(el) el.hidden = (k!==f);
+    });
+    btns.forEach(function(b){ b.setAttribute('aria-selected', b.dataset.fmt===f?'true':'false'); });
+    document.querySelectorAll('#sessions .reveal').forEach(function(e){ e.classList.add('is-in'); });
+  }
+  btns.forEach(function(b){ b.addEventListener('click',function(){ show(b.dataset.fmt); }); });
+  if(location.hash==='#f2f') show('f2f');
+})();
+</script>
+</body>
 </html>
