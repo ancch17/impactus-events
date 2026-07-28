@@ -81,6 +81,11 @@
   .formgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0 14px; }
   .transfer-box { background:#f2f5fb; border-radius:10px; padding:10px; margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .transfer-box select { width:auto; flex:1; min-width:220px; }
+  .refund-box { background:#fdf4f4; border:1px solid #f3d9d9; border-radius:10px; padding:10px; margin-top:6px; min-width:290px; }
+  .refund-box label { font-size:12px; color:#7a828f; margin:6px 0 2px; display:block; }
+  .refund-box input, .refund-box select, .refund-box textarea { width:100%; font-size:13px; padding:6px 8px; }
+  .refund-box .rfrow { display:flex; gap:6px; flex-wrap:wrap; margin-top:9px; }
+  .refund-box .rfnote { font-size:12px; color:#7a828f; margin-top:7px; line-height:1.45; }
   table.cal { table-layout:fixed; min-width:660px; border-collapse:collapse; }
   .cal th { text-align:center; padding:6px 2px; border-bottom:1px solid var(--line); }
   .cal td { border:1px solid var(--line); padding:3px 3px 4px; vertical-align:top; height:92px; cursor:pointer; }
@@ -789,18 +794,20 @@ window.openRoster = function (cid, noScroll) {
         <td>${s.email ? `<a href="students.html?q=${encodeURIComponent(s.email)}" target="_blank" title="Open ${esc(s.name)} on the Students tab"><strong>${esc(s.name)}</strong> ↗</a>` : `<strong>${esc(s.name)}</strong>`}${b.note ? `<br><span class="muted">${b.note}</span>` : ''}</td>
         <td>${s.email}<br><span class="muted">${s.mobile || '—'}</span></td>
         <td class="othercourses">${otherCoursesCell(b.student_id, cid)}</td>
-        <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}</td>
+        <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}${Number(b.refunded_sgd) > 0 ? `<br><span class="muted" style="color:#6b4bab">↩︎ ${fmt$(b.refunded_sgd)} refunded</span>` : ''}</td>
         <td><span class="pill ${b.status === 'confirmed' ? 'open' : b.status === 'pending' ? 'pending' : b.status}">${b.status}</span></td>
         <td class="remarkcell">
           <textarea id="rm-${b.student_id}" class="rm-input" rows="2" placeholder="Add a remark…">${esc(s.remarks)}</textarea>
           <div class="rm-row"><button class="btn sm" onclick="saveRemark('${b.student_id}')">Save</button>${s.remarks ? pinButton(s) : ''}</div>
         </td>
         <td><button class="btn ghost sm" onclick="showTransfer('${b.id}')">Transfer</button>
+          ${Number(b.cash_paid_sgd) > 0 ? `<button class="btn ghost sm" style="margin-top:4px;color:#a33" onclick="showRefund('${b.id}')">Refund</button>` : ''}
           <div class="transfer-box hidden" id="tf-${b.id}">
             <select id="tfsel-${b.id}">${futureOthers}</select>
             <button class="btn sm" onclick="doTransfer('${b.id}')">Move</button>
             <button class="btn ghost sm" onclick="$('tf-${b.id}').classList.add('hidden')">✕</button>
-          </div></td>
+          </div>
+          <div class="refund-box hidden" id="rf-${b.id}">${refundForm(b, s)}</div></td>
       </tr>`;
     }).join('') + '</tbody></table>';
   if (!noScroll) $('rostercard').scrollIntoView({ behavior: 'smooth' });
@@ -822,6 +829,103 @@ window.doTransfer = async function (bid) {
   if (error) return msg('rostermsg', 'err', error.message);
   msg('rostermsg', 'ok', `${s.name} moved to ${to.name} ${fdate(to.cohort_date)}.`);
   await loadAll();
+};
+
+// ---------- Refund one student (the per-seat twin of Cancel class) ----------
+// Money model: original paid = cash_paid_sgd + refunded_sgd. Every refund moves the amount
+// from the first to the second, so the most you can refund is always what the Paid column
+// still shows, and every revenue sum is net of refunds without knowing refunds exist.
+function refundForm(b, s) {
+  const cash = Number(b.cash_paid_sgd) || 0;
+  return `<label>Refund amount (S$) — most you can refund is ${fmt$(cash)}</label>
+    <input id="rfamt-${b.id}" type="number" min="0.01" max="${cash}" step="0.01" value="${cash}">
+    <label>Their seat</label>
+    <select id="rfseat-${b.id}">
+      <option value="release">Release the seat — they're out of this class</option>
+      <option value="keep">Keep the seat — they still attend</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:9px;color:#1a2233;font-size:13px">
+      <input type="checkbox" id="rfmail-${b.id}" style="width:auto;margin:0"> Email ${esc((s.name || '').split(' ')[0] || 'them')} a refund confirmation
+    </label>
+    <div id="rfmailbox-${b.id}" class="hidden">
+      <label>Subject</label>
+      <input id="rfsub-${b.id}" value="Your refund for ${esc(byCourse[b.course_id] ? byCourse[b.course_id].name : 'your class')}">
+      <label>Opening line ({first} = their name). The refund details are added automatically.</label>
+      <textarea id="rfbody-${b.id}" rows="2">Hi {first},</textarea>
+    </div>
+    <label>Reason (internal note, optional)</label>
+    <input id="rfwhy-${b.id}" placeholder="e.g. medical, requested by student">
+    <div class="rfrow">
+      <button class="btn ghost sm" onclick="previewRefund('${b.id}')">Preview</button>
+      <button class="btn sm" style="background:var(--red);color:#fff" onclick="doRefund('${b.id}')">Refund</button>
+      <button class="btn ghost sm" onclick="$('rf-${b.id}').classList.add('hidden')">✕</button>
+    </div>
+    <div class="rfnote" id="rfmsg-${b.id}"></div>`;
+}
+window.showRefund = function (bid) {
+  $('rf-' + bid).classList.toggle('hidden');
+  const cb = $('rfmail-' + bid);
+  if (cb) cb.onchange = () => $('rfmailbox-' + bid).classList.toggle('hidden', !cb.checked);
+};
+function refundPayload(bid, dry) {
+  const mail = $('rfmail-' + bid).checked;
+  return {
+    booking_id: bid,
+    amount: Number($('rfamt-' + bid).value),
+    release_seat: $('rfseat-' + bid).value === 'release',
+    reason: $('rfwhy-' + bid).value || null,
+    dry_run: !!dry,
+    email: (!dry && mail) ? { send: true, subject: $('rfsub-' + bid).value, body: $('rfbody-' + bid).value } : null,
+  };
+}
+window.previewRefund = async function (bid) {
+  const box = $('rfmsg-' + bid);
+  box.textContent = 'Checking…';
+  const { ok, out } = await callFn('refund-booking', refundPayload(bid, true));
+  if (!ok) { box.innerHTML = `<span style="color:var(--red)">${esc(out.error || 'Preview failed')}</span>`; return; }
+  const p = out.plan;
+  const bits = [
+    `<strong>${fmt$(p.amount)}</strong> back to ${p.stripe_ready ? 'their original payment method' : '<span style="color:var(--red)">— no Stripe payment on file, you\'ll have to send this one by hand</span>'}`,
+    `Paid on this seat goes ${fmt$(p.cash_before)} → <strong>${fmt$(p.cash_after)}</strong>`,
+    p.release_seat ? 'Seat is <strong>released</strong> (booking cancelled)' : 'Seat stays <strong>confirmed</strong>',
+    p.points_reversed ? `−${p.points_reversed} pts clawed back` : 'No points to claw back',
+  ];
+  if (p.points_returned) bits.push(`+${p.points_returned} redeemed pts returned to them`);
+  if (p.coupon_freed) bits.push(`Coupon <strong>${esc(p.coupon_freed)}</strong> freed for reuse`);
+  bits.push(`Their balance: ${p.balance_before} → <strong>${p.balance_after}</strong> pts`);
+  if (p.balance_goes_negative) bits.push('<span style="color:var(--red)"><strong>Heads up:</strong> that puts them below zero — they have already spent points earned on this seat.</span>');
+  box.innerHTML = 'Nothing has changed yet.<br>• ' + bits.join('<br>• ');
+};
+// refundBusy is a module flag, not button.disabled — a re-render re-enables the button and a
+// fast second click beats the repaint (the 2026-07-28 double-submit lesson). The edge function
+// also rejects a second refund on the same seat within 30s, because a flag can't survive a reload.
+let refundBusy = false;
+window.doRefund = async function (bid) {
+  if (refundBusy) return;
+  const b = bookings.find(x => x.id === bid); if (!b) return;
+  const s = byStudent[b.student_id] || { name: '?' };
+  const amt = Number($('rfamt-' + bid).value);
+  const release = $('rfseat-' + bid).value === 'release';
+  const box = $('rfmsg-' + bid);
+  if (!(amt > 0)) { box.innerHTML = '<span style="color:var(--red)">Enter an amount.</span>'; return; }
+  if (!confirm(`Refund ${fmt$(amt)} to ${s.name}?\n\nThis sends real money back through Stripe and ${release ? 'releases their seat' : 'leaves their seat booked'}. It can't be undone from here.`)) return;
+  refundBusy = true;
+  box.textContent = 'Refunding…';
+  try {
+    const { ok, out } = await callFn('refund-booking', refundPayload(bid, false));
+    if (!ok) { box.innerHTML = `<span style="color:var(--red)">${esc(out.error || 'Refund failed')}</span>`; return; }
+    let m = out.stripe === 'refunded'
+      ? `Refunded ${fmt$(out.refunded)} via Stripe.`
+      : `Booking updated, but Stripe did NOT send the money (${esc(out.stripe_reason || 'unknown')}) — refund it by hand in the Stripe dashboard.`;
+    if (out.points_reversed) m += ` −${out.points_reversed} pts.`;
+    if (out.points_returned) m += ` +${out.points_returned} pts returned.`;
+    if (out.coupon_freed) m += ` Coupon ${esc(out.coupon_freed)} freed.`;
+    if (out.balance_after < 0) m += ` Their balance is now ${out.balance_after} pts.`;
+    m += out.emailed ? ' Email sent.' : (out.note ? ' ' + esc(out.note) : '');
+    msg('rostermsg', out.stripe === 'refunded' ? 'ok' : 'err', m);
+    await loadAll();
+    openRoster(rosterCourse, true);
+  } finally { refundBusy = false; }
 };
 
 function rosterExport(kind) {

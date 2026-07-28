@@ -1347,8 +1347,11 @@ $('paybtn').onclick = () => startCheckout(null);
 // A cancelled seat that was never paid for is just an abandoned checkout — it should not
 // sit in the student's list forever. They can remove those. A cancelled seat that WAS paid
 // (postponed, or refunded) stays: that one is the money trail and is not theirs to erase.
+// A full refund zeroes cash_paid_sgd, so refunded_sgd is what tells the two apart — without it
+// a refunded seat would read as "never paid" and become removable. Mirrors hide_cancelled_booking.
 const isRemovable = (r) =>
-  r.status === 'cancelled' && Number(r.cash_paid_sgd) === 0 && Number(r.points_redeemed) === 0;
+  r.status === 'cancelled' && Number(r.cash_paid_sgd) === 0 && Number(r.points_redeemed) === 0
+  && Number(r.refunded_sgd || 0) === 0;
 
 async function loadHistory() {
   const { data } = await sb.from('student_history').select('*').eq('email', myEmail).order('cohort_date', { ascending: false });
@@ -1356,17 +1359,21 @@ async function loadHistory() {
   if (!rows.length) { $('history').textContent = 'No transactions yet.'; return; }
   $('history').innerHTML = rows.map(r => {
     const paid = Number(r.cash_paid_sgd);
+    const refunded = Number(r.refunded_sgd || 0);
     const isFuture = r.cohort_date >= new Date().toISOString().slice(0, 10);
     let badge = '';
-    if (r.status === 'cancelled') badge = isRemovable(r)
+    if (refunded > 0) badge = `<span class="pill" style="background:#f4f0fb;color:#6b4bab">Refunded ${fmt$(refunded)}</span>`;
+    if (r.status === 'cancelled') badge += isRemovable(r)
       ? '<span class="pill" style="background:#eee;color:#888">Not booked — never paid</span>'
-      : '<span class="pill" style="background:#eee;color:#888">Postponed / cancelled</span>';
-    else if (paid === 0 && r.points_redeemed > 0) badge = '<span class="pill free">Paid with points</span>';
-    else if (paid === 0) badge = '<span class="pill free">Complimentary</span>';
-    else if (paid === 90) badge = '<span class="pill early">Introductory price — early supporter</span>';
+      : refunded > 0 ? '' : '<span class="pill" style="background:#eee;color:#888">Postponed / cancelled</span>';
+    else if (refunded > 0) { /* the refund pill above already says it — don't also call it free */ }
+    else if (paid === 0 && r.points_redeemed > 0) badge += '<span class="pill free">Paid with points</span>';
+    else if (paid === 0) badge += '<span class="pill free">Complimentary</span>';
+    else if (paid === 90) badge += '<span class="pill early">Introductory price — early supporter</span>';
     if (isFuture && r.status === 'confirmed') badge += '<span class="pill upcoming">Upcoming</span>';
     const right = [];
     if (paid > 0) right.push(`<div><strong>${fmt$(paid)}</strong> paid</div>`);
+    if (refunded > 0) right.push(`<div class="muted" style="font-size:12.5px">${fmt$(refunded)} refunded</div>`);
     if (r.points_redeemed > 0 && r.status === 'confirmed') right.push(`<div class="muted" style="font-size:12.5px">${r.points_redeemed} pts used</div>`);
     if (isRemovable(r)) right.push(`<button type="button" class="hist-x" data-drop="${esc(r.booking_id)}" title="Remove this from your list">✕ Remove</button>`);
     return `<div class="row"><div><div class="hist-course">${r.course}${badge}</div>
