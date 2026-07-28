@@ -86,6 +86,17 @@
   .date-chip.full { cursor:default; background:#f4f6f9; border-style:dashed; }
   .date-chip.full strong { color:#8b93a1; }
   .date-chip.full:hover { border-color:var(--line); }
+  /* A seat this student already holds. The server refuses a second booking for the same
+     class, so these are shown as settled rather than offered again. */
+  .scal-ev.booked { background:#2c7 !important; cursor:default; opacity:.85; }
+  .scal-ev.booked:hover { filter:none; }
+  .ag-row.booked { cursor:default; }
+  .ag-row.booked:hover { border-color:var(--line); box-shadow:none; }
+  .date-chip.booked { cursor:default; background:#e3f4ea; border-color:#bfe6cf; }
+  .date-chip.booked strong { color:#1c7a4a; }
+  .date-chip.booked span { color:#2c7; font-weight:700; }
+  .date-chip.booked:hover { border-color:#bfe6cf; }
+  .booked-tag { background:#e3f4ea; color:#1c7a4a; font-size:11px; font-weight:700; padding:2px 10px; border-radius:20px; white-space:nowrap; }
   .pay-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px;
               margin-top:22px; padding-top:16px; border-top:2px solid var(--line); }
   .pay-summary { border:1px solid var(--line); border-left:4px solid var(--accent,#101a2d); border-radius:10px;
@@ -772,14 +783,21 @@ let courseGroups = {};
 // Which course families has this student already sat in? Drives the "come back" badge.
 async function attendedFamilies() {
   const today = new Date().toISOString().slice(0, 10);
-  const { data } = await sb.from('student_history').select('family_slug,cohort_date,status');
+  const { data } = await sb.from('student_history').select('course_id,family_slug,cohort_date,status');
   const seen = {};
+  // Every class this student already has a confirmed seat on. create-checkout rejects a
+  // second booking for the same class outright, so the portal must stop offering it —
+  // otherwise a stray second click reads as a mysterious failure.
+  bookedIds = new Set();
   (data || []).forEach(r => {
-    if (!r.family_slug || r.status !== 'confirmed' || r.cohort_date >= today) return;
+    if (r.status !== 'confirmed') return;
+    if (r.course_id) bookedIds.add(r.course_id);
+    if (!r.family_slug || r.cohort_date >= today) return;
     if (!seen[r.family_slug] || r.cohort_date > seen[r.family_slug]) seen[r.family_slug] = r.cohort_date;
   });
   return seen;
 }
+const isBooked = (c) => !!c && bookedIds.has(c.id);
 
 // ---------- Upcoming classes: calendar + list + course cards ----------
 // Four levels, four colours. F2F (in-person) is a tag on the same level, not a separate colour.
@@ -801,6 +819,7 @@ const LEVEL_ORDER = [
 const lvlOf = (slug) => LEVELS[slug] || { key: 'x', short: 'Class', title: '', color: '#64748b', f2f: false };
 
 let allCohorts = [], attendedMap = {}, calMonth = null, calFilter = '';
+let bookedIds = new Set();   // course ids this student already holds a confirmed seat on
 
 const isoOf = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 // Same slotting rule as the admin calendar: AM before 12pm, PM 12–6pm, N after 6pm.
@@ -886,6 +905,9 @@ function renderCalendar() {
         slots[si].map(c => {
           const L = lvlOf(c.family_slug);
           const tip = `${esc(L.title)} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + esc(c.session_time) : ''}`;
+          if (isBooked(c)) {
+            return `<span class="scal-ev booked" title="${tip} · You're booked">${L.f2f ? '<span class="evf2f">F2F</span>' : ''}${L.short} · Booked ✓</span>`;
+          }
           if (c.is_full) {
             return `<span class="scal-ev full" title="${tip} · Closed">${L.f2f ? '<span class="evf2f">F2F</span>' : ''}${L.short} · Closed</span>`;
           }
@@ -908,6 +930,13 @@ function renderAgenda() {
   $('agenda').innerHTML = rows.map(c => {
     const L = lvlOf(c.family_slug);
     const what = `${L.f2f ? '<span class="f2f-tag">F2F</span>' : ''}<span class="lvl-pill" style="background:${L.color}">${L.short}</span>`;
+    if (isBooked(c)) {
+      return `<div class="ag-row booked">
+        <span class="ag-bar" style="background:#2c7"></span>
+        <span class="ag-when"><strong>${fdate(c.cohort_date)}</strong><span class="hist-sub">${esc(c.session_time || '')}</span></span>
+        <span class="ag-what">${what}</span>
+        <span class="ag-price"><span class="booked-tag">Booked ✓</span></span></div>`;
+    }
     if (c.is_full) {
       return `<div class="ag-row full">
         <span class="ag-bar" style="background:#b9c0cc"></span>
@@ -932,13 +961,18 @@ function renderCards() {
     const L = lvlOf(slug);
     const bookable = list.filter(c => !c.is_full);
     const allFull = !bookable.length;
-    const next = bookable[0] || list[0];
+    // Dates still on offer to THIS student — open, and not already sitting in their account.
+    const offerable = bookable.filter(c => !isBooked(c));
+    const allTaken = !allFull && !offerable.length;
+    const next = offerable[0] || bookable[0] || list[0];
     const been = attendedMap[slug];
     const earn = earnOn(next.price_sgd);
     const sub = been
       ? `You attended ${fdate(been)}.${balance > 0 ? ` Your ${balance} pts come off the price — repeats welcome.` : ' Repeats welcome.'}`
       : (next.family_tagline || next.details || '');
-    const chips = list.map(c => c.is_full
+    const chips = list.map(c => isBooked(c)
+      ? `<span class="date-chip booked"><strong>${fdate(c.cohort_date)}</strong><span>Booked ✓</span></span>`
+      : c.is_full
       ? `<span class="date-chip full"><strong>${fdate(c.cohort_date)}</strong><span>Closed</span></span>`
       : `<button type="button" class="date-chip" data-chip="${c.id}" data-slug="${slug}">
           <strong>${fdate(c.cohort_date)}</strong>${c.session_time ? `<span>${esc(c.session_time)}</span>` : ''}</button>`).join('');
@@ -966,6 +1000,8 @@ function renderCards() {
         <div class="date-chips">${chips}</div>
         ${allFull
           ? '<p class="muted" style="margin-top:13px">This one is closed for booking — watch this space for the next run.</p>'
+          : allTaken
+          ? '<p class="muted" style="margin-top:13px">You’re already booked on every open date for this class — see “Your classes” below.</p>'
           : `<button type="button" class="btn book-btn" data-book="${slug}" style="background:${L.color};color:#fff">Book this class</button>`}
       </div></div>`;
   }).join('');
@@ -975,7 +1011,7 @@ function renderCards() {
     else pickCohort(b.dataset.chip, false);
   });
   document.querySelectorAll('.book-btn').forEach(b => b.onclick = () => {
-    const list = courseGroups[b.dataset.book].filter(c => !c.is_full);
+    const list = courseGroups[b.dataset.book].filter(c => !c.is_full && !isBooked(c));
     if (!list.length) return;
     const chosen = selCourse && list.some(c => c.id === selCourse.id) ? selCourse : list[0];
     pickCohort(chosen.id, true);
@@ -990,6 +1026,7 @@ function wirePicks() {
 function pickCohort(id, scroll) {
   const c = allCohorts.find(x => x.id === id);
   if (!c || c.is_full) return;   // closed cohorts are display-only
+  if (isBooked(c)) return;       // already theirs — the server would reject a second booking
   if (calFilter && lvlOf(c.family_slug).key !== calFilter) { calFilter = ''; $('calfilter').value = ''; renderCards(); }
   selectCourse(c);
   document.querySelectorAll('.date-chip').forEach(b => b.classList.toggle('on', b.dataset.chip === id));
@@ -1015,11 +1052,15 @@ function deselectCohort() {
 
 // deep link: ?course=automation&date=2026-08-13&time=am|pm|n — matches family slug or any alt_slug
 function applyDeepLink() {
+  // Once only. loadCourses() runs again after every booking, and re-firing the deep link
+  // there would silently re-open the payment step on a class the student just paid for.
+  if (deepLinkDone) return;
+  deepLinkDone = true;
   const asked = (params.get('course') || '').toLowerCase();
   const want = asked && Object.keys(courseGroups).find(s =>
     s === asked || (courseGroups[s][0].alt_slugs || []).includes(asked));
   if (!want) return;
-  const open = courseGroups[want].filter(c => !c.is_full);   // never deep-link into a closed cohort
+  const open = courseGroups[want].filter(c => !c.is_full && !isBooked(c));   // never deep-link into a closed or already-booked cohort
   if (!open.length) return;
   const d = params.get('date');
   const t = (params.get('time') || '').toLowerCase();
@@ -1046,7 +1087,8 @@ function switchView(v) {
 // Phones get the agenda by default — a six-column grid is unreadable at 360px.
 if (window.matchMedia('(max-width: 640px)').matches) switchView('list');
 
-let coupon = null;  // { code, discount, label } once a valid code is applied
+let coupon = null;         // { code, discount, label } once a valid code is applied
+let deepLinkDone = false;  // the ?course=… deep link is honoured once per page load
 
 function selectCourse(c) {
   selCourse = c; coupon = null;
@@ -1134,16 +1176,38 @@ function updateBreakdown() {
   document.querySelectorAll('.pm').forEach(b => { b.disabled = false; });
   $('bookmsg').className = 'msg';
   if (blocked) msg('bookmsg', 'ok', 'Card / PayNow / GrabPay checkout goes live shortly. For now you can book any class fully covered by points or a code.');
+
+  // Last line of defence. Nothing above should be able to open the payment step on a class
+  // the student already holds, but if the form is somehow still on screen, don't offer a
+  // button whose only possible outcome is "You already have a booking for this course".
+  if (isBooked(selCourse)) {
+    $('paymethods').classList.add('hidden');
+    $('paybtn').classList.remove('hidden');
+    $('paybtn').disabled = true;
+    $('paybtn').textContent = 'You’re already booked on this date';
+    msg('bookmsg', 'ok', 'You already have a seat on this date — there’s nothing more to pay.');
+  }
 }
 
 const METHOD_NAME = { paynow: 'PayNow', grabpay: 'GrabPay', card: 'card' };
+let checkoutBusy = false;   // one checkout at a time — see the guard in startCheckout()
 
 // One path for both the S$0 booking and every paid one. `method` is null when nothing is
 // owed; otherwise it's the single method the student picked, which is all Stripe is told.
 async function startCheckout(method) {
+  // Guard on a flag, not on the buttons. Disabling them is cosmetic — a second click can
+  // still land in the gap before the browser applies it, on a re-render that re-enables
+  // them, or from the keyboard. A booking that already succeeded came back here and got
+  // rejected as a duplicate, which reads to the student as the first attempt having failed.
+  if (checkoutBusy) return;
   if (!selCourse) return;
+  if (isBooked(selCourse)) {
+    msg('bookmsg', 'ok', 'You already have a seat on this date — it’s in “Your classes” below.');
+    return;
+  }
   const payNow = Number(selCourse.price_sgd) - (coupon ? coupon.discount : 0) - autoPoints();
   if (payNow > 0 && !PAYMENTS_LIVE) return;   // card checkout not live yet
+  checkoutBusy = true;
   document.querySelectorAll('.pm').forEach(b => { b.disabled = true; });
   $('paybtn').disabled = true;
   msg('bookmsg', 'ok', method ? `Setting up your ${METHOD_NAME[method]} payment…` : 'Preparing your booking…');
@@ -1157,13 +1221,34 @@ async function startCheckout(method) {
     const out = await res.json();
     if (!res.ok) throw new Error(out.error || 'Something went wrong');
     if (out.status === 'confirmed_free') {
-      msg('bookmsg', 'ok', 'Booked! You\'re all set — see you in class!');
+      // Nothing was owed, so there's no Stripe redirect and the student stays on this page.
+      // Close the payment step before re-rendering: leaving it open with a live button is
+      // what invited the second click in the first place.
+      bookedIds.add(selCourse.id);
+      const what = `${selCourse.name} on ${fdate(selCourse.cohort_date)}`;
+      deselectCohort();
       const { data: { session: s2 } } = await sb.auth.getSession(); await showApp(s2);
+      msg('bookmsg', 'ok', `Booked! Your seat for ${what} is confirmed — see you in class!`);
+      $('bookmsg').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;                                  // form is closed; nothing to re-enable
     } else if (out.url) {
       location.href = out.url;
       return;                                  // leaving the page; leave the buttons disabled
     }
-  } catch (e) { msg('bookmsg', 'err', e.message); }
+  } catch (e) {
+    // The server says this seat is already theirs — that's not a failure, it's the outcome
+    // they wanted. Reaching here means an identical request won the race (or another tab
+    // did the booking), so show it as done rather than as a red error.
+    if (/already have a booking/i.test(e.message || '')) {
+      if (selCourse) bookedIds.add(selCourse.id);
+      deselectCohort();
+      const { data: { session: s3 } } = await sb.auth.getSession(); await showApp(s3);
+      msg('bookmsg', 'ok', 'You’re already booked on this date — it’s in “Your classes” below.');
+      checkoutBusy = false;
+      return;
+    }
+    msg('bookmsg', 'err', e.message);
+  } finally { checkoutBusy = false; }
   document.querySelectorAll('.pm').forEach(b => { b.disabled = false; });
   $('paybtn').disabled = false;
 }
