@@ -193,10 +193,13 @@ function renderCoupons() {
         : expired ? '<span class="pill cancelled">Expired</span>'
         : capped ? '<span class="pill cancelled">Used up</span>'
         : '<span class="pill open">Live</span>';
+      const deleteBtn = c.uses > 0
+        ? `<button class="btn sm ghost" disabled title="This code has been redeemed, so it can't be deleted — bookings still reference it. Turn it off instead." style="color:#999;cursor:not-allowed;opacity:.6">In use</button>`
+        : `<button class="btn sm ghost" style="color:#c0392b" onclick="deleteCoupon('${c.id}','${c.code}',${c.uses || 0})">Delete</button>`;
       return `<tr><td><strong>${c.code}</strong>${c.note ? `<div class="muted" style="font-size:11px">${c.note}</div>` : ''}</td>` +
         `<td>${disc}</td><td>${scope}</td><td>${used}</td><td>${c.expires_at ? fdate(c.expires_at) : '—'}</td><td>${status}</td>` +
         `<td style="white-space:nowrap"><button class="btn sm ghost" onclick="toggleCoupon('${c.id}',${c.active})">${c.active ? 'Turn off' : 'Turn on'}</button>` +
-        ` <button class="btn sm ghost" style="color:#c0392b" onclick="deleteCoupon('${c.id}','${c.code}',${c.uses || 0})">Delete</button></td></tr>`;
+        ` ${deleteBtn}</td></tr>`;
     }).join('') + '</tbody></table>';
 }
 window.toggleCoupon = async function (id, cur) {
@@ -205,17 +208,17 @@ window.toggleCoupon = async function (id, cur) {
   await loadAll();
 };
 
-// Deleting a code is the permanent version of turning it off. Past redemptions are NOT
-// deleted - each one snapshots the code, kind and value, so the audit trail below survives.
+// Deleting a code only ever applies to codes that have never been redeemed - once a booking
+// references a code, the database's foreign key won't allow the row to be removed, so the
+// Delete button is swapped for a disabled "In use" button in renderCoupons() instead. This
+// guard is just a defensive backstop in case the list is stale when the button is clicked.
 window.deleteCoupon = async function (id, code, uses) {
-  const warn = uses > 0
-    ? `Delete code ${code}?\n\nIt has been used ${uses} time${uses === 1 ? '' : 's'}. Those redemptions stay in the audit trail below - only the code itself is removed, and it can never be used again.`
-    : `Delete code ${code}?\n\nIt has never been used. This removes it permanently.`;
-  if (!confirm(warn)) return;
+  if (uses > 0) return alert(`Code ${code} has been used, so it can't be deleted. Use "Turn off" instead - it stops the code working without touching the bookings that already used it.`);
+  if (!confirm(`Delete code ${code}?\n\nIt has never been used. This removes it permanently.`)) return;
   const { error } = await sb.from('coupons').delete().eq('id', id);
   if (error) return alert(error.message);
   await loadAll();
-  msg('c-msg', 'ok', `Code ${code} deleted. Any past uses remain in the audit trail.`);
+  msg('c-msg', 'ok', `Code ${code} deleted.`);
 };
 
 // ---------- Coupon audit trail (survives deletion) ----------
