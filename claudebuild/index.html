@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-5KXF6DVD');</script>
+<!-- End Google Tag Manager -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Masterclass — Build (Level 2) — In Person, Singapore — Impactus Learning</title>
+<meta name="description" content="Level 2 of the Impactus Claude ladder. In person only, 3.5 hours at Paya Lebar Square. Build a real website, booking system, CRM or app with Claude Code — bring your own project. S$240, max 20 seats. Level 1 required.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════ BLUEPRINT ══════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+:root{
+  --paper:#FBFBFA;
+  --paper-2:#F2F3F1;
+  --paper-3:#E9EBE8;
+  --ink:#0D0F11;
+  --ink-2:#4E555C;
+  --ink-3:#8E959B;
+  --ink-4:#B9BEC2;
+  --rule:#E2E4E1;
+  --rule-2:#CDD1CD;
+  --jade:#00A86B;
+  --jade-d:#008253;
+  --jade-w:rgba(0,168,107,.09);
+  --on-dark:rgba(255,255,255,.94);
+  --on-dark-2:rgba(255,255,255,.58);
+  --on-dark-3:rgba(255,255,255,.30);
+  --sans:'Inter Tight',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --maxw:1200px;
+}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;}
+a{text-decoration:none;color:inherit;}
+img{display:block;max-width:100%;}
+::selection{background:var(--jade);color:#fff;}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 56px;}
+@media(max-width:820px){ .wrap{padding:0 26px;} body{font-size:16px;} }
+
+/* blueprint grid — faint, fixed */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(to right, rgba(13,15,17,.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(13,15,17,.028) 1px, transparent 1px);
+  background-size:56px 56px;
+}
+body>*{position:relative;z-index:1;}
+
+/* ── type ── */
+.mono{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);}
+.plate-no{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--jade);}
+h1,h2,h3{letter-spacing:-.035em;line-height:1.02;font-weight:700;}
+.h-xl{font-size:clamp(2.7rem,6.2vw,5.3rem);}
+.h-lg{font-size:clamp(1.85rem,3.8vw,3rem);line-height:1.06;}
+.h-md{font-size:clamp(1.5rem,3vw,2.2rem);line-height:1.12;letter-spacing:-.025em;}
+.lede{font-size:clamp(1.05rem,1.7vw,1.3rem);line-height:1.55;color:var(--ink-2);max-width:660px;letter-spacing:-.011em;}
+.body-2{color:var(--ink-2);font-size:16px;line-height:1.68;}
+
+/* ── rules & ticks ── */
+.rule{height:1px;background:var(--rule);}
+.tick{position:relative;}
+.tick::before,.tick::after{content:'';position:absolute;width:9px;height:9px;border-color:var(--rule-2);border-style:solid;}
+.tick::before{top:-1px;left:-1px;border-width:1px 0 0 1px;}
+.tick::after{bottom:-1px;right:-1px;border-width:0 1px 1px 0;}
+
+/* ── nav ── */
+.nav{position:sticky;top:0;z-index:100;background:rgba(251,251,250,.86);backdrop-filter:blur(16px) saturate(1.4);border-bottom:1px solid var(--rule);}
+.nav__in{display:flex;align-items:center;justify-content:space-between;height:70px;}
+.nav__logo img{height:30px;width:auto;}
+.nav__r{display:flex;align-items:center;gap:30px;}
+.nav__r a{font-size:14.5px;font-weight:500;color:var(--ink-2);transition:color .18s;}
+.nav__r a:hover{color:var(--ink);}
+.nav__cta{font-family:var(--sans);font-size:14px!important;font-weight:600!important;color:#fff!important;background:var(--ink);padding:11px 20px;border-radius:2px;transition:background .18s;}
+.nav__cta:hover{background:var(--jade);}
+@media(max-width:720px){ .nav__r{gap:16px;} .nav__r a:not(.nav__cta){display:none;} .nav__logo img{height:28px;} }
+
+/* ── hero ── */
+.hero{padding:124px 0 100px;border-bottom:1px solid var(--rule);}
+@media(max-width:820px){ .hero{padding:64px 0 56px;} }
+.hero__tag{display:inline-flex;align-items:center;gap:11px;margin-bottom:38px;}
+.hero__tag .lvl{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#fff;background:var(--ink);padding:6px 11px;}
+.hero__tag .f2f{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--jade-d);border:1px solid var(--jade);padding:5px 11px;}
+.hero h1{margin-bottom:32px;max-width:15ch;}
+.hero h1 em{font-style:normal;color:var(--jade);}
+.hero__lede{margin-bottom:48px;}
+.spec{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--ink);border-bottom:1px solid var(--rule);}
+@media(max-width:820px){ .spec{grid-template-columns:repeat(2,1fr);} }
+.spec__i{padding:22px 22px 22px 0;border-right:1px solid var(--rule);}
+.spec__i:last-child{border-right:0;}
+@media(max-width:820px){ .spec__i{padding:18px 16px 18px 0;} .spec__i:nth-child(2){border-right:0;} .spec__i:nth-child(-n+2){border-bottom:1px solid var(--rule);} }
+.spec__k{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);margin-bottom:9px;}
+.spec__v{font-size:22px;font-weight:700;letter-spacing:-.02em;}
+.spec__v small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-spacing:0;margin-top:3px;}
+.hero__acts{display:flex;flex-wrap:wrap;gap:14px;margin-top:44px;align-items:center;}
+
+/* ── buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-family:var(--sans);font-size:15px;font-weight:600;letter-spacing:-.01em;padding:17px 30px;border-radius:2px;transition:all .2s var(--ease);border:1px solid transparent;text-align:center;}
+.btn--p{background:var(--ink);color:#fff;}
+.btn--p:hover{background:var(--jade);transform:translateY(-1px);}
+.btn--o{border-color:var(--rule-2);color:var(--ink);}
+.btn--o:hover{border-color:var(--ink);}
+.btn--l{background:#fff;color:var(--ink);}
+.btn--l:hover{background:var(--jade);color:#fff;}
+.btn--w{width:100%;}
+
+/* ── section shell ── */
+section{padding:104px 0;scroll-margin-top:78px;}
+@media(max-width:820px){ section{padding:64px 0;} }
+.sec-head{margin-bottom:58px;max-width:720px;}
+.sec-head .plate-no{display:block;margin-bottom:16px;}
+.sec-head h2{margin-bottom:20px;}
+
+/* ── ladder ── */
+.ladder{border-bottom:1px solid var(--rule);background:var(--paper-2);}
+.ladder__grid{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);}
+.lrow{display:grid;grid-template-columns:120px 1fr 1fr;gap:1px;background:var(--rule);}
+@media(max-width:760px){ .lrow{grid-template-columns:1fr;} }
+.lfam{background:var(--paper);padding:24px 20px;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;}
+.rung{background:var(--paper);padding:22px 24px;transition:background .2s;display:block;}
+.rung:hover{background:#fff;}
+.rung__l{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);margin-bottom:7px;}
+.rung__n{font-size:17px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px;}
+.rung__d{font-size:14px;color:var(--ink-2);line-height:1.5;}
+.rung--here{background:var(--ink);}
+.rung--here:hover{background:var(--ink);}
+.rung--here .rung__l{color:var(--jade);}
+.rung--here .rung__n{color:#fff;}
+.rung--here .rung__d{color:var(--on-dark-2);}
+.rung--here .rung__n::after{content:'YOU ARE HERE';font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.14em;color:var(--ink);background:var(--jade);padding:3px 7px;margin-left:10px;vertical-align:middle;}
+
+/* ── prerequisite ── */
+.prereq{border-bottom:1px solid var(--rule);}
+.prereq__box{border:1px solid var(--ink);padding:44px 46px;display:grid;grid-template-columns:auto 1fr;gap:32px;align-items:start;background:#fff;}
+@media(max-width:760px){ .prereq__box{grid-template-columns:1fr;gap:20px;padding:30px 26px;} }
+.prereq__no{font-family:var(--mono);font-size:52px;font-weight:700;color:var(--jade);line-height:.8;letter-spacing:-.04em;}
+.prereq h3{font-size:clamp(1.35rem,2.6vw,1.9rem);margin-bottom:14px;}
+.prereq__list{margin-top:22px;display:grid;gap:11px;}
+.prereq__list div{display:flex;gap:12px;font-size:15.5px;color:var(--ink-2);line-height:1.55;}
+.prereq__list b{color:var(--ink);font-weight:600;}
+.prereq__list .m{font-family:var(--mono);font-size:11px;color:var(--jade);padding-top:5px;flex-shrink:0;}
+
+/* ── plates (what you build) ── */
+.builds{border-bottom:1px solid var(--rule);background:var(--paper-2);}
+.plates{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);}
+@media(max-width:760px){ .plates{grid-template-columns:1fr;} }
+.plate{background:var(--paper);padding:40px 38px;transition:background .22s;}
+.plate:hover{background:#fff;}
+@media(max-width:820px){ .plate{padding:30px 26px;} }
+.plate__top{display:flex;align-items:baseline;gap:14px;margin-bottom:20px;}
+.plate__no{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--jade);}
+.plate__k{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-4);}
+.plate h3{font-size:1.42rem;margin-bottom:13px;letter-spacing:-.028em;}
+.plate p{font-size:15.5px;color:var(--ink-2);line-height:1.65;}
+.plate__tools{margin-top:20px;display:flex;flex-wrap:wrap;gap:7px;}
+.plate__tools span{font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.04em;color:var(--ink-2);border:1px solid var(--rule-2);padding:5px 9px;}
+
+/* ── dark plate ── */
+.dark{background:var(--ink);color:var(--on-dark);border-bottom:1px solid var(--ink);}
+.dark .plate-no{color:var(--jade);}
+.dark .lede{color:var(--on-dark-2);}
+.dark .mono{color:var(--on-dark-3);}
+.dark h2{color:#fff;}
+.vs2{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.13);margin-top:56px;}
+@media(max-width:760px){ .vs2{grid-template-columns:1fr;} }
+.vs2__c{background:var(--ink);padding:40px 38px;}
+.vs2__c--now{background:#141719;}
+@media(max-width:820px){ .vs2__c{padding:30px 26px;} }
+.vs2__l{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--on-dark-3);margin-bottom:14px;}
+.vs2__c--now .vs2__l{color:var(--jade);}
+.vs2__h{font-size:1.5rem;font-weight:700;letter-spacing:-.028em;color:#fff;margin-bottom:14px;line-height:1.15;}
+.vs2__p{font-size:15.5px;color:var(--on-dark-2);line-height:1.65;}
+
+/* ── freeflow ── */
+.free{border-bottom:1px solid var(--rule);}
+.free__grid{display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:start;}
+@media(max-width:880px){ .free__grid{grid-template-columns:1fr;gap:36px;} }
+.free__pts{display:grid;gap:0;border-top:1px solid var(--rule);}
+.free__pt{padding:22px 0;border-bottom:1px solid var(--rule);display:grid;grid-template-columns:34px 1fr;gap:16px;}
+.free__pt .m{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--jade);padding-top:4px;}
+.free__pt b{display:block;font-size:16.5px;font-weight:600;letter-spacing:-.018em;margin-bottom:5px;}
+.free__pt span{font-size:14.5px;color:var(--ink-2);line-height:1.6;}
+
+/* ── session detail ── */
+.sess{border-bottom:1px solid var(--rule);background:var(--paper-2);}
+.sess__grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);}
+@media(max-width:760px){ .sess__grid{grid-template-columns:1fr;} }
+.sess__c{background:var(--paper);padding:34px 32px;}
+.sess__c h4{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin-bottom:14px;}
+.sess__c .big{font-size:1.6rem;font-weight:700;letter-spacing:-.03em;margin-bottom:8px;}
+.sess__c p{font-size:14.5px;color:var(--ink-2);line-height:1.6;}
+.pair{margin-top:44px;border:1px solid var(--jade);background:var(--jade-w);padding:32px 34px;display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;}
+@media(max-width:760px){ .pair{grid-template-columns:1fr;gap:14px;padding:26px;} }
+.pair__m{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--jade-d);}
+.pair b{font-size:17px;font-weight:700;letter-spacing:-.02em;display:block;margin-bottom:6px;}
+.pair p{font-size:15px;color:var(--ink-2);line-height:1.6;}
+
+/* ── scroll reveal ── */
+.rv{opacity:0;transform:translateY(18px);transition:opacity .7s var(--ease),transform .7s var(--ease);}
+.rv.in{opacity:1;transform:none;}
+.rv-d1{transition-delay:.06s;} .rv-d2{transition-delay:.12s;} .rv-d3{transition-delay:.18s;}
+@media(prefers-reduced-motion:reduce){ .rv{opacity:1;transform:none;transition:none;} }
+
+
+/* ── build-path diagram ── */
+.diag{margin-top:64px;border:1px solid var(--ink);background:#fff;padding:44px 40px 34px;position:relative;}
+@media(max-width:820px){ .diag{padding:30px 22px 24px;} }
+.diag__hd{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:34px;}
+.diag__t{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;}
+.diag__n{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink-3);}
+.diag__row{display:grid;grid-template-columns:repeat(5,1fr);gap:0;position:relative;}
+@media(max-width:760px){ .diag__row{grid-template-columns:1fr;gap:0;} }
+.dnode{position:relative;padding:0 14px;text-align:center;}
+@media(max-width:760px){ .dnode{text-align:left;padding:16px 0 16px 30px;border-left:1px solid var(--rule-2);} }
+.dnode__dot{width:11px;height:11px;border:1.5px solid var(--ink);background:var(--paper);border-radius:50%;margin:0 auto 16px;position:relative;z-index:2;}
+@media(max-width:760px){ .dnode__dot{position:absolute;left:-6px;top:20px;margin:0;} }
+.dnode--last .dnode__dot{background:var(--jade);border-color:var(--jade);}
+.dnode__k{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.14em;color:var(--ink-3);margin-bottom:7px;}
+.dnode__t{font-size:14.5px;font-weight:700;letter-spacing:-.02em;line-height:1.25;margin-bottom:5px;}
+.dnode__d{font-size:12.5px;color:var(--ink-2);line-height:1.45;}
+.diag__line{position:absolute;top:5px;left:10%;right:10%;height:1px;background:var(--rule-2);z-index:1;}
+@media(max-width:760px){ .diag__line{display:none;} }
+.diag__ft{margin-top:32px;padding-top:16px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+
+/* ── sheet marks ── */
+.sheet{position:fixed;right:18px;top:50%;transform:translateY(-50%) rotate(90deg);transform-origin:right center;font-family:var(--mono);font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-4);z-index:5;pointer-events:none;white-space:nowrap;}
+@media(max-width:1180px){ .sheet{display:none;} }
+.revblock{display:grid;grid-template-columns:repeat(4,auto);gap:0;border:1px solid var(--rule);width:max-content;margin-top:26px;}
+.revblock div{padding:9px 16px;border-right:1px solid var(--rule);font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);}
+.revblock div:last-child{border-right:0;}
+.revblock b{color:var(--ink);font-weight:700;}
+@media(max-width:640px){ .revblock{grid-template-columns:repeat(2,auto);} .revblock div{border-bottom:1px solid var(--rule);} }
+
+
+/* ── reviews ── */
+.revs{border-bottom:1px solid var(--rule);overflow:hidden;}
+.revs__head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:46px;}
+.revs__score{font-size:2.6rem;font-weight:700;letter-spacing:-.04em;line-height:1;}
+.revs__stars{display:flex;gap:2px;}
+.revs__stars svg{color:#F5A623;}
+.revs__meta{font-size:14px;color:var(--ink-2);}
+.revs__track{display:flex;gap:1px;background:var(--rule);border:1px solid var(--rule);width:max-content;animation:slide 68s linear infinite;}
+.revs:hover .revs__track{animation-play-state:paused;}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.rev{background:var(--paper);padding:30px 30px;width:342px;flex-shrink:0;display:flex;flex-direction:column;}
+.rev__t{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.rev__av{width:36px;height:36px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
+.rev__n{font-size:14.5px;font-weight:600;letter-spacing:-.015em;}
+.rev__d{font-family:var(--mono);font-size:10px;color:var(--ink-4);letter-spacing:.08em;text-transform:uppercase;}
+.rev__s{color:#F5A623;font-size:12px;letter-spacing:1px;margin-bottom:10px;}
+.rev__x{font-size:14.5px;color:var(--ink-2);line-height:1.62;}
+
+/* ── dates ── */
+.dates{border-bottom:1px solid var(--rule);}
+.dgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);}
+@media(max-width:760px){ .dgrid{grid-template-columns:1fr;} }
+.dcard{background:var(--paper);padding:38px 36px;display:flex;flex-direction:column;transition:background .2s;}
+.dcard:hover{background:#fff;}
+@media(max-width:820px){ .dcard{padding:28px 26px;} }
+.dcard__dow{font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;}
+.dcard__d{font-size:2.05rem;font-weight:700;letter-spacing:-.038em;line-height:1.05;margin-bottom:22px;}
+.dcard__m{display:grid;gap:9px;margin-bottom:28px;font-size:14.5px;color:var(--ink-2);}
+.dcard__m div{display:flex;gap:10px;}
+.dcard__m .m{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4);min-width:62px;padding-top:3px;flex-shrink:0;}
+.dcard__m b{color:var(--ink);font-weight:600;}
+.dcard .btn{margin-top:auto;}
+
+/* ── faq ── */
+.faq{border-bottom:1px solid var(--rule);background:var(--paper-2);}
+.faq__l{border-top:1px solid var(--rule);}
+.faq__i{border-bottom:1px solid var(--rule);padding:28px 0;display:grid;grid-template-columns:44px 1fr;gap:18px;}
+@media(max-width:640px){ .faq__i{grid-template-columns:1fr;gap:8px;} }
+.faq__n{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--jade);padding-top:5px;}
+.faq__q{font-size:17.5px;font-weight:600;letter-spacing:-.022em;margin-bottom:10px;}
+.faq__a{font-size:15.5px;color:var(--ink-2);line-height:1.68;}
+.faq__a a{color:var(--jade-d);font-weight:600;border-bottom:1px solid var(--jade);}
+
+/* ── closer ── */
+.closer{background:var(--ink);color:#fff;padding:120px 0;}
+@media(max-width:820px){ .closer{padding:76px 0;} }
+.closer h2{color:#fff;margin-bottom:24px;max-width:16ch;}
+.closer p{color:var(--on-dark-2);font-size:1.15rem;max-width:560px;line-height:1.6;margin-bottom:44px;}
+.closer__acts{display:flex;flex-wrap:wrap;gap:14px;}
+
+/* ── footer ── */
+.footer{padding:48px 0;border-top:1px solid var(--rule);}
+.footer__in{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;}
+.footer__b{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;}
+.footer__c{font-size:13.5px;color:var(--ink-3);}
+.footer__c a{color:var(--ink-2);}
+</style>
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5KXF6DVD" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+<div class="sheet">Sheet CB&mdash;01 &nbsp;·&nbsp; Claude Build &nbsp;·&nbsp; Level 2</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="wrap">
+    <div class="nav__in">
+      <a href="https://impactuslearning.com" class="nav__logo" target="_blank" rel="noopener">
+        <img src="https://events.impactuslearning.com/images/dark-color-logo.png" alt="Impactus Learning">
+      </a>
+      <div class="nav__r">
+        <a href="#build">What you build</a>
+        <a href="#session">The session</a>
+        <a href="#dates">Dates</a>
+        <a href="https://events.impactuslearning.com/portal/" class="nav__cta" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="header">Student Portal</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero__tag">
+      <span class="lvl">Claude · Level 2</span>
+      <span class="f2f">In person only</span>
+    </div>
+    <h1 class="h-xl">You've seen what<br>Claude can do.<br><em>Now build it.</em></h1>
+    <p class="lede hero__lede">Level 1 showed you the tools. Level 2 is three and a half hours in a room where you build the actual thing &mdash; your website, your booking system, your customer database, your app. Not a demo. Yours, working, before you leave.</p>
+
+    <div class="spec">
+      <div class="spec__i">
+        <div class="spec__k">Format</div>
+        <div class="spec__v">In person<small>Paya Lebar Square</small></div>
+      </div>
+      <div class="spec__i">
+        <div class="spec__k">Duration</div>
+        <div class="spec__v">3.5 hrs<small>1:30pm &ndash; 5:00pm</small></div>
+      </div>
+      <div class="spec__i">
+        <div class="spec__k">Seats</div>
+        <div class="spec__v">Max 20<small>Small room, by design</small></div>
+      </div>
+      <div class="spec__i">
+        <div class="spec__k">Fee</div>
+        <div class="spec__v">S$240<small>Earn 10% back in points</small></div>
+      </div>
+    </div>
+
+    <div class="hero__acts">
+      <a href="https://events.impactuslearning.com/portal/" class="btn btn--p" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="hero">Student Portal to book and manage bookings</a>
+      <a href="#build" class="btn btn--o">See what you'll build</a>
+    </div>
+  </div>
+</section>
+
+<!-- LADDER -->
+<section class="ladder">
+  <div class="wrap">
+    <div class="sec-head" style="margin-bottom:38px;">
+      <span class="plate-no">00 / THE LADDER</span>
+      <h2 class="h-md">Where this class sits</h2>
+      <p class="body-2" style="max-width:600px;">Level is what you can make. Format is how you learn it. Level 2 is the only one we teach in person only &mdash; because building needs someone at your shoulder.</p>
+    </div>
+    <div class="ladder__grid rv">
+      <div class="lrow">
+        <div class="lfam">Claude</div>
+        <a class="rung" href="https://events.impactuslearning.com/claudemasterclass/">
+          <div class="rung__l">Level 1</div>
+          <div class="rung__n">Master Claude &ndash; Agentic AI</div>
+          <div class="rung__d">From zero to a working app in one session. Online or in person.</div>
+        </a>
+        <div class="rung rung--here">
+          <div class="rung__l">Level 2</div>
+          <div class="rung__n">Claude Masterclass &ndash; Build</div>
+          <div class="rung__d">You build the real thing, in the room. In person only.</div>
+        </div>
+      </div>
+      <div class="lrow">
+        <div class="lfam">Animation</div>
+        <a class="rung" href="https://events.impactuslearning.com/animation/">
+          <div class="rung__l">Level 1</div>
+          <div class="rung__n">AI Animation Masterclass</div>
+          <div class="rung__d">You direct every shot by hand. Online or in person.</div>
+        </a>
+        <a class="rung" href="https://events.impactuslearning.com/animationautomation/">
+          <div class="rung__l">Level 2</div>
+          <div class="rung__n">AI Animation &ndash; Automation</div>
+          <div class="rung__d">The agent runs the pipeline. You supervise. In person only.</div>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PREREQUISITE -->
+<section class="prereq">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="plate-no">01 / BEFORE YOU BOOK</span>
+      <h2 class="h-lg">Level 1 first.<br>This one isn't negotiable.</h2>
+    </div>
+    <div class="prereq__box tick rv">
+      <div class="prereq__no">01</div>
+      <div>
+        <h3>You must have completed Master Claude &ndash; Agentic AI (Level 1)</h3>
+        <p class="body-2">Level 2 starts at minute one on your own project. There's no recap, no tour of the interface, no "here's what an agent is." If you haven't sat Level 1, you'll spend the session catching up while everyone else builds &mdash; and that helps nobody in a room of twenty.</p>
+        <div class="prereq__list">
+          <div><span class="m">REQ</span><span><b>Level 1 completed</b> &mdash; Master Claude &ndash; Agentic AI, online or in person</span></div>
+          <div><span class="m">REQ</span><span><b>A Claude Pro subscription</b> &mdash; you'll be working in your own account all session</span></div>
+          <div><span class="m">REQ</span><span><b>Your own laptop</b> &mdash; you leave with the thing you built on it</span></div>
+          <div><span class="m">OPT</span><span><b>An idea</b> &mdash; a project you actually want to exist. Come with one and you'll go further, but we'll find you one if you're stuck</span></div>
+        </div>
+        <div style="margin-top:26px;">
+          <a href="https://events.impactuslearning.com/claudemasterclass/" class="btn btn--o">Haven't done Level 1? Start there &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHAT YOU BUILD -->
+<section class="builds" id="build">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="plate-no">02 / THE WORK</span>
+      <h2 class="h-lg">Five things people build here.</h2>
+      <p class="lede">These are the tracks Andrew teaches most often. You pick one and go deep &mdash; or bring something else entirely, which is what most people do.</p>
+    </div>
+    <div class="plates rv">
+
+      <div class="plate">
+        <div class="plate__top"><span class="plate__no">01</span><span class="plate__k">Web</span></div>
+        <h3>A real website, not a template</h3>
+        <p>Build and ship a site that's actually yours &mdash; structure, copy, layout, deploy. Then keep going: this is the base every other track builds on.</p>
+        <div class="plate__tools"><span>Claude</span><span>HTML/CSS</span><span>Deploy</span></div>
+      </div>
+
+      <div class="plate">
+        <div class="plate__top"><span class="plate__no">02</span><span class="plate__k">Commerce</span></div>
+        <h3>A booking system that takes real bookings</h3>
+        <p>Add the part most sites never get: dates, seats, a form that writes somewhere real, and a confirmation that actually sends. The difference between a brochure and a business.</p>
+        <div class="plate__tools"><span>Claude</span><span>Database</span><span>Forms</span></div>
+      </div>
+
+      <div class="plate">
+        <div class="plate__top"><span class="plate__no">03</span><span class="plate__k">Measure</span></div>
+        <h3>GA tracking, wired properly</h3>
+        <p>Know what people actually do on your site &mdash; which button, which page, which drop-off. Set up so the numbers mean something instead of sitting in a dashboard nobody opens.</p>
+        <div class="plate__tools"><span>GA4</span><span>Tag Manager</span><span>Events</span></div>
+      </div>
+
+      <div class="plate">
+        <div class="plate__top"><span class="plate__no">04</span><span class="plate__k">Data</span></div>
+        <h3>A CRM for your own customers</h3>
+        <p>Your customer database, built the way your business actually works &mdash; not the way an off-the-shelf tool insists it should. Records, history, notes, the lot.</p>
+        <div class="plate__tools"><span>Claude</span><span>Database</span><span>CRM</span></div>
+      </div>
+
+      <div class="plate">
+        <div class="plate__top"><span class="plate__no">05</span><span class="plate__k">Apps</span></div>
+        <h3>App building with Claude Code</h3>
+        <p>The step up from chat: Claude working directly in your project files. Connect a database, deploy on Railway, and watch a real application come together in front of you.</p>
+        <div class="plate__tools"><span>Claude Code</span><span>Databases</span><span>Railway</span></div>
+      </div>
+
+      <div class="plate" style="background:var(--ink);">
+        <div class="plate__top"><span class="plate__no">06</span><span class="plate__k" style="color:var(--on-dark-3);">Yours</span></div>
+        <h3 style="color:#fff;">Or something else entirely</h3>
+        <p style="color:var(--on-dark-2);">This is the one most people pick. Bring the thing you've been meaning to build and we'll build it &mdash; whatever it is. That's the point of a room of twenty rather than a webinar of two hundred.</p>
+        <div class="plate__tools"><span style="border-color:rgba(255,255,255,.22);color:var(--on-dark-2);">Bring your own</span></div>
+      </div>
+
+    </div>
+
+    <div class="diag rv">
+      <div class="diag__hd">
+        <div class="diag__t">Fig. 01 &mdash; The build path</div>
+        <div class="diag__n">Scale: one afternoon &nbsp;·&nbsp; 3.5 hrs</div>
+      </div>
+      <div class="diag__row">
+        <div class="diag__line" aria-hidden="true"></div>
+        <div class="dnode">
+          <div class="dnode__dot"></div>
+          <div class="dnode__k">01</div>
+          <div class="dnode__t">Bring an idea</div>
+          <div class="dnode__d">Something you actually want to exist</div>
+        </div>
+        <div class="dnode">
+          <div class="dnode__dot"></div>
+          <div class="dnode__k">02</div>
+          <div class="dnode__t">Scope it</div>
+          <div class="dnode__d">Cut it to what fits in an afternoon</div>
+        </div>
+        <div class="dnode">
+          <div class="dnode__dot"></div>
+          <div class="dnode__k">03</div>
+          <div class="dnode__t">Build it</div>
+          <div class="dnode__d">Claude writes, you direct, Andrew unsticks</div>
+        </div>
+        <div class="dnode">
+          <div class="dnode__dot"></div>
+          <div class="dnode__k">04</div>
+          <div class="dnode__t">Wire the data</div>
+          <div class="dnode__d">Database, forms, tracking &mdash; the real parts</div>
+        </div>
+        <div class="dnode dnode--last">
+          <div class="dnode__dot"></div>
+          <div class="dnode__k">05</div>
+          <div class="dnode__t">Ship it</div>
+          <div class="dnode__d">Live and running before you leave</div>
+        </div>
+      </div>
+      <div class="diag__ft">
+        <span>Impactus Learning &middot; Claude Level 2</span>
+        <span>Drawn to one afternoon, not to scale</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LEVEL 1 vs LEVEL 2 (dark) -->
+<section class="dark">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="plate-no">03 / THE STEP UP</span>
+      <h2 class="h-lg">Level 1 taught you the tool.<br>Level 2 hands you the keys.</h2>
+      <p class="lede">Same trainer, same tools, completely different session. One is learning. The other is making.</p>
+    </div>
+    <div class="vs2 rv">
+      <div class="vs2__c">
+        <div class="vs2__l">Level 1 &mdash; Agentic AI</div>
+        <div class="vs2__h">Andrew leads. Everyone follows the same path.</div>
+        <p class="vs2__p">A structured session with a defined outcome &mdash; you leave understanding what Claude can do and having built a working example alongside the room. Everyone ends up in roughly the same place, which is exactly right for a first class.</p>
+      </div>
+      <div class="vs2__c vs2__c--now">
+        <div class="vs2__l">Level 2 &mdash; Build</div>
+        <div class="vs2__h">You lead. Andrew moves between you.</div>
+        <p class="vs2__p">Free flow. Twenty people building twenty different things, with Andrew going desk to desk &mdash; unsticking, extending, showing you the bit you didn't know to ask about. Nobody ends up in the same place, because nobody started with the same idea.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FREE FLOW -->
+<section class="free">
+  <div class="wrap">
+    <div class="free__grid">
+      <div>
+        <span class="plate-no" style="display:block;margin-bottom:16px;">04 / HOW IT RUNS</span>
+        <h2 class="h-lg" style="margin-bottom:22px;">There's no syllabus.<br>That's deliberate.</h2>
+        <p class="lede">A fixed curriculum works when everyone wants the same thing. In Level 2 they don't &mdash; one person is adding payments, another is stuck on a database, a third wants to know why their tracking shows nothing. So the session bends to the room.</p>
+        <p class="body-2" style="margin-top:22px;">What stays fixed is the shape: you arrive with a project, you leave with it further along than you could have got alone in a week.</p>
+      </div>
+      <div class="free__pts rv">
+        <div class="free__pt"><span class="m">01</span><div><b>You bring the project</b><span>Yours, real, and something you want to exist after the class ends.</span></div></div>
+        <div class="free__pt"><span class="m">02</span><div><b>Andrew works the room</b><span>Desk to desk for three and a half hours. Not a lecture from the front.</span></div></div>
+        <div class="free__pt"><span class="m">03</span><div><b>We go as deep as you need</b><span>Databases, deployment, tracking, integrations &mdash; wherever your build actually runs into a wall.</span></div></div>
+        <div class="free__pt"><span class="m">04</span><div><b>You leave with it working</b><span>On your own laptop, in your own account. Nothing to recreate at home.</span></div></div>
+        <div class="free__pt"><span class="m">05</span><div><b>Questions don't stop at 5pm</b><span>Follow-up support after class, same as every Impactus session.</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SESSION DETAIL -->
+<section class="sess" id="session">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="plate-no">05 / THE SESSION</span>
+      <h2 class="h-lg">Three and a half hours,<br>in a room in Paya Lebar.</h2>
+    </div>
+    <div class="sess__grid rv">
+      <div class="sess__c">
+        <h4>Where</h4>
+        <div class="big">Paya Lebar Square</div>
+        <p>Singapore, straight off the MRT interchange. The exact unit and directions are sent to you after you book.</p>
+      </div>
+      <div class="sess__c">
+        <h4>When</h4>
+        <div class="big">1:30 &ndash; 5:00pm</div>
+        <p>Three and a half hours straight through, with a break in the middle. Come at 1:30 and we start at 1:30.</p>
+      </div>
+      <div class="sess__c">
+        <h4>The room</h4>
+        <div class="big">Comfortable</div>
+        <p>Three and a half hours is a long time to be at a table. Proper seating, quick Wi-Fi, coffee and tea on tap, and a short walk from the MRT.</p>
+      </div>
+      <div class="sess__c">
+        <h4>Who's in the room</h4>
+        <div class="big">Max 20</div>
+        <p>Capped so Andrew can reach every desk more than once. A minimum number is needed for a date to go ahead &mdash; if one doesn't reach it, we may ask you to move to another date, and everything you've paid carries over.</p>
+      </div>
+    </div>
+
+    <div class="pair tick rv">
+      <div class="pair__m">Same day</div>
+      <div>
+        <b>Level 1 runs the same morning, at the same venue.</b>
+        <p>Every Build date has a Master Claude &ndash; Agentic AI (Level 1) session that morning, 8:30am to 12:00pm, in the same room. If you haven't done Level 1 yet, you can clear the prerequisite and build the same afternoon &mdash; book both from the Student Portal.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REVIEWS -->
+<section class="revs">
+  <div class="wrap">
+    <span class="plate-no" style="display:block;margin-bottom:16px;">06 / THE PROOF</span>
+    <div class="revs__head">
+      <div class="revs__score">5.0</div>
+      <div>
+        <div class="revs__stars">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <div class="revs__meta">85 Google reviews &middot; Impactus Learning</div>
+      </div>
+    </div>
+  </div>
+  <div class="revs__track" id="revtrack"></div>
+</section>
+
+<!-- DATES -->
+<section class="dates" id="dates">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="plate-no">07 / DATES</span>
+      <h2 class="h-lg">Pick your afternoon.</h2>
+      <p class="body-2" style="max-width:600px;">All sessions in person at Paya Lebar Square. All times Singapore.</p>
+    </div>
+    <div class="dgrid rv" id="dgrid"></div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="plate-no">08 / QUESTIONS</span><h2 class="h-lg">Answered.</h2></div>
+    <div class="faq__l rv">
+      <div class="faq__i"><span class="faq__n">01</span><div>
+        <div class="faq__q">Do I really need Level 1 first?</div>
+        <div class="faq__a">Yes. It's the one hard rule on this course. Level 2 opens on your own project with no recap &mdash; without Level 1 you'd spend the session catching up. <a href="https://events.impactuslearning.com/claudemasterclass/">Level 1 runs online and in person</a>, including the same morning as every Build date.</div>
+      </div></div>
+      <div class="faq__i"><span class="faq__n">02</span><div>
+        <div class="faq__q">Why is there no online version?</div>
+        <div class="faq__a">Because this class is Andrew moving between twenty desks for three and a half hours, looking at what's actually on your screen. That doesn't survive a Zoom grid. If you want the online option, that's Level 1.</div>
+      </div></div>
+      <div class="faq__i"><span class="faq__n">03</span><div>
+        <div class="faq__q">What if I don't know what to build?</div>
+        <div class="faq__a">Come anyway. Most people arrive with a rough idea rather than a plan, and part of the session is turning "I've been meaning to&hellip;" into something running. If you're genuinely blank, Andrew will hand you a project worth building.</div>
+      </div></div>
+      <div class="faq__i"><span class="faq__n">04</span><div>
+        <div class="faq__q">Do I need to be able to code?</div>
+        <div class="faq__a">No. That's the entire premise &mdash; Claude writes the code, you direct it. You'll see Claude Code, databases and deployment, but you're the one deciding what gets built, not typing it out.</div>
+      </div></div>
+      <div class="faq__i"><span class="faq__n">05</span><div>
+        <div class="faq__q">What do I need to bring?</div>
+        <div class="faq__a">Your own laptop and a <b>Claude Pro subscription</b> &mdash; you'll work in your own account all session so everything you build goes home with you. Nothing else.</div>
+      </div></div>
+      <div class="faq__i"><span class="faq__n">06</span><div>
+        <div class="faq__q">How much is it, and what do I get back?</div>
+        <div class="faq__a"><b>S$240</b> for the 3.5-hour session, capped at 20 people, with follow-up support after class. You also earn <b>10% back in points</b> towards your next class &mdash; 1 point = S$1, applied automatically. Full terms are in the <a href="https://events.impactuslearning.com/portal/terms.html">Student Portal</a>.</div>
+      </div></div>
+      <div class="faq__i"><span class="faq__n">07</span><div>
+        <div class="faq__q">What if the date doesn't fill up?</div>
+        <div class="faq__a">In-person classes need a minimum number of participants before they can go ahead. If a date doesn't reach it, <b>we may ask you to move to another date</b> &mdash; everything you've paid carries over, and we'll tell you early enough to plan around it.</div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CLOSER -->
+<section class="closer">
+  <div class="wrap">
+    <span class="plate-no" style="display:block;margin-bottom:20px;">&mdash;</span>
+    <h2 class="h-lg">Bring the thing you keep meaning to build.</h2>
+    <p>Three and a half hours, twenty people, one room in Paya Lebar. You'll leave with it running on your own laptop.</p>
+    <div class="closer__acts">
+      <a href="https://events.impactuslearning.com/portal/" class="btn btn--l" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="final_cta">Student Portal to book and manage bookings</a>
+      <a href="https://events.impactuslearning.com/claudemasterclass/" class="btn btn--o" style="border-color:rgba(255,255,255,.24);color:#fff;">Do Level 1 first &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer__in">
+      <div>
+        <div class="footer__b">Impactus Learning</div>
+        <div class="revblock">
+          <div>Sheet <b>CB&mdash;01</b></div>
+          <div>Rev <b>A</b></div>
+          <div>Level <b>2</b></div>
+          <div>Format <b>F2F</b></div>
+        </div>
+      </div>
+      <div class="footer__c">&copy; 2026 Impactus Learning Pte Ltd &middot; <a href="https://impactuslearning.com" target="_blank" rel="noopener">impactuslearning.com</a></div>
+    </div>
+  </div>
+</footer>
+
+<a href="https://events.impactuslearning.com/portal/" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="float" style="position:fixed;bottom:20px;right:20px;z-index:9999;background:#0D0F11;color:#fff;font-weight:600;padding:13px 20px;border-radius:2px;text-decoration:none;font-family:'Inter Tight',system-ui,sans-serif;font-size:14px;box-shadow:0 6px 24px rgba(13,15,17,.22)">Student Portal</a>
+
+<script>
+/* ── dates ── */
+var DATES=[
+ {dow:'Monday',   d:'17 August 2026'},
+ {dow:'Saturday', d:'22 August 2026'},
+ {dow:'Monday',   d:'14 September 2026'},
+ {dow:'Saturday', d:'19 September 2026'}
+];
+document.getElementById('dgrid').innerHTML=DATES.map(function(x){return ''+
+ '<div class="dcard">'+
+   '<div class="dcard__dow">'+x.dow+'</div>'+
+   '<div class="dcard__d">'+x.d+'</div>'+
+   '<div class="dcard__m">'+
+     '<div><span class="m">Time</span><span><b>1:30pm &ndash; 5:00pm</b></span></div>'+
+     '<div><span class="m">Where</span><span>Paya Lebar Square</span></div>'+
+     '<div><span class="m">Seats</span><span>Max 20</span></div>'+
+     '<div><span class="m">Fee</span><span><b>S$240</b></span></div>'+
+   '</div>'+
+   '<a href="https://events.impactuslearning.com/portal/" class="btn btn--p btn--w" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="date_card">Student Portal to book and manage bookings</a>'+
+ '</div>';}).join('');
+
+/* ── reviews (recycled from the Claude Masterclass Google reviews) ── */
+var REVS=[
+ {n:'Charlotte Chang',t:'Dr Chew is very knowledgeable, patient, helpful and outstanding and professional. He is approachable, well-prepared, and explained topics with clarity.'},
+ {n:'Angela Tan',t:'Fantastic session by Dr. Andrew Chew! Highly informative, and packed with practical insights on getting the most out of Claude.'},
+ {n:'Geraldine Wee',t:'Dr Andrew is a great trainer and always over delivers. Learnt lots from him.'},
+ {n:'Patricia Wong',t:'This course drew out several hidden gems in Claude AI — features such as connectors, skills, plugins and projects.'},
+ {n:'Jean Tan',t:'Great eye opener on Claude’s intelligence and its applications, especially for working adults who want to stay on top of AI.'},
+ {n:'Jovin Soh',t:'Dr Andrew was patient and detailed in his explanations regarding the software. Very practical throughout.'},
+ {n:'Adeline Koh',t:'Just within an hour with Dr Andrew I was already learning something new I could use immediately.'},
+ {n:'Teresa Tay',t:'The trainer is knowledgeable and patient in answering participants’ queries.'},
+ {n:'Elaine Tan',t:'Clear sharing and interactive with participants by Dr Andrew. Interested to learn more.'},
+ {n:'Wende Chee',t:'Fun class and a lot to learn! Thank you very much Andrew!'},
+ {n:'Atwood Chai',t:'I attended Dr. Andrew Chew’s session and it was time extremely well spent — clear, practical and genuinely useful.'},
+ {n:'Honey Jellus',t:'Enjoyed Andrew’s class. He is always patient.'}
+];
+function card(r){
+ return '<div class="rev">'+
+  '<div class="rev__t"><div class="rev__av">'+r.n.charAt(0)+'</div><div>'+
+    '<div class="rev__n">'+r.n+'</div><div class="rev__d">Google review</div></div></div>'+
+  '<div class="rev__s">★★★★★</div>'+
+  '<p class="rev__x">“'+r.t+'”</p></div>';
+}
+document.getElementById('revtrack').innerHTML=REVS.map(card).join('')+REVS.map(card).join('');
+
+/* ── scroll reveal ── */
+(function(){
+  var els=document.querySelectorAll('.rv');
+  if(!('IntersectionObserver' in window)||window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    els.forEach(function(e){e.classList.add('in');}); return;
+  }
+  var io=new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
+    });
+  },{rootMargin:'0px 0px -8% 0px',threshold:0.08});
+  els.forEach(function(e){io.observe(e);});
+})();
+</script>
+</body>
+</html>
