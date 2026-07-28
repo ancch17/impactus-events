@@ -89,7 +89,7 @@
       </h2>
       <div style="position:relative;height:300px"><canvas id="chart"></canvas></div>
       <div id="periodtable" style="margin-top:14px;overflow-x:auto"></div>
-      <p class="muted" style="margin-top:8px">Revenue (SGD), attributed to the class date. Cancelled bookings excluded. Future class dates = money already committed for upcoming cohorts. Seats a company pays for by invoice (🏢) are included at the invoiced rate and broken out separately — comp, make-up and refunded seats count as zero.</p>
+      <p class="muted" style="margin-top:8px">Revenue (SGD), attributed to the class date. Cancelled bookings excluded. Future class dates = money already committed for upcoming cohorts. Seats a company pays for by invoice (🏢) are included at the invoiced rate and broken out separately — comp, make-up and refunded seats count as zero. Money refunded to a student is deducted from the seat it came off, so every figure here is already net of refunds.</p>
     </div>
 
     <div class="card">
@@ -199,9 +199,14 @@ function renderKPIs() {
   const corpAll = rows.reduce((s, r) => s + r.corp, 0);
   const corpDue = rows.reduce((s, r) => s + r.corpDue, 0);
   const cohortSet = new Set(rows.filter(r => r.total > 0).map(r => r.course + r.date));
+  // Refunds live on EVERY booking, not just confirmed ones — a released seat is cancelled, and
+  // its money still left the account. A refund already shows up as a smaller cash_paid_sgd above,
+  // so this tile is the visible receipt for money that went back out, not a second deduction.
+  const refunded = bookings.reduce((s, b) => s + Number(b.refunded_sgd || 0), 0);
   $('kpis').innerHTML = `
     <div class="kpi"><div class="v">${fmt$(all)}</div><div class="l">All-time</div><div class="sub">${rows.filter(r=>r.total>0).length} paid bookings${corpAll ? ` · ${fmt$(all - corpAll)} cash + ${fmt$(corpAll)} 🏢 corp inv` : ''}</div></div>
     ${corpDue ? `<div class="kpi"><div class="v" style="color:var(--red)">${fmt$(corpDue)}</div><div class="l">🏢 Invoiced, not yet paid</div><div class="sub">chase these companies</div></div>` : ''}
+    ${refunded ? `<div class="kpi"><div class="v" style="color:#6b4bab">${fmt$(refunded)}</div><div class="l">↩︎ Refunded (all-time)</div><div class="sub" style="color:var(--mut);font-weight:500">already taken off the totals</div></div>` : ''}
     <div class="kpi"><div class="v">${fmt$(sum(r => r.date.slice(0,4) === yr))}</div><div class="l">This year (${yr})</div></div>
     <div class="kpi"><div class="v">${fmt$(sum(r => r.date.slice(0,7) === mo))}</div><div class="l">This month</div></div>
     <div class="kpi"><div class="v">${fmt$(sum(r => mondayOf(r.date) === wk))}</div><div class="l">This week</div></div>
