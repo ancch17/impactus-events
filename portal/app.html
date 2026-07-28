@@ -970,7 +970,10 @@ function renderCards() {
       </div></div>`;
   }).join('');
 
-  document.querySelectorAll('.date-chip').forEach(b => b.onclick = () => pickCohort(b.dataset.chip, false));
+  document.querySelectorAll('.date-chip').forEach(b => b.onclick = () => {
+    if (selCourse && selCourse.id === b.dataset.chip) deselectCohort();
+    else pickCohort(b.dataset.chip, false);
+  });
   document.querySelectorAll('.book-btn').forEach(b => b.onclick = () => {
     const list = courseGroups[b.dataset.book].filter(c => !c.is_full);
     if (!list.length) return;
@@ -999,6 +1002,15 @@ function pickCohort(id, scroll) {
   // Land on the Payment section itself — jumping to the top of the card left the
   // student above every course card, still hunting for the bit that matters.
   if (scroll) requestAnimationFrame(() => $('bookform').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
+
+// Re-clicking the already-selected date chip deselects it — clears the pick,
+// hides the payment step, and un-highlights the card/chip instead of no-op re-selecting.
+function deselectCohort() {
+  selCourse = null; coupon = null;
+  $('bookform').classList.add('hidden');
+  document.querySelectorAll('.date-chip').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.ccard').forEach(x => x.classList.remove('active'));
 }
 
 // deep link: ?course=automation&date=2026-08-13&time=am|pm|n — matches family slug or any alt_slug
