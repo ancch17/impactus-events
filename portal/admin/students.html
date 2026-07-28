@@ -416,7 +416,7 @@ window.creditCorp = async function (bid) {
   const note = `10% credit on your ${shortName(byCourse[b.course_id].name)} seat (paid by ${label})`;
   if (!confirm(`Credit ${pts} points to ${st.name || st.email}?\n\nThey will see: "${note}"`)) return;
   const { data, error } = await sb.from('points_ledger')
-    .insert({ student_id: st.id, booking_id: b.id, type: 'earn', points: pts, note }).select().single();
+    .insert({ student_id: st.id, booking_id: b.id, type: 'earn_purchase', points: pts, note }).select().single();
   if (error) return msg('stu-msg', 'err', error.message);
   ledger.push(data);
   msg('stu-msg', 'ok', `${pts} pts credited to ${st.name || st.email}.`);
@@ -589,7 +589,7 @@ window.saveGrant = async function (id) {
   const s = students.find(x => x.id === id);
   if (!confirm(`Give ${pts} points to ${s.name || s.email}?\n\nThey will see: "${note}"`)) return;
   const { data, error } = await sb.from('points_ledger')
-    .insert({ student_id: id, type: 'grant', points: pts, note }).select().single();
+    .insert({ student_id: id, type: 'adjust', points: pts, note }).select().single();
   if (error) return msg('stu-msg', 'err', error.message);
   ledger.push(data);
   msg('stu-msg', 'ok', `${pts} pts given to ${s.name || s.email} — it's in their history now.`);
