@@ -65,10 +65,36 @@
   .segmented { display:flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
   .segmented button { background:#fff; border:0; padding:7px 13px; font-size:13px; font-weight:600; color:#6b7280; cursor:pointer; }
   .segmented button.on { background:var(--navy,#101a2d); color:#fff; }
-  .legend { display:flex; flex-wrap:wrap; gap:12px; margin:2px 0 12px; font-size:11.5px; color:#5b6472; }
+  .legend { display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin:2px 0 12px; font-size:11.5px; color:#5b6472; }
   .lg-item { display:flex; align-items:center; gap:5px; font-weight:600; }
   .lg-dot { width:10px; height:10px; border-radius:3px; flex:none; }
   .lg-f2f { background:#d32020; color:#fff; font-size:9.5px; font-weight:800; letter-spacing:.4px; padding:1px 5px; border-radius:4px; }
+  /* Course key. Someone arriving on a referral link has never seen these names before,
+     so each chip opens a plain-English description right under the row. */
+  .lg-lead { font-size:10px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; color:#8b93a1; margin-right:2px; }
+  button.lg-item { font:inherit; font-size:11.5px; font-weight:600; color:#5b6472; background:#fff;
+                   border:1px solid var(--line); border-radius:20px; padding:5px 10px; cursor:pointer; }
+  button.lg-item:hover { border-color:#c3cbd8; background:#fbfcfe; }
+  button.lg-item.on { background:#101a2d; border-color:#101a2d; color:#fff; }
+  .lg-q { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; border-radius:50%;
+          background:#eef1f6; color:#8b93a1; font-size:9.5px; font-weight:800; margin-left:1px; }
+  button.lg-item.on .lg-q { background:rgba(255,255,255,.26); color:#fff; }
+  #lginfo { border:1px solid var(--line); border-left:4px solid var(--lvl,#101a2d); border-radius:10px;
+            background:#fbfcfe; padding:13px 15px; margin:0 0 14px; }
+  .lgi-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .lgi-name { font-size:14.5px; font-weight:800; color:#101a2d; line-height:1.3; }
+  .lgi-x { background:transparent; border:0; padding:0 2px; font-size:18px; line-height:1; color:#8b93a1; cursor:pointer; }
+  .lgi-x:hover { color:#101a2d; }
+  .lgi-body { font-size:13px; line-height:1.55; color:#4b5563; margin-top:6px; }
+  .lgi-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:10px; }
+  .lgi-link { font-size:12.5px; font-weight:700; color:var(--lvl,#101a2d); text-decoration:none; border-bottom:1.5px solid currentColor; }
+  .lgi-soon, .lgi-dates { font-size:12px; color:#8b93a1; }
+  /* Remove an abandoned checkout from "Your classes". Only ever offered on a cancelled,
+     never-paid seat — a paid postponement or refund is the money trail and stays. */
+  .hist-x { margin-top:4px; background:#fff; border:1px solid var(--line); border-radius:7px;
+            padding:4px 9px; font:inherit; font-size:11.5px; font-weight:600; color:#8b93a1; cursor:pointer; }
+  .hist-x:hover { border-color:#e6b8b8; color:#c0392b; background:#fffafa; }
+  .hist-x:disabled { opacity:.6; cursor:default; }
   /* F2F is the thing students miss, so it leads the row and pulses gently. */
   .f2f-tag { background:#d32020; color:#fff; font-size:10px; font-weight:800; letter-spacing:.5px;
              padding:2px 8px; border-radius:20px; white-space:nowrap; animation:f2fglow 1.9s ease-in-out infinite; }
@@ -298,6 +324,7 @@
       </div>
     </div>
     <div id="callegend" class="legend"></div>
+    <div id="lginfo" class="hidden"></div>
     <div id="calview">
       <div class="calnav">
         <button type="button" id="calprev" aria-label="Previous month">‹</button>
@@ -361,6 +388,7 @@
   <div class="card">
     <h2>Your classes</h2>
     <div id="history" class="muted">Loading…</div>
+    <div class="msg" id="histmsg"></div>
   </div>
 
   <div class="card">
@@ -783,7 +811,7 @@ let courseGroups = {};
 // Which course families has this student already sat in? Drives the "come back" badge.
 async function attendedFamilies() {
   const today = new Date().toISOString().slice(0, 10);
-  const { data } = await sb.from('student_history').select('course_id,family_slug,cohort_date,status');
+  const { data } = await sb.from('student_history').select('course_id,family_slug,cohort_date,status').eq('email', myEmail);
   const seen = {};
   // Every class this student already has a confirmed seat on. create-checkout rejects a
   // second booking for the same class outright, so the portal must stop offering it —
@@ -801,21 +829,38 @@ const isBooked = (c) => !!c && bookedIds.has(c.id);
 
 // ---------- Upcoming classes: calendar + list + course cards ----------
 // Four levels, four colours. F2F (in-person) is a tag on the same level, not a separate colour.
-const LEVELS = {
-  'claude':         { key: 'c1', short: 'Claude Lvl 1', title: 'Master Claude – Agentic AI Masterclass (Level 1)', color: '#7c3aed', f2f: false },
-  'f2f-claude':     { key: 'c1', short: 'Claude Lvl 1', title: 'Master Claude – Agentic AI Masterclass (Level 1)', color: '#7c3aed', f2f: true },
-  'f2f-build':      { key: 'c2', short: 'Claude Lvl 2', title: 'Claude Masterclass – Build (Level 2)',              color: '#4c1d95', f2f: true },
-  'animation':      { key: 'a1', short: 'Ani Lvl 1',    title: 'AI Animation Masterclass (Level 1)',                color: '#c8901a', f2f: false },
-  'f2f-animation':  { key: 'a1', short: 'Ani Lvl 1',    title: 'AI Animation Masterclass (Level 1)',                color: '#c8901a', f2f: true },
-  'automation':     { key: 'a2', short: 'Ani Lvl 2',    title: 'AI Animation – Automation (Level 2)',               color: '#8a5024', f2f: false },
-  'f2f-automation': { key: 'a2', short: 'Ani Lvl 2',    title: 'AI Animation – Automation (Level 2)',               color: '#8a5024', f2f: true },
-};
+//
+// LEVEL_ORDER is the SINGLE source of a level's short label, full name, colour and blurb.
+// The LEVELS slug→level map is built from it below, so a rename is a one-line edit here.
+// `url` is the public course site; null = no site yet, the panel says so instead of linking.
 const LEVEL_ORDER = [
-  { key: 'c1', short: 'Claude Lvl 1', color: '#7c3aed', group: 'Claude' },
-  { key: 'c2', short: 'Claude Lvl 2', color: '#4c1d95', group: 'Claude' },
-  { key: 'a1', short: 'Ani Lvl 1',    color: '#c8901a', group: 'Animation' },
-  { key: 'a2', short: 'Ani Lvl 2',    color: '#8a5024', group: 'Animation' },
+  { key: 'c1', short: 'Claude L1', color: '#7c3aed', group: 'Claude',
+    name: 'Master Claude – Agentic AI Masterclass L1',
+    url: 'https://events.impactuslearning.com/claudemasterclass/',
+    blurb: 'Start here. No theory — everything you need to know about Claude, distilled into hands-on practice: the platform itself, projects, connectors, skills, and automated workflows you build live in class and put to work the very next day.' },
+  { key: 'c2', short: 'Claude L2', color: '#4c1d95', group: 'Claude',
+    name: 'Claude Masterclass – Build L2',
+    url: null,
+    blurb: 'The step up from L1. You stop using Claude and start building with it — turning the workflows you currently run by hand into ones that run themselves. Take L1 first; this class assumes it.' },
+  { key: 'a1', short: 'Animation L1', color: '#c8901a', group: 'Animation',
+    name: 'AI Animation Masterclass L1',
+    url: 'https://events.impactuslearning.com/animation/',
+    blurb: 'Make AI animation from nothing: cinematic shots from a text prompt with Google Flow, original soundtracks in seconds with Suno, and CapCut to cut it all together. No video or design experience needed.' },
+  { key: 'a2', short: 'Animation L2', color: '#8a5024', group: 'Animation',
+    name: 'AI Animation AUTOMATION L2',
+    url: 'https://events.impactuslearning.com/animationautomation/',
+    blurb: 'The production line. Claude runs about 90% of it — reference sheets, script, shots, voice, music, edit and posting — so you get a character who stays the same across a hundred shots, not just the first one. Animation L1 first.' },
 ];
+const LEVEL_BY_KEY = Object.fromEntries(LEVEL_ORDER.map(l => [l.key, l]));
+
+// slug → { key, short, title, color, f2f } — same shape every caller already expects.
+const LEVELS = {};
+[['claude', 'c1', false], ['f2f-claude', 'c1', true], ['f2f-build', 'c2', true],
+ ['animation', 'a1', false], ['f2f-animation', 'a1', true],
+ ['automation', 'a2', false], ['f2f-automation', 'a2', true]].forEach(([slug, key, f2f]) => {
+  const l = LEVEL_BY_KEY[key];
+  LEVELS[slug] = { key, short: l.short, title: l.name, color: l.color, f2f };
+});
 const lvlOf = (slug) => LEVELS[slug] || { key: 'x', short: 'Class', title: '', color: '#64748b', f2f: false };
 
 let allCohorts = [], attendedMap = {}, calMonth = null, calFilter = '';
@@ -873,11 +918,54 @@ function buildFilter() {
   $('calfilter').value = calFilter;
 }
 
+// The course key. ALL FOUR levels show, always — even one with no open date — because a
+// student arriving straight from a referral link has no idea what "Claude L1" means and
+// the ladder (L1 → L2, both tracks) is half the message. Each chip opens a description
+// panel immediately below the row, with a link out to that course's own website.
+let openLevel = null;
+
 function renderLegend() {
-  const present = new Set(allCohorts.map(c => lvlOf(c.family_slug).key));
-  $('callegend').innerHTML = LEVEL_ORDER.filter(l => present.has(l.key)).map(l =>
-    `<span class="lg-item"><span class="lg-dot" style="background:${l.color}"></span>${l.short}</span>`).join('') +
+  $('callegend').innerHTML = '<span class="lg-lead">Courses</span>' +
+    LEVEL_ORDER.map(l =>
+      `<button type="button" class="lg-item" data-lvl="${l.key}" aria-expanded="false" aria-controls="lginfo"
+        ><span class="lg-dot" style="background:${l.color}"></span>${esc(l.short)}<span class="lg-q">?</span></button>`).join('') +
     `<span class="lg-item"><span class="lg-f2f">F2F</span>in person</span>`;
+  document.querySelectorAll('[data-lvl]').forEach(b => b.onclick = () => toggleLevelInfo(b.dataset.lvl));
+  renderLevelInfo();
+}
+
+function toggleLevelInfo(key) {
+  openLevel = (openLevel === key) ? null : key;
+  renderLevelInfo();
+}
+
+function renderLevelInfo() {
+  const box = $('lginfo');
+  const l = LEVEL_BY_KEY[openLevel];
+  document.querySelectorAll('[data-lvl]').forEach(b => {
+    const on = b.dataset.lvl === openLevel;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-expanded', on ? 'true' : 'false');
+  });
+  if (!l) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+
+  const n = allCohorts.filter(c => lvlOf(c.family_slug).key === l.key).length;
+  const dates = n ? `${n} date${n > 1 ? 's' : ''} open below` : 'No dates open just yet';
+  box.style.setProperty('--lvl', l.color);
+  box.innerHTML = `
+    <div class="lgi-top">
+      <div class="lgi-name">${esc(l.short)} · ${esc(l.name)}</div>
+      <button type="button" class="lgi-x" id="lgiclose" aria-label="Close">×</button>
+    </div>
+    <div class="lgi-body">${esc(l.blurb)}</div>
+    <div class="lgi-foot">
+      ${l.url
+        ? `<a class="lgi-link" href="${l.url}" target="_blank" rel="noopener">Full course details ↗</a>`
+        : `<span class="lgi-soon">Course page coming soon.</span>`}
+      <span class="lgi-dates">${dates}</span>
+    </div>`;
+  box.classList.remove('hidden');
+  $('lgiclose').onclick = () => toggleLevelInfo(openLevel);
 }
 
 function renderCalendar() {
@@ -1256,15 +1344,23 @@ async function startCheckout(method) {
 document.querySelectorAll('.pm').forEach(b => b.onclick = () => startCheckout(b.dataset.pm));
 $('paybtn').onclick = () => startCheckout(null);
 
+// A cancelled seat that was never paid for is just an abandoned checkout — it should not
+// sit in the student's list forever. They can remove those. A cancelled seat that WAS paid
+// (postponed, or refunded) stays: that one is the money trail and is not theirs to erase.
+const isRemovable = (r) =>
+  r.status === 'cancelled' && Number(r.cash_paid_sgd) === 0 && Number(r.points_redeemed) === 0;
+
 async function loadHistory() {
-  const { data } = await sb.from('student_history').select('*').order('cohort_date', { ascending: false });
-  const rows = (data || []).filter(r => r.status !== 'pending');
+  const { data } = await sb.from('student_history').select('*').eq('email', myEmail).order('cohort_date', { ascending: false });
+  const rows = (data || []).filter(r => r.status !== 'pending' && !r.student_hidden_at);
   if (!rows.length) { $('history').textContent = 'No transactions yet.'; return; }
   $('history').innerHTML = rows.map(r => {
     const paid = Number(r.cash_paid_sgd);
     const isFuture = r.cohort_date >= new Date().toISOString().slice(0, 10);
     let badge = '';
-    if (r.status === 'cancelled') badge = '<span class="pill" style="background:#eee;color:#888">Postponed / cancelled</span>';
+    if (r.status === 'cancelled') badge = isRemovable(r)
+      ? '<span class="pill" style="background:#eee;color:#888">Not booked — never paid</span>'
+      : '<span class="pill" style="background:#eee;color:#888">Postponed / cancelled</span>';
     else if (paid === 0 && r.points_redeemed > 0) badge = '<span class="pill free">Paid with points</span>';
     else if (paid === 0) badge = '<span class="pill free">Complimentary</span>';
     else if (paid === 90) badge = '<span class="pill early">Introductory price — early supporter</span>';
@@ -1272,10 +1368,34 @@ async function loadHistory() {
     const right = [];
     if (paid > 0) right.push(`<div><strong>${fmt$(paid)}</strong> paid</div>`);
     if (r.points_redeemed > 0 && r.status === 'confirmed') right.push(`<div class="muted" style="font-size:12.5px">${r.points_redeemed} pts used</div>`);
+    if (isRemovable(r)) right.push(`<button type="button" class="hist-x" data-drop="${esc(r.booking_id)}" title="Remove this from your list">✕ Remove</button>`);
     return `<div class="row"><div><div class="hist-course">${r.course}${badge}</div>
       <div class="hist-sub">${fdate(r.cohort_date)}${r.note && r.status !== 'confirmed' ? ' · ' + r.note : ''}</div></div>
       <div style="text-align:right">${right.join('') || '<span class="muted">—</span>'}</div></div>`;
   }).join('');
+  document.querySelectorAll('[data-drop]').forEach(b => b.onclick = () => dropHistoryRow(b.dataset.drop, b));
+}
+
+// The row is flagged, never deleted — Andrew's roster and the audit trail keep every seat.
+// The server re-checks ownership AND the unpaid+cancelled rule, so the button can't be forged.
+// dropBusy is a module flag, not button.disabled: a re-render re-enables the button and a
+// fast second click beats the repaint (the 2026-07-28 double-submit lesson).
+let dropBusy = false;
+async function dropHistoryRow(bookingId, btn) {
+  if (dropBusy) return;
+  dropBusy = true;
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Removing…';
+  try {
+    const { error } = await sb.rpc('hide_cancelled_booking', { p_booking_id: bookingId });
+    if (error) throw new Error(error.message);
+    await loadHistory();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = original;
+    msg('histmsg', 'err', 'Could not remove that — please refresh and try again.');
+  } finally {
+    dropBusy = false;
+  }
 }
 
 // Every points movement, plain and auditable: what happened, which class, when.
