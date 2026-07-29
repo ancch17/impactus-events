@@ -10,8 +10,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 })(window,document,'script','dataLayer','GTM-5KXF6DVD');</script>
 <!-- End Google Tag Manager -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Animation Masterclass (Level 1) — Online or In Person — Impactus Learning</title>
-<meta name="description" content="Create stunning AI animations and videos with Google Flow, Suno and CapCut. Level 1 of the Impactus animation ladder — 3 hours online (S$180) or 3.5 hours in person in Singapore (S$240).">
+<title>AI Animation Masterclass (Level 1) — Online or Face-to-Face — Impactus Learning</title>
+<meta name="description" content="Create stunning AI animations and videos with Google Flow, Suno and CapCut. Level 1 of the Impactus animation ladder — 3 hours online (S$180) or 3.5 hours face-to-face in Singapore (S$240).">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -114,6 +114,14 @@ body::before {
 .fmt__btn:focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
 @media(max-width:420px){ .fmt { width:100%; } .fmt__btn { flex:1; justify-content:center; padding:11px 12px; font-size:13px; } }
 .fmt-panel[hidden] { display:none; }
+.ways { display:grid; grid-template-columns:1fr 1fr; gap:26px; margin-top:34px; align-items:start; }
+@media(max-width:900px){ .ways { grid-template-columns:1fr; gap:34px; } }
+.portal-cta { margin-top:38px; }
+.way { display:flex; flex-direction:column; }
+.way .fmt-strip { min-height:56px; align-content:flex-start; }
+.way .pricing__card { max-width:none; margin-left:0; margin-right:0; flex:1; display:flex; flex-direction:column; }
+.way .pricing__features { flex:1; }
+@media(max-width:900px){ .way .fmt-strip { min-height:0; } }
 .fmt-strip { display:flex; flex-wrap:wrap; align-items:center; gap:12px 22px; margin-top:22px; font-size:14.5px; color:var(--muted); }
 .fmt-strip b { color:var(--text); font-weight:700; }
 .fmt-strip .dot { width:4px; height:4px; border-radius:50%; background:var(--faint); }
@@ -370,7 +378,7 @@ section { padding:80px 0; }
 <section class="hero">
   <div class="hero__glow"></div>
   <div class="wrap">
-    <div class="hero__badge">🎬 AI Animation Masterclass · Level 1 · Online or In Person</div>
+    <div class="hero__badge">🎬 AI Animation Masterclass · Level 1 · Online or Face-to-Face</div>
     <h1>Create AI Animation<br>with <span class="grad">Flow, Suno</span><br><span class="grad">&amp; CapCut</span></h1>
     <p class="hero__sub">A 3-hour power-packed session where you learn everything you need to know about <strong>Google Flow</strong> — including the new <strong>Google Omni</strong> feature and <strong>Agent mode</strong> — how to create compelling background music for your movies, and the key features of <strong>CapCut</strong> to bring it all together through video editing.</p>
 
@@ -381,11 +389,11 @@ section { padding:80px 0; }
       </div>
       <div class="hero__pill">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        3 hours online · 3.5 in person
+        3 hours online · 3.5 hours face-to-face
       </div>
       <a class="hero__pill" href="#pricing" style="border-color:rgba(79,142,247,.4);">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
-        Zoom <span style="color:var(--faint)">or</span> in person, Singapore
+        Zoom <span style="color:var(--faint)">or</span> face-to-face, Singapore
       </a>
       <div class="hero__pill">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
@@ -448,7 +456,7 @@ section { padding:80px 0; }
           <a class="rung" href="https://events.impactuslearning.com/claudebuild/">
             <span class="rung__lvl">Level 2</span>
             <div class="rung__name">Claude Masterclass &ndash; Build</div>
-            <div class="rung__what">In person only. You build the real thing, in the room.</div>
+            <div class="rung__what">Face-to-face only. You build the real thing, in the room.</div>
           </a>
         </div>
       </div>
@@ -893,27 +901,17 @@ section { padding:80px 0; }
   <div class="wrap">
     <span class="section-label">Choose your format</span>
     <h2 class="section-heading">Same class. Two ways to sit it.</h2>
-    <p class="section-sub">Identical content, identical trainer, identical takeaways. Both capped at 20 people. The only real difference is the room &mdash; and half an hour.</p>
+    <p class="section-sub">Identical content, identical trainer, identical takeaways. The only real difference is the room &mdash; and half an hour.</p>
 
     <div style="margin-top:34px;">
-      <div class="fmt" role="tablist" aria-label="Choose class format">
-        <button class="fmt__btn" role="tab" id="tab-online" aria-controls="panel-online" aria-selected="true" data-fmt="online">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
-          Online
-        </button>
-        <button class="fmt__btn" role="tab" id="tab-f2f" aria-controls="panel-f2f" aria-selected="false" data-fmt="f2f">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-          In person
-        </button>
-      </div>
+      <div class="ways">
 
       <!-- ONLINE -->
-      <div class="fmt-panel" id="panel-online" role="tabpanel" aria-labelledby="tab-online">
+      <div class="way" id="panel-online">
         <div class="fmt-strip">
           <span><b>S$180</b> per person</span><span class="dot"></span>
           <span><b>3 hours</b> live</span><span class="dot"></span>
           <span>Live on <b>Zoom</b>, from anywhere</span><span class="dot"></span>
-          <span><b>Max 20</b> per class</span><span class="dot"></span>
           <span>Your own setup, no travel</span>
         </div>
         <div class="pricing__card" style="margin-top:30px;">
@@ -924,7 +922,7 @@ section { padding:80px 0; }
             <li>Live, hands-on training with Dr. Andrew Chew</li>
             <li>Follow-up query support after class</li>
             <li>Complete Google Flow, Suno &amp; CapCut workflow</li>
-            <li>Capped at 20 people per class</li>
+            <li>Small class &mdash; everyone gets seen</li>
             <li>Google Omni and Agent mode walkthrough</li>
             <li>Prompting techniques for consistent AI video</li>
             <li>Create your own video during the session</li>
@@ -938,24 +936,23 @@ section { padding:80px 0; }
       </div>
 
       <!-- F2F -->
-      <div class="fmt-panel" id="panel-f2f" role="tabpanel" aria-labelledby="tab-f2f" hidden>
+      <div class="way" id="panel-f2f">
         <div class="fmt-strip">
           <span><b>S$240</b> per person</span><span class="dot"></span>
           <span><b>3.5 hours</b> in the room</span><span class="dot"></span>
           <span><b>8:30am &ndash; 12:00pm</b></span><span class="dot"></span>
-          <span><b>Paya Lebar Square</b></span><span class="dot"></span>
-          <span>Max 20 &middot; min 5 to run</span>
+          <span><b>Paya Lebar Square</b></span>
         </div>
         <div class="pricing__card" style="margin-top:30px;">
-          <div class="pricing__label">In-person masterclass</div>
+          <div class="pricing__label">Face-to-face masterclass</div>
           <div class="pricing__price" style="font-size:2.6rem;">S$240</div>
           <div class="pricing__per">3.5-hour session &middot; Paya Lebar Square, Singapore</div>
           <ul class="pricing__features">
-            <li>Everything in the online class, in the room at <strong>Paya Lebar Square</strong></li>
+            <li>Everything in the online class, in the room at Paya Lebar Square</li>
             <li>An extra 30 minutes &mdash; 3.5 hours, not 3</li>
             <li>Andrew on hand from the moment you sit down</li>
             <li>Andrew looks over your shoulder when a shot won't behave</li>
-            <li>Capped at 20 people &mdash; you get seen</li>
+            <li>Small class &mdash; you get seen</li>
             <li>Follow-up query support after class</li>
             <li>Create your own video during the session</li>
             <li>Earn 10% back in points towards your next class</li>
@@ -963,12 +960,13 @@ section { padding:80px 0; }
           <a href="https://events.impactuslearning.com/portal/" class="btn-primary" style="width:100%; justify-content:center;" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="pricing_card">
             Student Portal. Book and Manage Courses.
           </a>
-          <div class="pricing__note">In-person classes need a minimum number of participants before they can go ahead. If this date doesn't reach it, we may ask you to move to another date &mdash; everything you've paid carries over. Venue is <strong>Paya Lebar Square</strong>; the exact unit is sent to you after booking. A Google AI Pro subscription (from US$19.99/mo) is required separately for Google Flow access.</div>
+          <div class="pricing__note">Face-to-face classes need a minimum number of participants before they can go ahead. If this date doesn't reach it, we may ask you to move to another date &mdash; everything you've paid carries over. Venue is <strong>Paya Lebar Square</strong>; the exact unit is sent to you after booking. A Google AI Pro subscription (from US$19.99/mo) is required separately for Google Flow access.</div>
         </div>
       </div>
+      </div><!-- /.ways -->
 
       <div class="oc">
-        <div class="oc__lead">In person you get <span class="hl">30 minutes more</span> &mdash; and Andrew at your shoulder.</div>
+        <div class="oc__lead">Face-to-face you get <span class="hl">30 minutes more</span> &mdash; and Andrew at your shoulder.</div>
         <p class="oc__sub">Same class, same trainer, same tools. In the room you get half an hour more of it &mdash; and someone who can walk over and look at what's actually on your screen instead of guessing from a share.</p>
 
         <div class="oc__table">
@@ -980,14 +978,14 @@ section { padding:80px 0; }
             </div>
             <div class="oc-cell oc-cell--f2f">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-              In person <span>S$240</span>
+              Face-to-face <span>S$240</span>
             </div>
           </div>
 
           <div class="oc-row">
             <div class="oc-row__k">Time with Andrew</div>
             <div class="oc-cell"><b>3 hours</b></div>
-            <div class="oc-cell oc-cell--f2f"><b>3.5 hours</b><span class="sub">30 minutes more <span class="oc-win">+17%</span></span></div>
+            <div class="oc-cell oc-cell--f2f"><b>3.5 hours</b><span class="sub">30 min more <span class="oc-win">personal guidance</span></span></div>
           </div>
 
           <div class="oc-row">
@@ -1002,11 +1000,6 @@ section { padding:80px 0; }
             <div class="oc-cell oc-cell--f2f">Bring your laptop<span class="sub">We bring the room</span></div>
           </div>
 
-          <div class="oc-row">
-            <div class="oc-row__k">Class size</div>
-            <div class="oc-cell"><b>Max 20</b><span class="sub">Small enough to ask questions</span></div>
-            <div class="oc-cell oc-cell--f2f"><b>Max 20</b><span class="sub">Min 5 for the date to run</span></div>
-          </div>
 
           <div class="oc-row">
             <div class="oc-row__k">Where</div>
@@ -1035,119 +1028,13 @@ section { padding:80px 0; }
 <section class="dates" id="dates">
   <div class="wrap">
     <span class="section-label">Upcoming Dates</span>
-    <h2 class="section-heading">Pick your date</h2>
-    <p class="section-sub">Dates follow the format you chose above. All times are Singapore time.</p>
-
-    <!-- ONLINE DATES -->
-    <div class="fmt-panel" id="dates-online">
-      <div class="dates__grid">
-
-        <div class="date-card">
-          <span class="date-card__tag">🎬 Live on Zoom</span>
-          <div class="date-card__day">Friday</div>
-          <div class="date-card__date">7 August 2026</div>
-          <div class="date-card__meta">
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 9:00am &ndash; 12:00pm <strong>(SGT)</strong></span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg> <strong>S$180</strong> &middot; hands-on</span>
-          </div>
-          <a href="https://events.impactuslearning.com/portal/" class="date-card__book" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="date_card">Student Portal. Book and Manage Courses.</a>
-        </div>
-
-        <div class="date-card">
-          <span class="date-card__tag">🎬 Live on Zoom</span>
-          <div class="date-card__day">Thursday</div>
-          <div class="date-card__date">13 August 2026</div>
-          <div class="date-card__meta">
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 7:00pm &ndash; 10:00pm <strong>(SGT)</strong></span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg> <strong>S$180</strong> &middot; hands-on</span>
-          </div>
-          <a href="https://events.impactuslearning.com/portal/" class="date-card__book" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="date_card">Student Portal. Book and Manage Courses.</a>
-        </div>
-
-        <div class="date-card">
-          <span class="date-card__tag">🎬 Live on Zoom</span>
-          <div class="date-card__day">Saturday</div>
-          <div class="date-card__date">5 September 2026</div>
-          <div class="date-card__meta">
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 9:00am &ndash; 12:00pm <strong>(SGT)</strong></span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg> <strong>S$180</strong> &middot; hands-on</span>
-          </div>
-          <a href="https://events.impactuslearning.com/portal/" class="date-card__book" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="date_card">Student Portal. Book and Manage Courses.</a>
-        </div>
-
-        <div class="date-card">
-          <span class="date-card__tag">🎬 Live on Zoom</span>
-          <div class="date-card__day">Monday</div>
-          <div class="date-card__date">7 September 2026</div>
-          <div class="date-card__meta">
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 7:00pm &ndash; 10:00pm <strong>(SGT)</strong></span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> 3-hour live session</span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg> <strong>S$180</strong> &middot; hands-on</span>
-          </div>
-          <a href="https://events.impactuslearning.com/portal/" class="date-card__book" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="date_card">Student Portal. Book and Manage Courses.</a>
-        </div>
-
-      </div>
+    <h2 class="section-heading">Dates live in the Student Portal</h2>
+    <p class="section-sub">Every upcoming online and face-to-face date &mdash; with current seat availability &mdash; is in the Student Portal, where you book, pay and manage your classes in one place. All times are Singapore time.</p>
+    <div class="portal-cta">
+      <a href="https://events.impactuslearning.com/portal/" class="btn-primary" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="dates">
+        Student Portal. Book and Manage Courses.
+      </a>
     </div>
-
-    <!-- F2F DATES -->
-    <div class="fmt-panel" id="dates-f2f" hidden>
-      <div class="dates__grid">
-
-        <div class="date-card">
-          <span class="date-card__tag">👥 In person &middot; Singapore</span>
-          <div class="date-card__day">Saturday</div>
-          <div class="date-card__date">15 August 2026</div>
-          <div class="date-card__meta">
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 8:30am &ndash; 12:00pm <strong>(SGT)</strong></span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> 3.5 hours &middot; Paya Lebar Square</span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg> <strong>S$240</strong> &middot; max 20 seats</span>
-          </div>
-          <a href="https://events.impactuslearning.com/portal/" class="date-card__book" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="date_card">Student Portal. Book and Manage Courses.</a>
-        </div>
-
-        <div class="date-card">
-          <span class="date-card__tag">👥 In person &middot; Singapore</span>
-          <div class="date-card__day">Monday</div>
-          <div class="date-card__date">24 August 2026</div>
-          <div class="date-card__meta">
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 8:30am &ndash; 12:00pm <strong>(SGT)</strong></span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> 3.5 hours &middot; Paya Lebar Square</span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg> <strong>S$240</strong> &middot; max 20 seats</span>
-          </div>
-          <a href="https://events.impactuslearning.com/portal/" class="date-card__book" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="date_card">Student Portal. Book and Manage Courses.</a>
-        </div>
-
-        <div class="date-card">
-          <span class="date-card__tag">👥 In person &middot; Singapore</span>
-          <div class="date-card__day">Monday</div>
-          <div class="date-card__date">21 September 2026</div>
-          <div class="date-card__meta">
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 8:30am &ndash; 12:00pm <strong>(SGT)</strong></span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> 3.5 hours &middot; Paya Lebar Square</span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg> <strong>S$240</strong> &middot; max 20 seats</span>
-          </div>
-          <a href="https://events.impactuslearning.com/portal/" class="date-card__book" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="date_card">Student Portal. Book and Manage Courses.</a>
-        </div>
-
-        <div class="date-card">
-          <span class="date-card__tag">👥 In person &middot; Singapore</span>
-          <div class="date-card__day">Saturday</div>
-          <div class="date-card__date">26 September 2026</div>
-          <div class="date-card__meta">
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 8:30am &ndash; 12:00pm <strong>(SGT)</strong></span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> 3.5 hours &middot; Paya Lebar Square</span>
-            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg> <strong>S$240</strong> &middot; max 20 seats</span>
-          </div>
-          <a href="https://events.impactuslearning.com/portal/" class="date-card__book" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="date_card">Student Portal. Book and Manage Courses.</a>
-        </div>
-
-      </div>
-    </div>
-
   </div>
 </section>
 
@@ -1167,23 +1054,23 @@ section { padding:80px 0; }
       </div>
       <div class="faq-item">
         <div class="faq-item__q">Is the class live or pre-recorded?</div>
-        <div class="faq-item__a">Always live and interactive with Dr. Andrew Chew &mdash; never a recording. You can sit it online on Zoom, or in person in Singapore. Various dates are available throughout the year.</div>
+        <div class="faq-item__a">Always live and interactive with Dr. Andrew Chew &mdash; never a recording. You can sit it online on Zoom, or face-to-face in Singapore. Various dates are available throughout the year.</div>
       </div>
       <div class="faq-item">
-        <div class="faq-item__q">What's the difference between the online and in-person class?</div>
-        <div class="faq-item__a">The teaching, the tools and what you walk away with are identical. In person you get an extra 30 minutes (3.5 hours instead of 3) and Andrew beside you when a shot won't behave. Online you keep your own setup and skip the travel. Online is <strong>S$180</strong>, in person is <strong>S$240</strong>.</div>
+        <div class="faq-item__q">What's the difference between the online and face-to-face class?</div>
+        <div class="faq-item__a">The teaching, the tools and what you walk away with are identical. Face-to-face you get an extra 30 minutes (3.5 hours instead of 3) and Andrew beside you when a shot won't behave. Online you keep your own setup and skip the travel. Online is <strong>S$180</strong>, face-to-face is <strong>S$240</strong>.</div>
       </div>
       <div class="faq-item">
-        <div class="faq-item__q">What if the in-person date doesn't fill up?</div>
-        <div class="faq-item__a">In-person classes need a minimum number of participants before they can go ahead &mdash; we won't run a room for two people. If a date doesn't reach it, <strong>we may ask you to move to another date</strong>, and everything you've paid carries over to the new one. We'll always tell you early enough to plan around it.</div>
+        <div class="faq-item__q">What if the face-to-face date doesn't fill up?</div>
+        <div class="faq-item__a">Face-to-face classes need a minimum number of participants before they can go ahead &mdash; we won't run a room for two people. If a date doesn't reach it, <strong>we may ask you to move to another date</strong>, and everything you've paid carries over to the new one. We'll always tell you early enough to plan around it.</div>
       </div>
       <div class="faq-item">
-        <div class="faq-item__q">Where is the in-person class held?</div>
+        <div class="faq-item__q">Where is the face-to-face class held?</div>
         <div class="faq-item__a"><strong>Paya Lebar Square</strong>, Singapore &mdash; right on top of the MRT interchange. The exact unit and directions are sent to you after you book.</div>
       </div>
       <div class="faq-item">
         <div class="faq-item__q">How big is the class?</div>
-        <div class="faq-item__a">Both formats are capped at <strong>20 people</strong>. It's a hands-on session, so the room stays small enough that you can ask a question and actually get it answered.</div>
+        <div class="faq-item__a">It's a hands-on session, so the class deliberately stays small enough that you can ask a question and actually get it answered.</div>
       </div>
       <div class="faq-item">
         <div class="faq-item__q">Should I do this class or the Automation one?</div>
@@ -1195,7 +1082,7 @@ section { padding:80px 0; }
       </div>
       <div class="faq-item">
         <div class="faq-item__q">How much is it and how do I register?</div>
-        <div class="faq-item__a">Online is <strong>S$180</strong> for three hours live; in person is <strong>S$240</strong> for three and a half. Both are 100% hands-on with Dr. Andrew Chew, with follow-up query support after class, and both earn you <strong>10% back in points</strong> towards your next class (1 point = S$1). Pick your format and date above &mdash; booking opens shortly and you'll receive your joining details by email.</div>
+        <div class="faq-item__a">Online is <strong>S$180</strong> for three hours live; face-to-face is <strong>S$240</strong> for three and a half. Both are 100% hands-on with Dr. Andrew Chew, with follow-up query support after class, and both earn you <strong>10% back in points</strong> towards your next class (1 point = S$1). All dates are in the <a href="https://events.impactuslearning.com/portal/" style="color:var(--blue);font-weight:600;">Student Portal</a> &mdash; booking opens shortly and you'll receive your joining details by email.</div>
       </div>
     </div>
   </div>
@@ -1245,33 +1132,5 @@ function playVideo(el){
 }
 </script>
 
-<!-- Format toggle: drives BOTH the pricing panel and the dates grid -->
-<script>
-(function(){
-  var btns = document.querySelectorAll('.fmt__btn');
-  var panels = {
-    online: ['panel-online','dates-online'],
-    f2f:    ['panel-f2f','dates-f2f']
-  };
-  function show(fmt){
-    Object.keys(panels).forEach(function(key){
-      var on = (key === fmt);
-      panels[key].forEach(function(id){
-        var el = document.getElementById(id);
-        if (el) el.hidden = !on;
-      });
-    });
-    btns.forEach(function(b){
-      b.setAttribute('aria-selected', b.dataset.fmt === fmt ? 'true' : 'false');
-    });
-    try { history.replaceState(null,'', fmt === 'f2f' ? '#f2f' : location.pathname + location.search); } catch(e){}
-  }
-  btns.forEach(function(b){
-    b.addEventListener('click', function(){ show(b.dataset.fmt); });
-  });
-  // Deep link: /animation/#f2f opens the in-person view directly
-  if (location.hash === '#f2f') show('f2f');
-})();
-</script>
 <a href="https://events.impactuslearning.com/portal/" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="float" style="position:fixed;bottom:74px;right:16px;z-index:9999;background:#f5b731;color:#101a2d;font-weight:700;padding:12px 18px;border-radius:99px;text-decoration:none;font-family:Inter,system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3)" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="float">Student Portal. Book and Manage Courses.</a></body>
 </html>
