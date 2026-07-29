@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Signups — Impactus Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root { --navy:#101a2d; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --red:#c93b3b; --line:#e6e9f0; --new:#2f6bd8; --act:#1a9a5c; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:1180px; margin:0 auto; padding:16px; }
+  header { background:var(--navy); color:#fff; position:sticky; top:0; z-index:5; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:12px; padding-bottom:12px; gap:10px; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; }
+  nav.tabs { display:flex; gap:4px; flex-wrap:wrap; }
+  .tab { color:#fff; opacity:.75; padding:6px 12px; border-radius:8px; font-size:13px; text-decoration:none; font-weight:600; }
+  .tab:hover { opacity:1; }
+  .tab.active { background:rgba(255,255,255,.12); opacity:1; color:var(--amber); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; }
+  h1 { font-size:20px; font-weight:800; }
+  h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
+  .muted { color:var(--mut); font-size:13px; }
+  .hidden { display:none !important; }
+  .btn { display:inline-block; padding:8px 15px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .btn.sm { padding:6px 11px; font-size:12.5px; }
+  .btn.on { background:var(--navy); color:#fff; }
+  input, select { font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:10px; margin-top:16px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .kpi .v { font-size:21px; font-weight:800; } .kpi .l { font-size:11.5px; color:var(--mut); margin-top:2px; }
+  .kpi .sub { font-size:11.5px; color:var(--green); margin-top:2px; font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); padding:8px 8px 6px 0; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th.sortable { cursor:pointer; user-select:none; }
+  th.sortable:hover { color:var(--ink); }
+  th .arr { color:var(--amber-d); margin-left:2px; }
+  td { padding:9px 8px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  tr.total td { font-weight:800; border-top:2px solid var(--ink); }
+  .num { text-align:right; } th.num { text-align:right; }
+  .pill { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:99px; background:#e8edfb; color:#3c5bd2; white-space:nowrap; }
+  .pill.new { background:#e4edfd; color:var(--new); }
+  .pill.act { background:#e3f5ec; color:var(--act); }
+  .pill.wait { background:#f0f1f5; color:var(--mut); }
+  .pill.yes { background:#e3f5ec; color:var(--act); }
+  .pill.no { background:#fdeaea; color:var(--red); }
+  .filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  footer { text-align:center; padding:26px 0 34px; }
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
+  <nav class="tabs">
+    <a class="tab" href="./" target="_blank">Dashboard</a>
+    <a class="tab" href="students.html" target="_blank">Students</a>
+    <a class="tab active" href="signups.html">Signups</a>
+    <a class="tab" href="earnings.html" target="_blank">Earnings ↗</a>
+    <a class="tab" href="referrals.html" target="_blank">Referrals ↗</a>
+    <a class="tab" href="coupons.html" target="_blank">Discounts ↗</a>
+  </nav>
+  <button class="btn ghost sm hidden" id="signout" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff">Sign out</button>
+</div></header>
+
+<div class="wrap">
+
+  <div id="view-login" class="card hidden" style="max-width:460px;margin:40px auto">
+    <h1>Sign in required</h1>
+    <p class="muted" style="margin-top:6px">Please sign in from the <a href="./" target="_blank">admin dashboard</a> first, then refresh this page.</p>
+    <button class="btn ghost" style="margin-top:14px" onclick="location.reload()">Refresh</button>
+  </div>
+
+  <div id="view-noauth" class="card hidden" style="max-width:420px;margin:40px auto">
+    <h1>Not authorized</h1>
+    <button class="btn ghost" id="noauth-out" style="margin-top:14px">Sign out</button>
+  </div>
+
+  <div id="view-app" class="hidden">
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">Accounts created over time
+        <span style="display:flex;gap:6px">
+          <button class="btn ghost sm on" id="p-day">Day</button>
+          <button class="btn ghost sm" id="p-week">Week</button>
+          <button class="btn ghost sm" id="p-month">Month</button>
+        </span>
+      </h2>
+      <div style="position:relative;height:290px"><canvas id="chart"></canvas></div>
+      <div id="periodtable" style="margin-top:14px;overflow-x:auto"></div>
+      <p class="muted" style="margin-top:8px">Dates and times are <strong>Singapore time</strong>. A <span class="pill new">new account</span> is someone with no record here before they signed up. An <span class="pill act">activation</span> is a student already in the CRM (the Luma import, or added by hand) creating a login for the first time — worth watching separately, because when the gate opens your existing students activating is a different event from strangers arriving.</p>
+    </div>
+
+    <div class="card">
+      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">Every account
+        <button class="btn sm" id="export">⬇ Excel</button>
+      </h2>
+      <div class="filters">
+        <input id="q" placeholder="Search name, email, mobile…" style="min-width:220px">
+        <select id="kind">
+          <option value="">All accounts</option>
+          <option value="new">New accounts only</option>
+          <option value="activation">Activations only</option>
+          <option value="none">No account yet (imported)</option>
+        </select>
+        <select id="conv">
+          <option value="">Any conversion</option>
+          <option value="yes">Booked since signing up</option>
+          <option value="no">Signed up, not booked</option>
+          <option value="never">Never logged in</option>
+        </select>
+        <label class="muted">From <input type="date" id="from"></label>
+        <label class="muted">To <input type="date" id="to"></label>
+        <button class="btn ghost sm" id="clear">Clear</button>
+      </div>
+      <p class="muted" style="margin:-4px 0 10px">Click any column heading to sort. The Excel download exports exactly what is filtered here.</p>
+      <div id="table" style="overflow-x:auto">Loading…</div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="muted">Impactus Learning Pte Ltd · Admin console</footer>
+
+<script>
+const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+const ADMIN_EMAIL = 'andrew@impactuslearning.com';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+
+// ---- Singapore time, everywhere ----
+// Postgres hands back UTC. Every date shown or grouped on this page is converted to
+// Asia/Singapore FIRST — otherwise a 7am SGT signup lands on the previous day and the
+// "today" tile quietly under-counts every morning. 'sv-SE' is the trick: it formats as
+// YYYY-MM-DD, so the string sorts and groups correctly with no parsing.
+const SGT = 'Asia/Singapore';
+const sgDay  = (ts) => ts ? new Date(ts).toLocaleDateString('sv-SE', { timeZone: SGT }) : '';
+const sgWhen = (ts) => ts ? new Date(ts).toLocaleString('en-SG', { timeZone: SGT, day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+const sgTime = (ts) => ts ? new Date(ts).toLocaleString('en-SG', { timeZone: SGT, hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+const todaySG = () => new Date().toLocaleDateString('sv-SE', { timeZone: SGT });
+function mondayOf(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toLocaleDateString('sv-SE', { timeZone: SGT }); };
+
+let all = [], chart = null, period = 'day';
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  route(session);
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') route(s); });
+}
+function route(session) {
+  if (!session) { show('view-login'); return; }
+  if ((session.user.email || '').toLowerCase() !== ADMIN_EMAIL) { show('view-noauth'); return; }
+  $('signout').classList.remove('hidden');
+  show('view-app');
+  loadAll();
+}
+$('signout').onclick = () => sb.auth.signOut();
+$('noauth-out').onclick = () => sb.auth.signOut();
+
+// signup_report is admin-gated in SQL (security_invoker + an is_admin() guard), so a
+// student session gets an empty list here rather than a leak. See the 2026-07-24 incident.
+async function loadAll() {
+  const { data, error } = await sb.from('signup_report').select('*');
+  if (error) { $('table').textContent = 'Could not load: ' + error.message; return; }
+  all = (data || []).map(r => ({ ...r, day: sgDay(r.account_created_at) }));
+  renderKPIs(); renderChart(); renderTable();
+}
+
+// ---------- KPIs ----------
+function renderKPIs() {
+  const accounts = all.filter(r => r.account_created_at);
+  const t = todaySG(), wk = mondayOf(t), mo = t.slice(0, 7);
+  const inDay   = accounts.filter(r => r.day === t);
+  const inWeek  = accounts.filter(r => mondayOf(r.day) === wk);
+  const inMonth = accounts.filter(r => r.day.slice(0, 7) === mo);
+  const kind = (list, k) => list.filter(r => r.signup_kind === k).length;
+  const converted = accounts.filter(r => r.converted).length;
+  const rate = accounts.length ? Math.round(converted / accounts.length * 100) : 0;
+  const waiting = all.filter(r => !r.account_created_at).length;
+  const stale = accounts.filter(r => !r.converted && r.day <= daysAgo(7)).length;
+  const split = (list) => kind(list, 'new') + ' new · ' + kind(list, 'activation') + ' activation';
+  $('kpis').innerHTML =
+    '<div class="kpi"><div class="v">' + inDay.length + '</div><div class="l">Today</div><div class="sub">' + split(inDay) + '</div></div>' +
+    '<div class="kpi"><div class="v">' + inWeek.length + '</div><div class="l">This week</div><div class="sub">' + split(inWeek) + '</div></div>' +
+    '<div class="kpi"><div class="v">' + inMonth.length + '</div><div class="l">This month</div><div class="sub">' + split(inMonth) + '</div></div>' +
+    '<div class="kpi"><div class="v">' + accounts.length + '</div><div class="l">Accounts all-time</div><div class="sub">' + split(accounts) + '</div></div>' +
+    '<div class="kpi"><div class="v">' + converted + '</div><div class="l">Booked after signing up</div><div class="sub">' + rate + '% of accounts</div></div>' +
+    (stale ? '<div class="kpi"><div class="v" style="color:var(--red)">' + stale + '</div><div class="l">Signed up 7+ days ago, still no booking</div><div class="sub" style="color:var(--mut);font-weight:500">worth a nudge</div></div>' : '') +
+    '<div class="kpi"><div class="v" style="color:var(--mut)">' + waiting + '</div><div class="l">In the CRM, no account yet</div><div class="sub" style="color:var(--mut);font-weight:500">mostly the Luma import</div></div>';
+}
+
+// ---------- chart ----------
+const periodKey = (day) => period === 'day' ? day : period === 'week' ? mondayOf(day) : day.slice(0, 7);
+function periodLabel(k) {
+  if (period === 'day') return new Date(k + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
+  if (period === 'week') return 'Wk of ' + new Date(k + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
+  return new Date(k + '-01T00:00:00').toLocaleDateString('en-SG', { month: 'short', year: 'numeric' });
+}
+function renderChart() {
+  const accounts = all.filter(r => r.account_created_at);
+  const keys = [...new Set(accounts.map(r => periodKey(r.day)))].sort();
+  const series = (k) => keys.map(key => accounts.filter(r => periodKey(r.day) === key && r.signup_kind === k).length);
+  // The canvas is a nice-to-have; the numbers underneath are the point. Chart.js comes off a
+  // CDN, so if cdnjs is unreachable this must NOT take the rest of the page down with it —
+  // the same trap that once aborted showApp() in the student portal over a QR library.
+  try {
+    if (typeof Chart === 'undefined') throw new Error('Chart.js did not load');
+    if (chart) chart.destroy();
+    chart = new Chart($('chart'), {
+      type: 'bar',
+      data: { labels: keys.map(periodLabel), datasets: [
+        { label: 'New accounts', data: series('new'), backgroundColor: '#2f6bd8', stack: 's' },
+        { label: 'Activations',  data: series('activation'), backgroundColor: '#1a9a5c', stack: 's' },
+      ] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+        scales: { x: { stacked: true, grid: { display: false } },
+          y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } },
+      },
+    });
+  } catch (e) {
+    const c = $('chart');
+    if (c && c.parentElement) {
+      c.parentElement.style.height = 'auto';
+      c.parentElement.innerHTML = '<p class="muted">Chart unavailable (' + esc(e.message) + '). The figures below are unaffected.</p>';
+    }
+  }
+  const totals = keys.map(k => {
+    const rs = accounts.filter(r => periodKey(r.day) === k);
+    return { k, n: rs.length, nw: rs.filter(r => r.signup_kind === 'new').length,
+      ac: rs.filter(r => r.signup_kind === 'activation').length, cv: rs.filter(r => r.converted).length };
+  });
+  const sum = (f) => totals.reduce((s, t) => s + f(t), 0);
+  $('periodtable').innerHTML = !totals.length ? '<p class="muted">No accounts created yet.</p>' :
+    '<table><thead><tr><th>Period</th><th class="num">New</th><th class="num">Activations</th><th class="num">Total</th><th class="num">Booked since</th></tr></thead><tbody>' +
+    totals.slice().reverse().map(t => '<tr><td>' + periodLabel(t.k) + '</td><td class="num">' + t.nw + '</td><td class="num">' + t.ac +
+      '</td><td class="num"><strong>' + t.n + '</strong></td><td class="num muted">' + t.cv + '</td></tr>').join('') +
+    '<tr class="total"><td>Total</td><td class="num">' + sum(t => t.nw) + '</td><td class="num">' + sum(t => t.ac) +
+      '</td><td class="num">' + sum(t => t.n) + '</td><td class="num">' + sum(t => t.cv) + '</td></tr></tbody></table>';
+}
+function setPeriod(p) {
+  period = p;
+  ['p-day','p-week','p-month'].forEach(id => $(id).classList.toggle('on', id === 'p-' + p));
+  renderChart();
+}
+$('p-day').onclick = () => setPeriod('day');
+$('p-week').onclick = () => setPeriod('week');
+$('p-month').onclick = () => setPeriod('month');
+
+// ---------- table ----------
+// House convention: numeric columns open high→low, text A–Z. "When" is treated as numeric
+// because the interesting end of a signup list is the newest one, not 2026.
+let sortKey = 'when', sortDir = -1;
+const SORTVAL = {
+  who:    (r) => (r.name || r.email || '').toLowerCase(),
+  when:   (r) => r.account_created_at || '',
+  kind:   (r) => r.signup_kind || 'zz',
+  ref:    (r) => (r.referrer_name || '').toLowerCase(),
+  seen:   (r) => r.last_login_at || '',
+  logins: (r) => r.login_count || 0,
+  pts:    (r) => r.points_balance || 0,
+  conv:   (r) => r.converted ? 1 : 0,
+  days:   (r) => r.days_to_first_booking == null ? -1 : Number(r.days_to_first_booking),
+};
+const NUMERIC = new Set(['when', 'seen', 'logins', 'pts', 'conv', 'days']);
+window.setSort = function (k) {
+  if (sortKey === k) sortDir = -sortDir;
+  else { sortKey = k; sortDir = NUMERIC.has(k) ? -1 : 1; }
+  renderTable();
+};
+
+function filtered() {
+  const q = ($('q').value || '').trim().toLowerCase();
+  const kind = $('kind').value, conv = $('conv').value;
+  const from = $('from').value, to = $('to').value;
+  return all.filter(r => {
+    if (kind === 'none') { if (r.account_created_at) return false; }
+    else if (kind) { if (r.signup_kind !== kind) return false; }
+    else if (!r.account_created_at && (conv || from || to)) return false;
+    if (conv === 'yes' && !r.converted) return false;
+    if (conv === 'no' && (r.converted || !r.account_created_at)) return false;
+    if (conv === 'never' && r.last_login_at) return false;
+    if (from && (!r.day || r.day < from)) return false;
+    if (to && (!r.day || r.day > to)) return false;
+    if (q) {
+      const hay = [r.name, r.preferred_name, r.email, r.mobile, r.referrer_name, r.corp_name].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderTable() {
+  const rows = filtered().sort((a, b) => {
+    const va = SORTVAL[sortKey](a), vb = SORTVAL[sortKey](b);
+    const c = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+    return c !== 0 ? c * sortDir : String(b.account_created_at || '').localeCompare(String(a.account_created_at || ''));
+  });
+  const th = (k, label, num) => '<th class="sortable' + (num ? ' num' : '') + '" onclick="setSort(\'' + k + '\')">' + label +
+    (sortKey === k ? '<span class="arr">' + (sortDir === 1 ? '▲' : '▼') + '</span>' : '') + '</th>';
+  if (!rows.length) { $('table').innerHTML = '<p class="muted">Nothing matches that filter.</p>'; return; }
+  $('table').innerHTML =
+    '<p class="muted" style="margin:0 0 8px">Showing <strong>' + rows.length + '</strong> of ' + all.length + '.</p>' +
+    '<table><thead><tr>' + th('who', 'Person') + th('when', 'Account created', true) + th('kind', 'Type') +
+      th('ref', 'Referred by') + th('conv', 'Booked since?', true) + th('days', 'Days to book', true) +
+      th('seen', 'Last seen', true) + th('logins', 'Logins', true) + th('pts', 'Points', true) +
+    '</tr></thead><tbody>' + rows.map(r => {
+      const who = '<strong>' + esc(r.name) + '</strong>' + (r.preferred_name ? ' <span class="muted">(' + esc(r.preferred_name) + ')</span>' : '') +
+        '<br><a class="muted" href="students.html?q=' + encodeURIComponent(r.email) + '" target="_blank">' + esc(r.email) + '</a>' +
+        (r.corp_name ? ' <span class="pill">🏢 ' + esc(r.corp_name) + '</span>' : '');
+      const when = r.account_created_at
+        ? '<strong>' + esc(sgWhen(r.account_created_at)) + '</strong>'
+        : '<span class="muted">—</span>';
+      const kindPill = r.signup_kind === 'new' ? '<span class="pill new">New account</span>'
+        : r.signup_kind === 'activation' ? '<span class="pill act">Activation</span>'
+        : '<span class="pill wait">No account yet</span>';
+      const conv = !r.account_created_at ? '<span class="muted">—</span>'
+        : r.converted ? '<span class="pill yes">Yes</span>' : '<span class="pill no">Not yet</span>';
+      const days = r.days_to_first_booking == null ? '<span class="muted">—</span>' : String(r.days_to_first_booking);
+      const seen = r.last_login_at ? esc(sgWhen(r.last_login_at)) : '<span class="muted">never</span>';
+      return '<tr><td>' + who + '</td><td>' + when + '</td><td>' + kindPill + '</td>' +
+        '<td>' + (r.referrer_name ? esc(r.referrer_name) : '<span class="muted">—</span>') + '</td>' +
+        '<td class="num">' + conv + '</td><td class="num">' + days + '</td>' +
+        '<td class="num">' + seen + '</td><td class="num">' + (r.login_count || 0) + '</td>' +
+        '<td class="num">' + (r.points_balance || 0) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+['q','kind','conv','from','to'].forEach(id => { $(id).oninput = renderTable; $(id).onchange = renderTable; });
+$('clear').onclick = () => { ['q','kind','conv','from','to'].forEach(id => $(id).value = ''); renderTable(); };
+
+$('export').onclick = () => {
+  const rows = filtered().map(r => ({
+    'Name': r.name || '',
+    'Greeted as': r.preferred_name || '',
+    'Email': r.email || '',
+    'Mobile': r.mobile || '',
+    'Account created (SGT)': sgWhen(r.account_created_at),
+    'Date (SGT)': r.day || '',
+    'Time (SGT)': sgTime(r.account_created_at),
+    'Type': r.signup_kind === 'new' ? 'New account' : r.signup_kind === 'activation' ? 'Activation' : 'No account yet',
+    'Referred by': r.referrer_name || '',
+    'Referrer email': r.referrer_email || '',
+    'Company': r.corp_name || '',
+    'Booked since signup': !r.account_created_at ? '' : (r.converted ? 'yes' : 'no'),
+    'Bookings since signup': r.bookings_after_signup || 0,
+    'Bookings before signup': r.bookings_before_signup || 0,
+    'Days to first booking': r.days_to_first_booking == null ? '' : r.days_to_first_booking,
+    'Cash all-time (S$)': Number(r.cash_total_sgd || 0),
+    'Points balance': r.points_balance || 0,
+    'First login (SGT)': sgWhen(r.first_login_at),
+    'Last seen (SGT)': sgWhen(r.last_login_at),
+    'Logins': r.login_count || 0,
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{ wch: 24 }, { wch: 14 }, { wch: 30 }, { wch: 15 }, { wch: 24 }, { wch: 12 }, { wch: 11 }, { wch: 14 },
+    { wch: 22 }, { wch: 28 }, { wch: 16 }, { wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 16 }, { wch: 13 },
+    { wch: 24 }, { wch: 24 }, { wch: 8 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Signups');
+  XLSX.writeFile(wb, 'impactus-signups-' + todaySG().replace(/-/g, '') + '.xlsx');
+};
+
+init();
+</script>
+</body>
+</html>
