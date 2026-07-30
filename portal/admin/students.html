@@ -1,5 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- ═══ READ BEFORE EDITING ═══════════════════════════════════════════════
+     This file covers the Students tab, remarks/pins, corp fields and PDPA erasure.
+     Rules and past incidents:  CRM Impactus\docs\admin-console.md
+     Non-negotiables + the gotcha list:  CRM Impactus\CLAUDE.md
+     Always FRESH-CLONE before editing - other sessions touch these files.
+════════════════════════════════════════════════════════════════════════ -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -142,6 +148,19 @@
       <div id="studentlist" class="muted" style="margin-top:12px">Loading…</div>
       <div class="msg" id="stu-msg"></div>
     </div>
+
+    <div class="card" id="erasurecard" style="display:none">
+      <h2>Erasure log <span class="muted" id="er-count" style="font-size:13px;font-weight:400"></span></h2>
+      <p class="muted" style="margin-top:4px">
+        Every anonymisation, with what was cleared. Admin-only — students and the public cannot
+        read this table. <strong>Because the old name, email and mobile are kept here, that data
+        is not fully destroyed</strong> — it has moved somewhere only you can see. Keep it while
+        you might need it to answer a dispute or a chargeback, then hit <strong>Purge</strong>:
+        that clears the personal columns and leaves the dated proof that the erasure happened.
+      </p>
+      <div id="erasurelist" style="margin-top:10px"></div>
+      <div class="msg" id="er-msg"></div>
+    </div>
   </div>
 </div>
 
@@ -162,7 +181,7 @@ const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude L1', 'AI A
 const shortName = (n) => SHORTNAMES[n] || n;
 const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-let students = [], courses = [], bookings = [], ledger = [];
+let students = [], courses = [], bookings = [], ledger = [], erasures = [];
 let byCourse = {};
 let sortKey = 'name', sortDir = 1;
 
@@ -182,13 +201,16 @@ $('signout').onclick = () => sb.auth.signOut();
 $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
-  const [s, c, b, l] = await Promise.all([
+  const [s, c, b, l, e] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select('*').order('cohort_date'),
     sb.from('bookings').select('*'),
     sb.from('points_ledger').select('*'),
+    // RLS restricts this to admin; a non-admin session simply gets zero rows.
+    sb.from('student_erasure_log').select('*').order('anonymised_at', { ascending: false }),
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || []; ledger = l.data || [];
+  erasures = e.data || [];
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
   const names = [...new Set(courses.map(x => x.name))].sort();
   $('stu-course').innerHTML = '<option value="">All courses</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
@@ -466,7 +488,53 @@ window.saveCorp = async function (id) {
   render();
 };
 
+// The retention record for every PDPA erasure. Hidden entirely until there is one.
+function renderErasures() {
+  const card = $('erasurecard');
+  if (!erasures.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const live = erasures.filter(e => !e.purged_at).length;
+  $('er-count').textContent = `· ${erasures.length} erasure${erasures.length > 1 ? 's' : ''}` +
+    (live ? ` · ${live} still holding personal data` : ' · all purged');
+  $('erasurelist').innerHTML = `<table><thead><tr>
+      <th>When</th><th>Who they were</th><th>Reason</th><th>By</th>
+      <th class="num">They had</th><th></th></tr></thead><tbody>` +
+    erasures.map(e => {
+      const purged = !!e.purged_at;
+      return `<tr>
+        <td>${fdate(String(e.anonymised_at).slice(0, 10))}<div class="muted" style="font-size:11px">${String(e.anonymised_at).slice(11, 16)}</div></td>
+        <td>${purged
+              ? '<span class="muted">— purged —</span>'
+              : `<strong>${esc(e.old_name || '—')}</strong>
+                 <div class="muted" style="font-size:11.5px">${esc(e.old_email || '')}${e.old_mobile ? ' · ' + esc(e.old_mobile) : ''}</div>
+                 ${e.old_remarks ? `<div class="muted" style="font-size:11px;white-space:pre-wrap">${esc(e.old_remarks)}</div>` : ''}`}
+            ${e.corp_name_at_time ? `<div><span class="bdg corp">🏢 ${esc(e.corp_name_at_time)}</span></div>` : ''}</td>
+        <td class="muted" style="font-size:12px">${esc(e.reason || '—')}</td>
+        <td class="muted" style="font-size:12px">${esc(e.anonymised_by || '—')}</td>
+        <td class="num">${money(Number(e.net_cash_at_time) || 0)}
+          <div class="muted" style="font-size:11px">${e.bookings_at_time} booking${e.bookings_at_time === 1 ? '' : 's'} · ${e.points_rows_at_time} pts rows</div></td>
+        <td>${purged
+              ? `<button class="btn ghost sm" disabled title="Personal columns cleared ${fdate(String(e.purged_at).slice(0, 10))}. The dated record of the erasure remains.">✓ purged</button>`
+              : `<button class="btn ghost sm" style="color:var(--red)" onclick="purgeErasure(${e.id})" title="Clear the retained name, email, mobile and notes. Keeps the dated proof that this erasure happened.">Purge</button>`}</td>
+      </tr>`;
+    }).join('') + '</tbody></table>';
+}
+
+window.purgeErasure = async function (logId) {
+  const e = erasures.find(x => x.id === logId);
+  if (!e) return;
+  if (!confirm(`Purge the retained details for ${e.old_name || 'this person'}?\n\n` +
+               `Their name, email, mobile and notes are deleted from the log for good.\n` +
+               `The dated record that you anonymised them — and what they had — stays.\n\n` +
+               `Do this once you no longer need the details to answer a dispute.`)) return;
+  const { error } = await sb.rpc('purge_erasure_log', { p_log_id: logId });
+  if (error) return msg('er-msg', 'err', error.message);
+  await loadAll();
+  msg('er-msg', 'ok', 'Purged. The erasure record remains as proof of the action.');
+};
+
 function render() {
+  renderErasures();
   renderPinned();
   renderAudit();
   const list = filtered();
@@ -593,25 +661,35 @@ window.anonymiseStudent = async function (id) {
   const s = students.find(x => x.id === id);
   if (!s) return;
   const kept = cashOf(id) + corpOf(id);
+
+  // Reason first, typed name second — so the LAST thing you do is the irreversible thing.
+  const reason = prompt(
+    `ANONYMISE — ${s.name || s.email}\n\n` +
+    `Why? (goes in the erasure log, e.g. "PDPA erasure request by email 30 Jul")\n\n` +
+    `Leave blank if you'd rather not say. Cancel to stop.`, '');
+  if (reason === null) return;
+
   const typed = prompt(
     `ANONYMISE — ${s.name || s.email}\n\n` +
     `Removes their name, email, mobile and remarks. This CANNOT be undone.\n\n` +
     `Kept on purpose: ${money(kept)} of recorded payments, their seats on every class, ` +
-    `and ${balanceOf(id)} points — so revenue and rosters stay correct.\n\n` +
+    `and ${balanceOf(id)} points — so revenue and rosters stay correct.\n` +
+    `A record of what was cleared goes to the erasure log at the bottom of this page.\n\n` +
     `Type their name exactly to confirm:\n\n${s.name}`);
   if (typed === null) return;                                  // cancelled
   if (typed.trim().toLowerCase() !== (s.name || '').trim().toLowerCase())
     return msg('stu-msg', 'err', 'That name did not match — nothing was changed.');
 
-  const { data, error } = await sb.rpc('anonymise_student', { p_student_id: id });
+  const { data, error } = await sb.rpc('anonymise_student', { p_student_id: id, p_reason: reason });
   if (error) return msg('stu-msg', 'err', error.message);
 
   // Last sighting of the old values. Logged (not shown) so a mis-click is still
   // recoverable by hand from the console before the tab is closed.
-  console.log('[anonymise] previous values — recoverable only from here:', data);
+  console.log('[anonymise] previous values — also retained in the erasure log:', data);
 
   await loadAll();
-  msg('stu-msg', 'ok', `Anonymised. ${money(kept)} and ${data.points_rows} points rows kept.` +
+  msg('stu-msg', 'ok', `Anonymised. ${money(kept)} and ${data.points_rows} points rows kept, ` +
+    `details retained in the erasure log below.` +
     (data.auth_login_still_active
       ? ' ⚠ Their magic-link login still exists — remove it in Supabase → Authentication → Users, or they can still sign in.'
       : ' They had no login to remove.'));
