@@ -857,7 +857,7 @@ const LEVEL_BY_KEY = Object.fromEntries(LEVEL_ORDER.map(l => [l.key, l]));
 const LEVELS = {};
 [['claude', 'c1', false], ['f2f-claude', 'c1', true], ['f2f-build', 'c2', true],
  ['animation', 'a1', false], ['f2f-animation', 'a1', true],
- ['automation', 'a2', false], ['f2f-automation', 'a2', true]].forEach(([slug, key, f2f]) => {
+ ['f2f-automation', 'a2', true]].forEach(([slug, key, f2f]) => {
   const l = LEVEL_BY_KEY[key];
   LEVELS[slug] = { key, short: l.short, title: l.name, color: l.color, f2f };
 });
@@ -1138,7 +1138,7 @@ function deselectCohort() {
   document.querySelectorAll('.ccard').forEach(x => x.classList.remove('active'));
 }
 
-// deep link: ?course=automation&date=2026-08-13&time=am|pm|n — matches family slug or any alt_slug
+// deep link: ?course=f2f-automation&date=2026-08-13&time=am|pm|n — matches family slug or any alt_slug
 function applyDeepLink() {
   // Once only. loadCourses() runs again after every booking, and re-firing the deep link
   // there would silently re-open the payment step on a class the student just paid for.
