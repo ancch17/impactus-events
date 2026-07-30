@@ -70,7 +70,15 @@
   // used to land here instead, so a student who had just PAID saw "Coming soon".
   var forward = ['preview', 'payment', 'setup', 'ref', 'course', 'date', 'time'];
   var wanted = forward.some(function (k) { return q.has(k); });
-  if (h.indexOf('access_token') > -1 || h.indexOf('error') > -1 || wanted) {
+  // A signed-in student (or preview-token holder) landing on the bare splash must reach the
+  // app — otherwise a bookmark of /portal/ shows "Coming soon" to someone with a valid
+  // session. Not a bypass: app.html re-checks the token/session itself and re-gates.
+  var stored = false;
+  try {
+    stored = !!localStorage.getItem('ilPreview') ||
+      Object.keys(localStorage).some(function (k) { return /^sb-.+-auth-token$/.test(k); });
+  } catch (e) {}
+  if (h.indexOf('access_token') > -1 || h.indexOf('error') > -1 || wanted || stored) {
     location.replace('app' + location.search + location.hash);
   }
 })();
