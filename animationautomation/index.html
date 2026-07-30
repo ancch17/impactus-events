@@ -26,7 +26,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
    museum plaques, no boxes, air everywhere.
    ═══════════════════════════════════════════════════ */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-html{scroll-behavior:smooth;}
+html{scroll-behavior:smooth;scroll-padding-top:110px;}
 :root{
   --wall:      #F7F4EF;
   --wall-deep: #EFEAE2;
@@ -129,7 +129,7 @@ body.scrolled .nav{top:0;}
   border-bottom:1px solid var(--ink);padding-bottom:3px;
 }
 .nav__cta:hover{color:var(--accent)!important;border-color:var(--accent);}
-@media(max-width:760px){.nav__menu{gap:18px;} .nav__menu a:not(.nav__cta){display:none;}}
+@media(max-width:760px){.nav__menu{gap:18px;} .nav__menu a:not(.nav__cta):not(.nav__dates){display:none;}}
 
 /* ─── buttons ─── */
 .btn{
@@ -737,6 +737,7 @@ body.scrolled .nav{top:0;}
         <a href="#kit">The Kit</a>
         <a href="#session">The Session</a>
         <a href="#requirements">What You Need</a>
+        <a href="#dates" class="nav__dates">Dates</a>
         <a class="nav__cta" href="https://events.impactuslearning.com/portal/" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="header">Reserve Seat</a>
       </div>
     </div>
@@ -825,6 +826,33 @@ body.scrolled .nav{top:0;}
         <div class="rung__n">Claude Masterclass &ndash; Build</div>
         <div class="rung__d">You build the real thing, in the room.</div>
       </a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ DATES ══ -->
+<section class="sec" id="dates">
+  <div class="wrap">
+    <div class="sec__head rv">
+      <span class="eyebrow">Reserve</span>
+      <h2>Pick a date that <em>suits you</em>.</h2>
+      <p>Straight from the booking system, so what you see is what is open. Choose a date and it comes with you &mdash; you set up your account on the way, and that date is waiting for you when you land. Every date is face-to-face at Paya Lebar Square: a comfortable room, quick Wi-Fi, coffee and tea on tap, and a short walk from the MRT. All times Singapore.</p>
+    </div>
+
+      <div class="ilx rv" id="ilx" hidden>
+        <ol class="ilx__list" id="ilxlist"></ol>
+      </div>
+      <p class="ilx__note rv" id="ilxnote"></p>
+    <div class="price rv">
+      <div class="price__fig">
+        <span class="price__cur">S$</span><span class="price__num">240</span>
+        <span class="price__per">per seat</span>
+      </div>
+      <p class="price__note">Three and a half hours in the room with Dr. Andrew Chew, hands-on throughout, with follow-up support after class &mdash; and <strong>10% back in points</strong> towards your next class. <em>Your agent and Higgsfield subscriptions are separate</em> &mdash; see <a href="#requirements" style="color:var(--accent);border-bottom:1px solid var(--accent-lo);">what you need</a>. Face-to-face classes need a minimum number of participants to go ahead; if a date doesn't reach it we may ask you to move to another, and everything you've paid carries over.</p>
+    </div>
+
+    <div class="rv" style="margin-top:20px;">
+      <a href="https://events.impactuslearning.com/portal/" class="btn" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="dates">Reserve Seat. Book and Manage Courses.</a>
     </div>
   </div>
 </section>
@@ -1355,33 +1383,6 @@ body.scrolled .nav{top:0;}
       <div class="rev"><div class="rev__stars">★★★★★</div><p class="rev__text">"A jam-packed 3 hours online class. Another well done course by Dr Andrew."</p><div class="rev__who">Junice Liew</div></div>
       <div class="rev"><div class="rev__stars">★★★★★</div><p class="rev__text">"He's knowledgeable, eloquent, patient and approachable, and his classes are well-paced so no one gets left behind."</p><div class="rev__who">Fiona Leong</div></div>
       <div class="rev"><div class="rev__stars">★★★★★</div><p class="rev__text">"One of the best trainers around."</p><div class="rev__who">Elaine Guoh</div></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ DATES ══ -->
-<section class="sec" id="dates">
-  <div class="wrap">
-    <div class="sec__head rv">
-      <span class="eyebrow">Reserve</span>
-      <h2>Pick a date that <em>suits you</em>.</h2>
-      <p>Straight from the booking system, so what you see is what is open. Choose a date and it comes with you &mdash; you set up your account on the way, and that date is waiting for you when you land. Every date is face-to-face at Paya Lebar Square: a comfortable room, quick Wi-Fi, coffee and tea on tap, and a short walk from the MRT. All times Singapore.</p>
-    </div>
-
-      <div class="ilx rv" id="ilx" hidden>
-        <ol class="ilx__list" id="ilxlist"></ol>
-      </div>
-      <p class="ilx__note rv" id="ilxnote"></p>
-    <div class="price rv">
-      <div class="price__fig">
-        <span class="price__cur">S$</span><span class="price__num">240</span>
-        <span class="price__per">per seat</span>
-      </div>
-      <p class="price__note">Three and a half hours in the room with Dr. Andrew Chew, hands-on throughout, with follow-up support after class &mdash; and <strong>10% back in points</strong> towards your next class. <em>Your agent and Higgsfield subscriptions are separate</em> &mdash; see <a href="#requirements" style="color:var(--accent);border-bottom:1px solid var(--accent-lo);">what you need</a>. Face-to-face classes need a minimum number of participants to go ahead; if a date doesn't reach it we may ask you to move to another, and everything you've paid carries over.</p>
-    </div>
-
-    <div class="rv" style="margin-top:20px;">
-      <a href="https://events.impactuslearning.com/portal/" class="btn" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="dates">Reserve Seat. Book and Manage Courses.</a>
     </div>
   </div>
 </section>
