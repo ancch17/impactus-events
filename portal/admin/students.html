@@ -217,7 +217,7 @@ $('noauth-out').onclick = () => sb.auth.signOut();
 async function loadAll() {
   const [s, c, b, l, e, m] = await Promise.all([
     sb.from('students').select('*'),
-    sb.from('courses').select('*').order('cohort_date'),
+    sb.from('courses').select('id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id').order('cohort_date'),
     sb.from('bookings').select('*'),
     sb.from('points_ledger').select('*'),
     // RLS restricts these to admin; a non-admin session simply gets zero rows.

@@ -154,7 +154,7 @@ $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
   const [c, b, s] = await Promise.all([
-    sb.from('courses').select('*'),
+    sb.from('courses').select('id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id'),
     sb.from('bookings').select('*'),
     sb.from('students').select('id,corp_name,corp_invoice_ref,corp_invoice_status,corp_seat_price_sgd'),
   ]);

@@ -375,15 +375,23 @@ $('signout').onclick = () => sb.auth.signOut();
 $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
-  const [s, c, b, f, k] = await Promise.all([
+  // Zoom/WhatsApp credentials are locked to admins now — read the non-secret course columns from
+  // the table and the four secret ones from the admin-only view, then merge (below).
+  const COURSE_COLS = 'id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id';
+  const [s, c, b, f, k, cs] = await Promise.all([
     sb.from('students').select('*'),
-    sb.from('courses').select('*').order('cohort_date'),
+    sb.from('courses').select(COURSE_COLS).order('cohort_date'),
     sb.from('bookings').select('*'),
     sb.from('course_families').select('*').order('sort_order'),
     sb.from('calendar_blocks').select('*'),
+    sb.from('course_secrets_admin').select('*'),   // zoom_link/password/meeting_id + whatsapp_url; empty for non-admins
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || [];
   families = f.data || []; blocks = k.data || [];
+  // Merge the secret columns back onto each course so every c.zoom_* / c.whatsapp_url read below
+  // keeps working unchanged. They used to be readable by any signed-in user via the API.
+  const secretsById = Object.fromEntries((cs.data || []).map(x => [x.id, x]));
+  courses.forEach(cc => Object.assign(cc, secretsById[cc.id] || {}));
   await closePastCohorts();
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
