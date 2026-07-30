@@ -229,6 +229,15 @@
     .ccard-price { text-align:left; }
   }
 </style>
+<style>
+/* The date the visitor picked before they had an account. An account form that says nothing
+   about the date they just clicked reads as a toll gate; echoing the date back makes the
+   account read as step one of booking it. */
+.pickstrip { background:#fff8e6; border:1px solid #f0dca8; border-left:4px solid var(--amber);
+  border-radius:12px; padding:14px 16px; margin-top:16px; }
+.pickstrip b { display:block; font-size:15px; }
+.pickstrip span { display:block; font-size:13.5px; color:var(--mut); margin-top:4px; line-height:1.5; }
+</style>
 </head>
 <body>
 <header><div class="wrap">
@@ -255,6 +264,7 @@
     <h1>Your classes. Your rebates.</h1>
     <p class="muted" style="color:#cfd6e4;margin-top:6px">Earn 10% back in rebate points on every class — 1 point = S$1, and they come off your next class automatically.</p>
   </div>
+  <div class="pickstrip hidden" id="pickstrip"></div>
   <div class="card">
     <h2>Sign in / Create account</h2>
     <label>Email</label>
@@ -485,6 +495,69 @@ if (params.get('ref')) {
   setTimeout(() => msg('loginmsg', 'ok', "Your friend's referral is attached ✓ — sign up above to get started."), 300);
 }
 
+/* ── The date picked on a marketing page ───────────────────────────────────────
+   Course pages deep-link in as ?course=&date=&time= — the shape applyDeepLink() already
+   understands. The new problem is the MAGIC LINK: the student leaves the browser for their
+   email client and comes back through a fresh URL, so the pick has to survive that hop. Two
+   independent carriers, because each one fails in a case the other covers:
+     • the redirect URL   — survives opening the email on a different device, but only if the
+                            URL is on Supabase's redirect allowlist (Auth → URL Configuration);
+                            when it isn't, Supabase silently falls back to the Site URL.
+     • localStorage       — survives the allowlist problem, but only in the same browser.
+   Neither is reliable alone. Together they cover everything except "signed up on desktop,
+   opened the email on a phone, and the allowlist is missing" — which degrades to the plain
+   portal, signed in, with nothing preselected. Never to an error. */
+const DL_KEYS = ['course', 'date', 'time'];
+const DL_STASH = 'ilDeepLink';
+const DL_TTL = 3600e3;   // an hour: a sign-in link left overnight is a different intent
+
+function dlRead() {
+  const o = {};
+  DL_KEYS.forEach(k => { const v = params.get(k); if (v) o[k] = v; });
+  return o.course ? o : null;
+}
+function dlQuery(o) {
+  return DL_KEYS.filter(k => o[k]).map(k => k + '=' + encodeURIComponent(o[k])).join('&');
+}
+
+let deepLink = dlRead();
+if (!deepLink) {
+  try {
+    const s = JSON.parse(localStorage.getItem(DL_STASH) || 'null');
+    if (s && s.course && s.at && Date.now() - s.at < DL_TTL) {
+      deepLink = { course: s.course, date: s.date, time: s.time };
+      DL_KEYS.forEach(k => { if (deepLink[k]) params.set(k, deepLink[k]); });
+      // Put it back in the address bar too, so a refresh on the landing page still works
+      // once the stash below is cleared.
+      history.replaceState({}, '', location.pathname + '?' + dlQuery(deepLink));
+    }
+  } catch (e) {}
+}
+// Consumed — drop it, or an unrelated visit later in the same hour re-opens someone's
+// half-finished pick out of nowhere.
+if (deepLink) { try { localStorage.removeItem(DL_STASH); } catch (e) {} }
+
+function renderPick() {
+  const el = $('pickstrip');
+  if (!el || !deepLink) return;
+  let when = '';
+  const d = deepLink.date;
+  if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    const p = d.split('-');
+    // Built from parts, not Date.parse — 'YYYY-MM-DD' parses as UTC and shows the day before
+    // in Singapore.
+    when = new Date(+p[0], +p[1] - 1, +p[2])
+      .toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+  const f2f = deepLink.course.indexOf('f2f-') === 0;
+  el.innerHTML = when
+    ? '<b>You picked ' + when + '</b><span>' + (f2f ? 'Face-to-face, Paya Lebar Square' : 'Online')
+      + ' — sign in below and we\'ll take you straight to it. Nothing is held until you book.</span>'
+    : '<b>Your class is waiting</b><span>Sign in below and we\'ll take you straight to it.</span>';
+  el.classList.remove('hidden');
+}
+renderPick();
+
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (session) { await showApp(session); } else { show('view-login'); }
@@ -519,10 +592,15 @@ $('sendlink').onclick = async () => {
   const fullMobile = rawMobile.startsWith('+') ? rawMobile : (cc ? cc + ' ' + rawMobile : rawMobile);
   if (!fullMobile.startsWith('+')) return msg('loginmsg', 'err', 'Chose "Other"? Type your full number starting with + and country code.');
   $('sendlink').disabled = true;
+  // Stash before sending, not after: if signInWithOtp throws, the pick still survives the
+  // retry they are about to make.
+  if (deepLink) {
+    try { localStorage.setItem(DL_STASH, JSON.stringify(Object.assign({ at: Date.now() }, deepLink))); } catch (e) {}
+  }
   const { error } = await sb.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: PORTAL_URL,
+      emailRedirectTo: PORTAL_URL + (deepLink ? '?' + dlQuery(deepLink) : ''),
       data: {
         full_name: $('fullname').value.trim(),
         mobile: fullMobile,
