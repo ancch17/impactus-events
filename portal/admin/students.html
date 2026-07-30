@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <!-- ═══ READ BEFORE EDITING ═══════════════════════════════════════════════
-     This file covers the Students tab, remarks/pins, corp fields and PDPA erasure.
+     This file covers the Students tab, remarks/pins, corp fields, email moves/merges
+     and PDPA erasure.
      Rules and past incidents:  CRM Impactus\docs\admin-console.md
      Non-negotiables + the gotcha list:  CRM Impactus\CLAUDE.md
      Always FRESH-CLONE before editing - other sessions touch these files.
@@ -149,6 +150,18 @@
       <div class="msg" id="stu-msg"></div>
     </div>
 
+    <div class="card" id="mergecard" style="display:none">
+      <h2>Email moves &amp; merges <span class="muted" id="mg-count" style="font-size:13px;font-weight:400"></span></h2>
+      <p class="muted" style="margin-top:4px">
+        Every time a student's record was moved to a different email address. A
+        <strong>rename</strong> just changed the address on one row — nothing moved, because
+        bookings and points hang off the row's id, not the email. A <strong>merge</strong>
+        absorbed a second account: its seats, cash and points moved here and that row was
+        deleted. This log is the only remaining trace of the deleted row.
+      </p>
+      <div id="mergelist" style="margin-top:10px"></div>
+    </div>
+
     <div class="card" id="erasurecard" style="display:none">
       <h2>Erasure log <span class="muted" id="er-count" style="font-size:13px;font-weight:400"></span></h2>
       <p class="muted" style="margin-top:4px">
@@ -181,7 +194,7 @@ const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude L1', 'AI A
 const shortName = (n) => SHORTNAMES[n] || n;
 const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-let students = [], courses = [], bookings = [], ledger = [], erasures = [];
+let students = [], courses = [], bookings = [], ledger = [], erasures = [], merges = [];
 let byCourse = {};
 let sortKey = 'name', sortDir = 1;
 
@@ -201,16 +214,17 @@ $('signout').onclick = () => sb.auth.signOut();
 $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
-  const [s, c, b, l, e] = await Promise.all([
+  const [s, c, b, l, e, m] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select('*').order('cohort_date'),
     sb.from('bookings').select('*'),
     sb.from('points_ledger').select('*'),
-    // RLS restricts this to admin; a non-admin session simply gets zero rows.
+    // RLS restricts these to admin; a non-admin session simply gets zero rows.
     sb.from('student_erasure_log').select('*').order('anonymised_at', { ascending: false }),
+    sb.from('student_merge_log').select('*').order('merged_at', { ascending: false }),
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || []; ledger = l.data || [];
-  erasures = e.data || [];
+  erasures = e.data || []; merges = m.data || [];
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
   const names = [...new Set(courses.map(x => x.name))].sort();
   $('stu-course').innerHTML = '<option value="">All courses</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
@@ -533,7 +547,39 @@ window.purgeErasure = async function (logId) {
   msg('er-msg', 'ok', 'Purged. The erasure record remains as proof of the action.');
 };
 
+// Email moves. Hidden entirely until there is one, same as the erasure log.
+function renderMerges() {
+  const card = $('mergecard');
+  if (!merges.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const real = merges.filter(m => m.mode === 'merge').length;
+  $('mg-count').textContent = `· ${merges.length} move${merges.length > 1 ? 's' : ''}` +
+    (real ? ` · ${real} absorbed another account` : '');
+  $('mergelist').innerHTML = `<table><thead><tr>
+      <th>When</th><th>From</th><th>To</th><th>What moved</th><th>Reason</th><th>By</th>
+    </tr></thead><tbody>` +
+    merges.map(m => `<tr>
+        <td>${fdate(String(m.merged_at).slice(0, 10))}<div class="muted" style="font-size:11px">${String(m.merged_at).slice(11, 16)}</div></td>
+        <td><strong>${esc(m.from_name || '—')}</strong>
+            <div class="muted" style="font-size:11.5px">${esc(m.from_email || '')}</div>
+            ${m.mode === 'merge'
+              ? `<span class="bdg warn" title="This student row was deleted. Its records live on the row to the right.">row deleted${m.from_referral_code ? ' · code ' + esc(m.from_referral_code) + ' gone' : ''}</span>`
+              : '<span class="bdg">renamed in place</span>'}</td>
+        <td>${esc(m.into_email || '')}
+            <div class="muted" style="font-size:11.5px">${esc(m.into_name || '')}</div></td>
+        <td class="muted" style="font-size:12px">${m.mode === 'merge'
+              ? `${m.bookings_moved} booking${m.bookings_moved === 1 ? '' : 's'} · ${money(Number(m.cash_moved) || 0)} · ${m.points_moved} pts` +
+                (m.referrals_repointed ? `<br>${m.referrals_repointed} referral${m.referrals_repointed === 1 ? '' : 's'} repointed` : '') +
+                (m.redemptions_moved ? `<br>${m.redemptions_moved} coupon redemption${m.redemptions_moved === 1 ? '' : 's'}` : '')
+              : 'nothing — the row kept its id'}
+            ${m.old_login_dropped ? '<br><span class="muted">old login removed</span>' : ''}</td>
+        <td class="muted" style="font-size:12px">${esc(m.reason || '—')}</td>
+        <td class="muted" style="font-size:12px">${esc(m.merged_by || '—')}</td>
+      </tr>`).join('') + '</tbody></table>';
+}
+
 function render() {
+  renderMerges();
   renderErasures();
   renderPinned();
   renderAudit();
@@ -585,8 +631,10 @@ function render() {
           </div>
           <div style="margin-top:3px">
             ${isAnon(s)
-              ? `<button class="btn ghost sm" disabled style="padding:1px 6px;font-size:10.5px" title="Personal details removed. Bookings, payments and points were kept.">✓ anonymised</button>`
-              : `<button class="btn ghost sm" onclick="anonymiseStudent('${s.id}')" style="padding:1px 6px;font-size:10.5px;color:var(--red)" title="PDPA erasure request — strips name, email, mobile and remarks. Keeps their bookings, payments and points so revenue stays correct.">🕶 anonymise</button>`}
+              ? `<button class="btn ghost sm" disabled style="padding:1px 6px;font-size:10.5px" title="Anonymised records cannot be re-attached to a live address.">🔗 move email</button>
+                 <button class="btn ghost sm" disabled style="padding:1px 6px;font-size:10.5px" title="Personal details removed. Bookings, payments and points were kept.">✓ anonymised</button>`
+              : `<button class="btn ghost sm" onclick="moveStudentEmail('${s.id}')" style="padding:1px 6px;font-size:10.5px" title="Student changed address — move this whole record (seats, cash, points) to another email. If that email already has an account, the two are merged into it.">🔗 move email</button>
+                 <button class="btn ghost sm" onclick="anonymiseStudent('${s.id}')" style="padding:1px 6px;font-size:10.5px;color:var(--red)" title="PDPA erasure request — strips name, email, mobile and remarks. Keeps their bookings, payments and points so revenue stays correct.">🕶 anonymise</button>`}
           </div>
         </td>
         <td>${s.email || '—'}<br><span class="muted">${s.mobile || '—'}</span></td>
@@ -693,6 +741,74 @@ window.anonymiseStudent = async function (id) {
     (data.auth_login_still_active
       ? ' ⚠ Their magic-link login still exists — remove it in Supabase → Authentication → Users, or they can still sign in.'
       : ' They had no login to remove.'));
+};
+
+// ---------- Move a student to another email / merge two accounts ----------
+// Every child row (bookings, points, redemptions, referrals) references students.id, never
+// the email — so if nobody holds the target address this is a one-column RENAME and nothing
+// physically moves. If the address already has an account it is a MERGE: that row survives,
+// this one's records move onto it and this row is deleted.
+//
+// Always dry-runs first and shows the numbers before writing. The server refuses a merge
+// where both accounts hold a CONFIRMED seat on the same class (a unique index would reject
+// it anyway) or redeemed the same coupon — resolve those by hand, then merge.
+// Reasoning and the by-hand SQL: CRM Impactus\REMOVING-A-STUDENT.md.
+window.moveStudentEmail = async function (id) {
+  const s = students.find(x => x.id === id);
+  if (!s) return;
+
+  const target = prompt(
+    `MOVE EMAIL — ${s.name || s.email}\n\n` +
+    `Currently: ${s.email}\n\n` +
+    `New address? If it already has an account, the two are merged into it.`, '');
+  if (target === null || !target.trim()) return;
+
+  const { data: plan, error: e1 } = await sb.rpc('merge_student_email',
+    { p_student: id, p_target_email: target.trim(), p_reason: null, p_dry_run: true });
+  if (e1) return msg('stu-msg', 'err', e1.message);
+
+  const seats = plan.blockers.same_class_confirmed || [];
+  const coups = plan.blockers.same_coupon || [];
+  if (seats.length) return msg('stu-msg', 'err',
+    `Both accounts hold a confirmed seat on ${seats.map(x => shortName(x.course) + ' ' + fdate(x.date)).join(', ')}. ` +
+    `Refund or cancel one of them first — merging would double-count the seat.`);
+  if (coups.length) return msg('stu-msg', 'err',
+    `Both accounts redeemed coupon ${coups.join(', ')}. Remove the duplicate redemption first.`);
+
+  const f = plan.from, t = plan.into;
+  const body = plan.plan === 'rename'
+    ? `Nobody uses ${t.email}, so this is just a change of address.\n\n` +
+      `Their ${f.bookings} booking(s), ${money(Number(f.net_cash) || 0)} and ${f.points} points stay ` +
+      `exactly where they are — nothing moves, the record keeps its id.\n` +
+      `Referral code ${f.referral_code} is unaffected.`
+    : `${t.email} already has an account (${t.name}, ${t.bookings} booking(s), ${t.points} points).\n\n` +
+      `MERGING INTO IT. Moving across from ${f.email}:\n` +
+      `  · ${f.bookings} booking(s) worth ${money(Number(f.net_cash) || 0)}\n` +
+      `  · ${f.points} points (${f.points_rows} ledger rows)\n` +
+      (f.redemptions ? `  · ${f.redemptions} coupon redemption(s)\n` : '') +
+      (f.referrals_pointing_here ? `  · ${f.referrals_pointing_here} student(s) they referred\n` : '') +
+      `\nThe row for ${f.email} is then DELETED and its referral code ${f.referral_code} stops working.\n` +
+      `Their mobile, corporate details and remarks are carried over if the other account has none.`;
+
+  const reason = prompt(
+    `${plan.plan === 'rename' ? 'RENAME' : 'MERGE'} — ${f.email} → ${t.email}\n\n${body}\n\n` +
+    (plan.old_login_exists
+      ? `Their old magic-link login will be removed too — otherwise it signs in to nothing and the portal hangs on "Setting up your account…".\n\n`
+      : `They have no login on the old address.\n\n`) +
+    `Why? (goes in the log, e.g. "student asked to consolidate on work email")\n` +
+    `Cancel to stop.`, '');
+  if (reason === null) return;
+
+  const { data, error } = await sb.rpc('merge_student_email',
+    { p_student: id, p_target_email: target.trim(), p_reason: reason, p_dry_run: false });
+  if (error) return msg('stu-msg', 'err', error.message);
+
+  console.log('[move email] result:', data);
+  await loadAll();
+  msg('stu-msg', 'ok', data.plan === 'rename'
+    ? `Moved to ${data.email}. Nothing else changed — they sign in with the new address from now on.`
+    : `Merged into ${data.email}. ${data.bookings_moved} booking(s) and ${data.points_moved} points moved; ` +
+      `the old row is gone. See the move log at the bottom of this page.`);
 };
 
 window.grantPoints = function (id) {
