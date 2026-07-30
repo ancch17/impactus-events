@@ -64,6 +64,9 @@
 
 <script>
 (function () {
+  // PORTAL IS PUBLIC (2026-07-30): send every visitor straight to the app. Set to false to
+  // restore the pre-launch splash (then only auth callbacks / ?preview= / stored sessions forward).
+  var PORTAL_OPEN = true;
   var h = location.hash || '';
   var q = new URLSearchParams(location.search);
   // Anything the app itself needs to act on must reach app.html. Returning from Stripe
@@ -78,7 +81,7 @@
     stored = !!localStorage.getItem('ilPreview') ||
       Object.keys(localStorage).some(function (k) { return /^sb-.+-auth-token$/.test(k); });
   } catch (e) {}
-  if (h.indexOf('access_token') > -1 || h.indexOf('error') > -1 || wanted || stored) {
+  if (PORTAL_OPEN || h.indexOf('access_token') > -1 || h.indexOf('error') > -1 || wanted || stored) {
     location.replace('app' + location.search + location.hash);
   }
 })();

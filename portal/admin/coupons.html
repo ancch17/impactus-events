@@ -141,7 +141,7 @@ $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
   const [c, f, g, ca] = await Promise.all([
-    sb.from('courses').select('*').order('cohort_date'),
+    sb.from('courses').select('id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id').order('cohort_date'),
     sb.from('course_families').select('*').order('sort_order'),
     sb.from('coupons').select('*').order('created_at', { ascending: false }),
     sb.from('coupon_audit').select('*').order('created_at', { ascending: false }),
