@@ -615,6 +615,19 @@ section{padding:104px 0;scroll-margin-top:78px;}
   </div>
 </section>
 
+<style>
+/* ── VENUE ── */
+.venue__grid{display:grid;grid-template-columns:1.05fr .95fr;gap:28px;align-items:start;margin-bottom:32px;}
+@media(max-width:860px){.venue__grid{grid-template-columns:1fr;gap:20px;}}
+.venue__fig{margin:0;}
+.venue__fig img{display:block;width:100%;height:auto;border:1px solid var(--rule);}
+.venue__cap{margin-top:10px;font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);}
+.venue__list{list-style:none;margin:0;padding:0;display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);}
+.venue__i{background:var(--paper);padding:22px 24px;}
+.venue__k{display:block;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px;}
+.venue__v{display:block;font-size:1.35rem;font-weight:700;letter-spacing:-.03em;color:var(--ink);margin-bottom:6px;}
+.venue__i p{margin:0;font-size:14px;line-height:1.6;color:var(--ink-2);}
+</style>
 <!-- SESSION DETAIL -->
 <section class="sess" id="session">
   <div class="wrap">
@@ -622,21 +635,22 @@ section{padding:104px 0;scroll-margin-top:78px;}
       <span class="plate-no">06 / THE SESSION</span>
       <h2 class="h-lg">Three and a half hours,<br>in a room in Paya Lebar.</h2>
     </div>
+    <div class="venue__grid rv">
+      <figure class="venue__fig">
+        <img src="https://events.impactuslearning.com/images/room-f2f.jpg" width="1024" height="768" loading="lazy" decoding="async" alt="The face-to-face classroom at Paya Lebar Square, Singapore &mdash; tables and chairs set out for a small hands-on class, with a screen at the front.">
+        <figcaption class="venue__cap">The face-to-face room &mdash; Paya Lebar Square, Singapore.</figcaption>
+      </figure>
+      <ul class="venue__list">
+        <li class="venue__i"><span class="venue__k">Where</span><span class="venue__v">Paya Lebar Square</span><p>Singapore. The exact unit and directions are sent to you after you book.</p></li>
+        <li class="venue__i"><span class="venue__k">Getting there</span><span class="venue__v">Straight off the MRT</span><p>Right on top of the Paya Lebar interchange, with the mall underneath for coffee before and lunch after.</p></li>
+        <li class="venue__i"><span class="venue__k">The room</span><span class="venue__v">Comfortable</span><p>Three and a half hours is a long time to be at a table. Proper seating, quick Wi-Fi, coffee and tea on tap.</p></li>
+      </ul>
+    </div>
     <div class="sess__grid rv">
-      <div class="sess__c">
-        <h4>Where</h4>
-        <div class="big">Paya Lebar Square</div>
-        <p>Singapore, straight off the MRT interchange. The exact unit and directions are sent to you after you book.</p>
-      </div>
       <div class="sess__c">
         <h4>When</h4>
         <div class="big">1:30 &ndash; 5:00pm</div>
         <p>Three and a half hours straight through, with a break in the middle. Come at 1:30 and we start at 1:30.</p>
-      </div>
-      <div class="sess__c">
-        <h4>The room</h4>
-        <div class="big">Comfortable</div>
-        <p>Three and a half hours is a long time to be at a table. Proper seating, quick Wi-Fi, coffee and tea on tap, and a short walk from the MRT.</p>
       </div>
       <div class="sess__c">
         <h4>Who's in the room</h4>
