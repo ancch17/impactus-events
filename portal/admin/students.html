@@ -187,7 +187,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType:
 
 const $ = (id) => document.getElementById(id);
 const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
-const today = () => new Date().toISOString().slice(0, 10);
+// Asia/Singapore, not UTC — the UTC date lags SGT by 8h and misclassifies same-day classes.
+const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
 function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude L1', 'AI Animation Masterclass': 'Animation L1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude L1', 'F2F AI Animation Masterclass': 'F2F Animation L1', 'F2F AI Animation Automation': 'F2F Animation L2', 'F2F Master Claude - Build': 'F2F Claude L2' };
@@ -618,7 +619,7 @@ function render() {
         (!corp && freeN ? `<div class="muted" style="font-size:11px">${freeN} free seat${freeN > 1 ? 's' : ''}</div>` : '');
       return `<tr${s.remark_pinned ? ' class="haspin"' : ''}>
         <td>
-          <strong>${s.name || '—'}</strong>
+          <strong>${esc(s.name || '—')}</strong>
           <div id="prefcell-${s.id}" style="margin-top:2px">
             <span class="muted" style="font-size:11.5px">Greeted as: <strong>${esc(s.preferred_name || (s.name || '').split(' ')[0] || '—')}</strong></span>
             <button class="btn ghost sm" onclick="editPreferredName('${s.id}')" style="margin-left:4px;padding:1px 6px;font-size:10.5px">✎</button>
@@ -637,7 +638,7 @@ function render() {
                  <button class="btn ghost sm" onclick="anonymiseStudent('${s.id}')" style="padding:1px 6px;font-size:10.5px;color:var(--red)" title="PDPA erasure request — strips name, email, mobile and remarks. Keeps their bookings, payments and points so revenue stays correct.">🕶 anonymise</button>`}
           </div>
         </td>
-        <td>${s.email || '—'}<br><span class="muted">${s.mobile || '—'}</span></td>
+        <td>${esc(s.email || '—')}<br><span class="muted">${esc(s.mobile || '—')}</span></td>
         <td>${clsHtml}</td>
         <td class="num">${paidHtml}</td>
         <td id="ptscell-${s.id}" style="min-width:110px">

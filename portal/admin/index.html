@@ -328,8 +328,12 @@ const $ = (id) => document.getElementById(id);
 const fmt$ = (n) => 'S$' + Number(n).toLocaleString('en-SG', { maximumFractionDigits: 0 });
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
-const today = () => new Date().toISOString().slice(0, 10);
-const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+// Asia/Singapore, not UTC — from midnight to 8am SGT the UTC date is still "yesterday",
+// which kept a finished class OPEN (and in "upcoming" blasts) for 8 hours every day.
+const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+// sv-SE (local), NOT toISOString — the anchor is LOCAL midnight, and converting that to UTC
+// in a UTC+8 browser lands on the previous date, making addDays(x, n) return x + n − 1.
+const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toLocaleDateString('sv-SE'); };
 function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok' && id !== 'loginmsg') setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 
@@ -809,8 +813,8 @@ window.openRoster = function (cid, noScroll) {
       const s = byStudent[b.student_id] || { id: b.student_id, name: '?', email: '', mobile: '', remarks: null };
       return `<tr${s.remark_pinned ? ' class="hasremark"' : ''}>
         <td>${i + 1}</td>
-        <td>${s.email ? `<a href="students?q=${encodeURIComponent(s.email)}" target="_blank" title="Open ${esc(s.name)} on the Students tab"><strong>${esc(s.name)}</strong> ↗</a>` : `<strong>${esc(s.name)}</strong>`}${b.note ? `<br><span class="muted">${b.note}</span>` : ''}</td>
-        <td>${s.email}<br><span class="muted">${s.mobile || '—'}</span></td>
+        <td>${s.email ? `<a href="students?q=${encodeURIComponent(s.email)}" target="_blank" title="Open ${esc(s.name)} on the Students tab"><strong>${esc(s.name)}</strong> ↗</a>` : `<strong>${esc(s.name)}</strong>`}${b.note ? `<br><span class="muted">${esc(b.note)}</span>` : ''}</td>
+        <td>${esc(s.email)}<br><span class="muted">${esc(s.mobile) || '—'}</span></td>
         <td class="othercourses">${otherCoursesCell(b.student_id, cid)}</td>
         <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}${Number(b.refunded_sgd) > 0 ? `<br><span class="muted" style="color:#6b4bab">↩︎ ${fmt$(b.refunded_sgd)} refunded</span>` : ''}</td>
         <td><span class="pill ${b.status === 'confirmed' ? 'open' : b.status === 'pending' ? 'pending' : b.status}">${b.status}</span></td>
@@ -1018,7 +1022,7 @@ window.openCancel = function (cid) {
       rows.map(b => {
         const s = byStudent[b.student_id] || { name: '?' };
         return `<tr>
-          <td><strong>${s.name}</strong></td>
+          <td><strong>${esc(s.name)}</strong></td>
           <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}</td>
           <td><select class="cx-action" data-b="${b.id}" style="width:auto">
               <option value="">— choose —</option>

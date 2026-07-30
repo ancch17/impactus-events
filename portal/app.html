@@ -648,7 +648,7 @@ function resumeHold(id) {
   if (!h) return;
   const c = allCohorts.find(x => x.id === h.course_id);
   if (!c) { msg('holdmsg', 'err', 'That class is no longer open for booking — please release the seat and email us.'); return; }
-  pickCohort(c.id, true);
+  pickCohort(c.id, true, true);   // they already hold this seat — "full" must not bar paying for it
   if (h.coupon_code && Number(h.discount_sgd) > 0) {
     coupon = { code: h.coupon_code, discount: Number(h.discount_sgd), label: 'Code ' + h.coupon_code };
     $('couponcode').value = h.coupon_code;
@@ -816,7 +816,8 @@ let courseGroups = {};
 
 // Which course families has this student already sat in? Drives the "come back" badge.
 async function attendedFamilies() {
-  const today = new Date().toISOString().slice(0, 10);
+  // SGT, not UTC — the UTC date lags Singapore by 8h and mis-badges same-day classes.
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
   const { data } = await sb.from('student_history').select('course_id,family_slug,cohort_date,status').eq('email', myEmail);
   const seen = {};
   // Every class this student already has a confirmed seat on. create-checkout rejects a
@@ -1122,9 +1123,11 @@ function wirePicks() {
 }
 
 // Single entry point for "student chose this class" — from the calendar, the agenda or a date chip.
-function pickCohort(id, scroll) {
+function pickCohort(id, scroll, allowFull) {
   const c = allCohorts.find(x => x.id === id);
-  if (!c || c.is_full) return;   // closed cohorts are display-only
+  // Closed cohorts are display-only — EXCEPT when resuming a seat the student already
+  // holds (allowFull): marking a class full must never dead-end someone mid-payment.
+  if (!c || (c.is_full && !allowFull)) return;
   if (isBooked(c)) return;       // already theirs — the server would reject a second booking
   if (calFilter && lvlOf(c.family_slug).key !== calFilter) { calFilter = ''; $('calfilter').value = ''; renderCards(); }
   selectCourse(c);
@@ -1371,7 +1374,7 @@ async function loadHistory() {
   $('history').innerHTML = rows.map(r => {
     const paid = Number(r.cash_paid_sgd);
     const refunded = Number(r.refunded_sgd || 0);
-    const isFuture = r.cohort_date >= new Date().toISOString().slice(0, 10);
+    const isFuture = r.cohort_date >= new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
     let badge = '';
     if (refunded > 0) badge = `<span class="pill" style="background:#f4f0fb;color:#6b4bab">Refunded ${fmt$(refunded)}</span>`;
     if (r.status === 'cancelled') badge += isRemovable(r)
@@ -1387,8 +1390,8 @@ async function loadHistory() {
     if (refunded > 0) right.push(`<div class="muted" style="font-size:12.5px">${fmt$(refunded)} refunded</div>`);
     if (r.points_redeemed > 0 && r.status === 'confirmed') right.push(`<div class="muted" style="font-size:12.5px">${r.points_redeemed} pts used</div>`);
     if (isRemovable(r)) right.push(`<button type="button" class="hist-x" data-drop="${esc(r.booking_id)}" title="Remove this from your list">✕ Remove</button>`);
-    return `<div class="row"><div><div class="hist-course">${r.course}${badge}</div>
-      <div class="hist-sub">${fdate(r.cohort_date)}${r.note && r.status !== 'confirmed' ? ' · ' + r.note : ''}</div></div>
+    return `<div class="row"><div><div class="hist-course">${esc(r.course)}${badge}</div>
+      <div class="hist-sub">${fdate(r.cohort_date)}${r.note && r.status !== 'confirmed' ? ' · ' + esc(r.note) : ''}</div></div>
       <div style="text-align:right">${right.join('') || '<span class="muted">—</span>'}</div></div>`;
   }).join('');
   document.querySelectorAll('[data-drop]').forEach(b => b.onclick = () => dropHistoryRow(b.dataset.drop, b));
@@ -1428,7 +1431,7 @@ async function loadLedger() {
 
   $('ptshistory').innerHTML = withBal.map(r => {
     const p = Number(r.points);
-    const where = r.course ? `${r.course}${r.course_date ? ' · ' + fdate(r.course_date) : ''}` : '';
+    const where = r.course ? `${esc(r.course)}${r.course_date ? ' · ' + fdate(r.course_date) : ''}` : '';
     let label;
     if (r.type === 'earn_purchase') label = 'Earned — 10% back on your class fee';
     else if (r.type === 'redeem') label = 'Used — came off your class fee';
@@ -1436,7 +1439,7 @@ async function loadLedger() {
     else if (r.type === 'adjust') label = 'Correction';
     else label = r.note || r.type;
     // Don't print the same date twice when the class and the transaction fall on the same day.
-    const when = String(r.created_at).slice(0, 10);
+    const when = new Date(r.created_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
     const sub = [where, when === r.course_date ? '' : fdate(when)].filter(Boolean).join(' · ');
     const detail = (r.type === 'adjust' || r.type === 'grant') && r.note ? `<div class="hist-sub">${esc(r.note)}</div>` : '';
     return `<div class="row"><div><div class="hist-course">${esc(label)}</div>

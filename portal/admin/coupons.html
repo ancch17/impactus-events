@@ -188,7 +188,7 @@ function renderCoupons() {
   if (!coupons.length) { $('couponlist').textContent = 'No codes yet.'; return; }
   const famName = (id) => (families.find(f => f.id === id) || {}).name || '—';
   const crsLabel = (id) => { const c = byCourse[id]; return c ? `${c.name} · ${fdate(c.cohort_date)}` : '—'; };
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
   $('couponlist').innerHTML = `<table><thead><tr><th>Code</th><th>Discount</th><th>Scope</th><th>Used</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>` +
     coupons.map(c => {
       const disc = c.kind === 'percent' ? `${c.value}% off` : c.kind === 'fixed' ? `S$${c.value} off` : 'Free pass';
