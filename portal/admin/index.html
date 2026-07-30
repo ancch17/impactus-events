@@ -818,13 +818,13 @@ window.openRoster = function (cid, noScroll) {
           <textarea id="rm-${b.student_id}" class="rm-input" rows="2" placeholder="Add a remark…">${esc(s.remarks)}</textarea>
           <div class="rm-row"><button class="btn sm" onclick="saveRemark('${b.student_id}')">Save</button>${s.remarks ? pinButton(s) : ''}</div>
         </td>
-        <td><button class="btn ghost sm" onclick="showTransfer('${b.id}')">Transfer</button>
+        <td>${b.status === 'confirmed' ? `<button class="btn ghost sm" onclick="showTransfer('${b.id}')">Transfer</button>` : ''}
           ${Number(b.cash_paid_sgd) > 0 ? `<button class="btn ghost sm" style="margin-top:4px;color:#a33" onclick="showRefund('${b.id}')">Refund</button>` : ''}
-          <div class="transfer-box hidden" id="tf-${b.id}">
+          ${b.status === 'confirmed' ? `<div class="transfer-box hidden" id="tf-${b.id}">
             <select id="tfsel-${b.id}">${futureOthers}</select>
             <button class="btn sm" onclick="doTransfer('${b.id}')">Move</button>
             <button class="btn ghost sm" onclick="$('tf-${b.id}').classList.add('hidden')">✕</button>
-          </div>
+          </div>` : ''}
           <div class="refund-box hidden" id="rf-${b.id}">${refundForm(b, s)}</div></td>
       </tr>`;
     }).join('') + '</tbody></table>';
@@ -833,18 +833,32 @@ window.openRoster = function (cid, noScroll) {
 
 window.showTransfer = (bid) => $('tf-' + bid).classList.toggle('hidden');
 
+// ONLY A CONFIRMED SEAT MAY BE TRANSFERRED. 2026-07-30: this wrote course_id + note and
+// nothing else, and the button was rendered on every roster row — so a booking already
+// cancelled by `cancel-cohort` could be moved onto a live cohort and arrive there still
+// cancelled (Andrew Chew, Master Claude 27 Aug → Test Class 31 Oct).
+// Reviving it instead would be worse than the clutter: `refund_credit` has ALREADY returned
+// the redeemed points, credited the cash as points, and freed the coupon back up, so a
+// flip to `confirmed` is a free seat. Moving someone off a cancelled seat is a deliberate
+// re-book, not a transfer.
+// The hidden button is cosmetic (rule 7), so the status filter also rides on the UPDATE —
+// Postgres matches zero rows rather than trusting the client.
 window.doTransfer = async function (bid) {
   const b = bookings.find(x => x.id === bid);
   const target = $('tfsel-' + bid).value;
   if (!target) return;
+  if (!b || b.status !== 'confirmed') return msg('rostermsg', 'err', 'Only a confirmed seat can be transferred — this booking is ' + ((b && b.status) || 'missing') + '. Re-book them on the new class instead.');
   const from = byCourse[b.course_id], to = byCourse[target];
   const s = byStudent[b.student_id];
   if (Number(to.price_sgd) !== Number(from.price_sgd) &&
       !confirm(`Price differs: ${from.name} is ${fmt$(from.price_sgd)}, ${to.name} is ${fmt$(to.price_sgd)}. Cash paid stays as recorded (${fmt$(b.cash_paid_sgd)}). Continue?`)) return;
   if (!confirm(`Move ${s.name} to ${to.name} — ${fdate(to.cohort_date)}?`)) return;
   const note = (b.note ? b.note + ' | ' : '') + `Transferred from ${from.name} ${from.cohort_date} on ${today()}`;
-  const { error } = await sb.from('bookings').update({ course_id: target, note }).eq('id', bid);
+  const { data, error } = await sb.from('bookings')
+    .update({ course_id: target, disposition: 'transferred', note })
+    .eq('id', bid).eq('status', 'confirmed').select('id');
   if (error) return msg('rostermsg', 'err', error.message);
+  if (!data || !data.length) { await loadAll(); return msg('rostermsg', 'err', 'Nothing moved — that seat is no longer confirmed. The roster has been reloaded.'); }
   msg('rostermsg', 'ok', `${s.name} moved to ${to.name} ${fdate(to.cohort_date)}.`);
   await loadAll();
 };
