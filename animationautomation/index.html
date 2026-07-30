@@ -165,7 +165,7 @@ body.scrolled .nav{top:0;}
   color:#FFF8F2;
   font-family:var(--sans);font-size:11px;font-weight:700;
   letter-spacing:.16em;text-transform:uppercase;white-space:normal;
-  max-width:min(270px,calc(100vw - 100px));line-height:1.45;text-align:center;
+  max-width:270px;line-height:1.45;text-align:center;
   border:1px solid rgba(255,240,230,.35);
   opacity:0;visibility:hidden;transform:translateY(20px) scale(.94);
   transition:opacity .5s var(--ease), transform .5s var(--ease), visibility .5s;
@@ -187,6 +187,9 @@ body.scrolled .nav{top:0;}
 .float:hover svg{transform:translateX(4px);}
 @media(max-width:640px){
   .float{bottom:20px;right:20px;padding:16px 22px;font-size:10.5px;}
+}
+@media(max-width:380px){
+  .float{max-width:230px;}
 }
 @media(prefers-reduced-motion:reduce){
   .float{animation:none;} .float__dot{animation:none;}
@@ -351,7 +354,7 @@ body.scrolled .nav{top:0;}
 /* ═══ THE STARTER KIT ═══ */
 .kit{background:var(--wall-deep);padding:130px 0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);}
 .kit__grid{display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:start;margin-top:20px;}
-@media(max-width:900px){.kit__grid{grid-template-columns:1fr;gap:48px;}}
+@media(max-width:900px){.kit__grid{grid-template-columns:minmax(0,1fr);gap:48px;}}
 /* the specimen — an artefact, not a UI chrome box */
 .spec{
   background:#FFFDFA;border:1px solid var(--line);
