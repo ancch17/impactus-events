@@ -68,11 +68,11 @@
   <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
   <nav class="tabs">
     <a class="tab" href="./" target="_blank">Dashboard</a>
-    <a class="tab active" href="students.html">Students</a>
-    <a class="tab" href="signups.html" target="_blank">Signups ↗</a>
-    <a class="tab" href="earnings.html" target="_blank">Earnings ↗</a>
-    <a class="tab" href="referrals.html" target="_blank">Referrals ↗</a>
-    <a class="tab" href="coupons.html" target="_blank">Discounts ↗</a>
+    <a class="tab active" href="students">Students</a>
+    <a class="tab" href="signups" target="_blank">Signups ↗</a>
+    <a class="tab" href="earnings" target="_blank">Earnings ↗</a>
+    <a class="tab" href="referrals" target="_blank">Referrals ↗</a>
+    <a class="tab" href="coupons" target="_blank">Discounts ↗</a>
   </nav>
   <button class="signout btn ghost sm hidden" id="signout" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff">Sign out</button>
 </div></header>
@@ -233,6 +233,9 @@ function reasonOf(st, b) {
   return b.free_reason || (st && st.corp_name ? 'corp' : null);
 }
 const isCorp = (st) => !!(st && st.corp_name);
+// A student whose personal details have already been stripped. The shape is set by
+// anonymise_student() in Postgres — 'removed+<first 8 of uuid>@invalid.local'.
+const isAnon = (st) => /^removed\+[0-9a-f]{8}@invalid\.local$/i.test((st && st.email) || '');
 const corpPaid = (st) => isCorp(st) && st.corp_invoice_status === 'paid';
 
 function seatsOf(id) {
@@ -512,6 +515,11 @@ function render() {
                 <span class="bdg ${corpPaid(s) ? 'paid' : 'warn'}" style="margin-left:2px">${corpPaid(s) ? 'inv paid' : 'inv unpaid'}</span>` : ''}
             <button class="btn ghost sm" onclick="editCorp('${s.id}')" style="padding:1px 6px;font-size:10.5px" title="Company pays this student's seats by invoice">${isCorp(s) ? '✎' : '🏢 corp'}</button>
           </div>
+          <div style="margin-top:3px">
+            ${isAnon(s)
+              ? `<button class="btn ghost sm" disabled style="padding:1px 6px;font-size:10.5px" title="Personal details removed. Bookings, payments and points were kept.">✓ anonymised</button>`
+              : `<button class="btn ghost sm" onclick="anonymiseStudent('${s.id}')" style="padding:1px 6px;font-size:10.5px;color:var(--red)" title="PDPA erasure request — strips name, email, mobile and remarks. Keeps their bookings, payments and points so revenue stays correct.">🕶 anonymise</button>`}
+          </div>
         </td>
         <td>${s.email || '—'}<br><span class="muted">${s.mobile || '—'}</span></td>
         <td>${clsHtml}</td>
@@ -574,6 +582,41 @@ window.savePreferredName = async function (id) {
 
 // Ad-hoc thank-you points. Defaults to 20. The note is what the student sees in their
 // history, so write it for them ("Thanks for introducing Jane"), not for the books.
+// ---------- PDPA erasure ----------
+// Deliberately NOT a delete. anonymise_student() blanks the personal fields and leaves
+// bookings, cash and points untouched, so every revenue figure stays true; deleting the
+// row instead would silently drop that money out of the dashboard and earnings tabs.
+// The company fields survive too — corp_name is what makes a S$0 corporate seat read as
+// 'corp' rather than an unexplained free seat. Full reasoning, and the hard-delete recipe
+// for the rare case it IS right: CRM Impactus\REMOVING-A-STUDENT.md.
+window.anonymiseStudent = async function (id) {
+  const s = students.find(x => x.id === id);
+  if (!s) return;
+  const kept = cashOf(id) + corpOf(id);
+  const typed = prompt(
+    `ANONYMISE — ${s.name || s.email}\n\n` +
+    `Removes their name, email, mobile and remarks. This CANNOT be undone.\n\n` +
+    `Kept on purpose: ${money(kept)} of recorded payments, their seats on every class, ` +
+    `and ${balanceOf(id)} points — so revenue and rosters stay correct.\n\n` +
+    `Type their name exactly to confirm:\n\n${s.name}`);
+  if (typed === null) return;                                  // cancelled
+  if (typed.trim().toLowerCase() !== (s.name || '').trim().toLowerCase())
+    return msg('stu-msg', 'err', 'That name did not match — nothing was changed.');
+
+  const { data, error } = await sb.rpc('anonymise_student', { p_student_id: id });
+  if (error) return msg('stu-msg', 'err', error.message);
+
+  // Last sighting of the old values. Logged (not shown) so a mis-click is still
+  // recoverable by hand from the console before the tab is closed.
+  console.log('[anonymise] previous values — recoverable only from here:', data);
+
+  await loadAll();
+  msg('stu-msg', 'ok', `Anonymised. ${money(kept)} and ${data.points_rows} points rows kept.` +
+    (data.auth_login_still_active
+      ? ' ⚠ Their magic-link login still exists — remove it in Supabase → Authentication → Users, or they can still sign in.'
+      : ' They had no login to remove.'));
+};
+
 window.grantPoints = function (id) {
   const cell = $('ptscell-' + id);
   cell.innerHTML = `<input id="gpts-${id}" type="number" value="20" min="1" step="1" style="width:64px;font-size:12px">

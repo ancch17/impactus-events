@@ -125,11 +125,11 @@
   <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
   <nav class="tabs">
     <a class="tab active" href="./">Dashboard</a>
-    <a class="tab" href="students.html" target="_blank">Students ↗</a>
-    <a class="tab" href="signups.html" target="_blank">Signups ↗</a>
-    <a class="tab" href="earnings.html" target="_blank">Earnings ↗</a>
-    <a class="tab" href="referrals.html" target="_blank">Referrals ↗</a>
-    <a class="tab" href="coupons.html" target="_blank">Discounts ↗</a>
+    <a class="tab" href="students" target="_blank">Students ↗</a>
+    <a class="tab" href="signups" target="_blank">Signups ↗</a>
+    <a class="tab" href="earnings" target="_blank">Earnings ↗</a>
+    <a class="tab" href="referrals" target="_blank">Referrals ↗</a>
+    <a class="tab" href="coupons" target="_blank">Discounts ↗</a>
   </nav>
   <button class="signout hidden" id="signout">Sign out</button>
 </div></header>
@@ -792,7 +792,7 @@ window.openRoster = function (cid, noScroll) {
       const s = byStudent[b.student_id] || { id: b.student_id, name: '?', email: '', mobile: '', remarks: null };
       return `<tr${s.remark_pinned ? ' class="hasremark"' : ''}>
         <td>${i + 1}</td>
-        <td>${s.email ? `<a href="students.html?q=${encodeURIComponent(s.email)}" target="_blank" title="Open ${esc(s.name)} on the Students tab"><strong>${esc(s.name)}</strong> ↗</a>` : `<strong>${esc(s.name)}</strong>`}${b.note ? `<br><span class="muted">${b.note}</span>` : ''}</td>
+        <td>${s.email ? `<a href="students?q=${encodeURIComponent(s.email)}" target="_blank" title="Open ${esc(s.name)} on the Students tab"><strong>${esc(s.name)}</strong> ↗</a>` : `<strong>${esc(s.name)}</strong>`}${b.note ? `<br><span class="muted">${b.note}</span>` : ''}</td>
         <td>${s.email}<br><span class="muted">${s.mobile || '—'}</span></td>
         <td class="othercourses">${otherCoursesCell(b.student_id, cid)}</td>
         <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}${Number(b.refunded_sgd) > 0 ? `<br><span class="muted" style="color:#6b4bab">↩︎ ${fmt$(b.refunded_sgd)} refunded</span>` : ''}</td>
