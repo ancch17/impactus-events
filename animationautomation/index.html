@@ -110,11 +110,11 @@ body.scrolled .topbar{transform:translateY(-100%);}
 
 /* ─── nav ─── */
 .nav{
-  position:fixed;top:46px;left:0;right:0;z-index:100;
+  position:fixed;top:var(--tb-h,46px);left:0;right:0;z-index:100;
   padding:22px 0; transition:background .4s var(--ease), padding .4s var(--ease), box-shadow .4s, top .45s var(--ease);
 }
 body.scrolled .nav{top:0;}
-@media(max-width:640px){ .nav{top:40px;} }
+@media(max-width:640px){ .nav{top:var(--tb-h,78px);} }
 .nav.stuck{background:rgba(247,244,239,.82);backdrop-filter:blur(16px) saturate(1.4);padding:14px 0;box-shadow:0 1px 0 var(--hair);}
 .nav__in{display:flex;align-items:center;justify-content:space-between;gap:24px;}
 .nav__logo img{height:34px;filter:brightness(0);opacity:.85;}
@@ -354,6 +354,7 @@ body.scrolled .nav{top:0;}
 /* ═══ THE STARTER KIT ═══ */
 .kit{background:var(--wall-deep);padding:130px 0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);}
 .kit__grid{display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:start;margin-top:20px;}
+.kit__grid>*{min-width:0;}
 @media(max-width:900px){.kit__grid{grid-template-columns:minmax(0,1fr);gap:48px;}}
 /* the specimen — an artefact, not a UI chrome box */
 .spec{
@@ -1438,11 +1439,14 @@ body.scrolled .nav{top:0;}
 
 // sticky nav · retracting top strip · floating CTA
 var nav   = document.getElementById('nav');
+var topbar = document.getElementById('topbar');
+function tbH(){ if(topbar) document.documentElement.style.setProperty('--tb-h', topbar.offsetHeight+'px'); }
 var float = document.getElementById('float');
 var dates = document.getElementById('dates');
 
 function onScroll(){
   var y = window.scrollY;
+  tbH();
   nav.classList.toggle('stuck', y > 40);
   document.body.classList.toggle('scrolled', y > 60);
 
@@ -1455,6 +1459,8 @@ function onScroll(){
   float.classList.toggle('show', show);
 }
 window.addEventListener('scroll', onScroll, {passive:true});
+window.addEventListener('resize', tbH, {passive:true});
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(tbH);
 onScroll();
 
 // scroll reveal
