@@ -158,13 +158,14 @@ body.scrolled .nav{top:0;}
 
 /* ─── floating reserve capsule ─── */
 .float{
-  position:fixed;bottom:28px;right:28px;z-index:150;
+  position:fixed;bottom:20px;right:20px;z-index:150;
   display:inline-flex;align-items:center;gap:11px;
   padding:17px 30px;border-radius:100px;
   background:linear-gradient(135deg,#B0764F 0%,#A9603A 55%,#8E5B3A 100%);
   color:#FFF8F2;
   font-family:var(--sans);font-size:11px;font-weight:700;
-  letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;
+  letter-spacing:.16em;text-transform:uppercase;white-space:normal;
+  max-width:min(270px,calc(100vw - 100px));line-height:1.45;text-align:center;
   border:1px solid rgba(255,240,230,.35);
   opacity:0;visibility:hidden;transform:translateY(20px) scale(.94);
   transition:opacity .5s var(--ease), transform .5s var(--ease), visibility .5s;
@@ -185,7 +186,7 @@ body.scrolled .nav{top:0;}
 .float svg{transition:transform .35s var(--ease);}
 .float:hover svg{transform:translateX(4px);}
 @media(max-width:640px){
-  .float{bottom:16px;right:16px;left:16px;justify-content:center;padding:16px 22px;font-size:10.5px;}
+  .float{bottom:20px;right:20px;padding:16px 22px;font-size:10.5px;}
 }
 @media(prefers-reduced-motion:reduce){
   .float{animation:none;} .float__dot{animation:none;}
