@@ -383,6 +383,7 @@ async function loadAll() {
   renderKPIs(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderEmailForm();
   renderFormActions(editingCourse);
   if (rosterCourse) openRoster(rosterCourse, true);
+  refreshCancelTargets();
 }
 
 function renderKPIs() {
@@ -668,6 +669,14 @@ $('plan-save').onclick = async () => {
 };
 
 // ---------- Roster + transfers ----------
+// The ONE source of a "transfer to…" option list — used by the roster transfer box AND by the
+// cancel-class card. Excludes past dates, drafts, cancelled classes and the class being moved off.
+// Pass selectedId to keep a choice the admin has already made when the list is rebuilt.
+function transferOptions(excludeId, selectedId) {
+  return courses.filter(x => x.cohort_date >= today() && x.id !== excludeId && !x.cancelled && !x.is_draft)
+    .map(x => `<option value="${x.id}"${x.id === selectedId ? ' selected' : ''}>${x.name} — ${fdate(x.cohort_date)}${x.session_time ? ' (' + x.session_time + ')' : ''}</option>`).join('');
+}
+
 // Other Impactus courses this student has taken/booked (excluding the current cohort), newest first.
 function otherCoursesOf(studentId, excludeCid) {
   return bookings.filter(b => b.student_id === studentId && b.course_id !== excludeCid && b.status === 'confirmed')
@@ -790,8 +799,7 @@ window.openRoster = function (cid, noScroll) {
     if (!noScroll) $('rostercard').scrollIntoView({ behavior: 'smooth' });
     return;
   }
-  const futureOthers = courses.filter(x => x.cohort_date >= today() && x.id !== cid && !x.is_draft)
-    .map(x => `<option value="${x.id}">${x.name} — ${fdate(x.cohort_date)}${x.session_time ? ' (' + x.session_time + ')' : ''}</option>`).join('');
+  const futureOthers = transferOptions(cid);
   const rth = (k, label) => `<th class="sortable" onclick="setRosterSort('${k}')">${label}${rosterSort === k ? `<span class="arr">${rosterDir === 1 ? '▲' : '▼'}</span>` : ''}</th>`;
   $('roster').innerHTML = `<table><thead><tr><th>#</th>${rth('name', 'Student')}${rth('contact', 'Contact')}<th>Other courses</th>${rth('paid', 'Paid / Pts')}${rth('status', 'Status')}<th>Remarks</th><th></th></tr></thead><tbody>` +
     rows.map((b, i) => {
@@ -975,8 +983,7 @@ window.openCancel = function (cid) {
   const rows = bookings.filter(b => b.course_id === cid && b.status === 'confirmed');
   $('cancelcard').style.display = '';
   $('canceltitle').textContent = `Cancel class — ${c.name} · ${fdate(c.cohort_date)}`;
-  const futureOthers = courses.filter(x => x.cohort_date >= today() && x.id !== cid && !x.cancelled && !x.is_draft)
-    .map(x => `<option value="${x.id}">${x.name} — ${fdate(x.cohort_date)}${x.session_time ? ' (' + x.session_time + ')' : ''}</option>`).join('');
+  const futureOthers = transferOptions(cid);
   if (!rows.length) {
     $('cancelroster').innerHTML = '<p class="muted">No confirmed participants — cancelling just closes the class.</p>';
   } else {
@@ -1008,6 +1015,18 @@ $('cx-applyall').onclick = () => {
   document.querySelectorAll('.cx-action').forEach(sel => { sel.value = v; sel.onchange(); });
 };
 $('cx-close').onclick = () => { $('cancelcard').style.display = 'none'; cancelCourse = null; };
+
+// The cancel card's target dropdowns are built ONCE, by openCancel(). A cohort added afterwards
+// (in the form above, or in another tab) would otherwise never show up in them — 2026-07-30, a
+// 31 Oct class was created while the card was open and looked missing. loadAll() rebuilds just
+// the <select>s, keeping each row's current choice and everything typed into subject/body.
+function refreshCancelTargets() {
+  if (!cancelCourse || $('cancelcard').style.display === 'none') return;
+  document.querySelectorAll('.cx-target').forEach(sel => {
+    const keep = sel.value;
+    sel.innerHTML = transferOptions(cancelCourse, keep);
+  });
+}
 function collectDispositions() {
   const disp = {};
   document.querySelectorAll('.cx-action').forEach(sel => {
