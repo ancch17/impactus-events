@@ -299,6 +299,33 @@ section{padding:104px 0;scroll-margin-top:78px;}
 .footer__c{font-size:13.5px;color:var(--ink-3);}
 .footer__c a{color:var(--ink-2);}
 </style>
+
+<style>
+/* ── Live cohort dates (id=ilx). Rows are LINKS, never inert cards — a box with card
+   affordance that isn't clickable gets clicked anyway. Hidden until the fetch succeeds,
+   so a failed/empty load leaves the portal link below as the only thing on screen. ── */
+.ilx{margin-top:30px;max-width:640px}
+.ilx__list{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+.ilx__row{border-bottom:1px solid var(--rule)}
+.ilx__row>a{display:flex;align-items:baseline;gap:6px 14px;padding:14px 4px;text-decoration:none;color:inherit;border:0;transition:background .18s ease,padding-left .18s ease}
+.ilx__row>a:hover{background:var(--paper-2);padding-left:10px}
+.ilx__row--full{display:flex;align-items:baseline;gap:6px 14px;padding:14px 4px;opacity:.42}
+.ilx__d{font-weight:700;font-size:15.5px;flex:none;min-width:116px}
+.ilx__m{color:var(--ink-2);font-size:13.5px;flex:1 1 140px;min-width:0}
+.ilx__x{font-weight:600;font-size:13.5px;color:var(--jade-d);flex:none;white-space:nowrap}
+.ilx__row--full .ilx__x{color:var(--ink-2)}
+.ilx__note{margin-top:15px;font-size:13.5px;color:var(--ink-2)}
+.ilx__note a{color:var(--jade-d);text-decoration:none;border-bottom:1px solid var(--rule);white-space:normal}
+@media(max-width:560px){
+  /* date + Reserve on line 1, meta on line 2. The date must NOT wrap ("Fri, 7 / Aug") — it is
+     short enough that nowrap here cannot widen the page, unlike the .btn nowrap that once
+     pushed a page to 506px. The overflow assertion in the render test guards it. */
+  .ilx__row>a,.ilx__row--full{flex-wrap:wrap}
+  .ilx__d{min-width:0;flex:0 1 auto;white-space:nowrap}
+  .ilx__x{margin-left:auto}
+  .ilx__m{flex:1 1 100%;order:3;margin-top:3px}
+}
+</style>
 </head>
 <body>
 <!-- Google Tag Manager (noscript) -->
@@ -636,9 +663,13 @@ section{padding:104px 0;scroll-margin-top:78px;}
   <div class="wrap">
     <div class="sec-head rv">
       <span class="plate-no">07 / DATES</span>
-      <h2 class="h-lg">Dates live in the Reserve Seat portal.</h2>
-      <p class="body-2" style="max-width:640px;">Every upcoming Build date &mdash; with current seat availability &mdash; is in the Reserve Seat portal, where you book, pay and manage your classes in one place. All sessions face-to-face at Paya Lebar Square. All times Singapore.</p>
+      <h2 class="h-lg">Pick a date that suits you.</h2>
+      <p class="body-2" style="max-width:640px;">Straight from the booking system, so what you see is what is open. Choose a date and it comes with you &mdash; you set up your account on the way, and that date is waiting for you when you land. Every Build date is face-to-face at Paya Lebar Square. All times Singapore.</p>
     </div>
+      <div class="ilx rv" id="ilx" hidden>
+        <ol class="ilx__list" id="ilxlist"></ol>
+      </div>
+      <p class="ilx__note rv" id="ilxnote"></p>
     <div class="rv" style="margin-top:36px;">
       <a href="https://events.impactuslearning.com/portal/" class="btn btn--p" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="dates">Reserve Seat. Book and Manage Courses.</a>
     </div>
@@ -753,6 +784,80 @@ document.getElementById('revtrack').innerHTML=REVS.map(card).join('')+REVS.map(c
   },{rootMargin:'0px 0px -8% 0px',threshold:0.08});
   els.forEach(function(e){io.observe(e);});
 })();
+</script>
+
+<script>
+/* Live cohort dates. Reads the public open_cohorts view with the publishable key — the same
+   view (and the same anon grant) the portal itself reads while signed out, so no date is ever
+   hand-typed onto a marketing page again. Each row deep-links into the portal with
+   ?course=&date=&time=, which the portal's existing applyDeepLink() already understands. */
+(function () {
+  var FAMS = ["f2f-build"];        /* hardcoded: f2f-* families carry no family_site_url */
+  var SHOWFMT = false;   /* false on the L2 pages — they are FACE-TO-FACE ONLY */
+  var SHOW = 4;
+  var U = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+  var K = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+  var box = document.getElementById('ilx'),
+      list = document.getElementById('ilxlist'),
+      note = document.getElementById('ilxnote');
+  if (!box || !list) return;
+  /* Match the portal's own slot logic: online (9/2/7) and F2F (8:30/1:30/6:30) don't share a
+     leading digit for the same slot, so parse the hour rather than reading the first char. */
+  function slot(t) {
+    var m = String(t || '').match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+    if (!m) return 'am';
+    var h = parseInt(m[1], 10) % 12;
+    if (m[3].toLowerCase() === 'pm') h += 12;
+    return h < 12 ? 'am' : h < 18 ? 'pm' : 'n';
+  }
+  function nice(s) {
+    var p = String(s).split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);   /* local, not UTC — avoids an off-by-one day */
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  fetch(U + '/rest/v1/open_cohorts?select=cohort_date,session_time,price_sgd,family_slug,is_full'
+          + '&order=cohort_date.asc', { headers: { apikey: K, Authorization: 'Bearer ' + K } })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function (rows) {
+      var n = new Date(),
+          today = n.getFullYear() + '-' + ('0' + (n.getMonth() + 1)).slice(-2) + '-' + ('0' + n.getDate()).slice(-2);
+      /* Belt and braces: the family filter already excludes test-class, but it is a PERMANENT
+         row in this view and must never reach a public page, so name it too. */
+      rows = (rows || []).filter(function (c) {
+        return FAMS.indexOf(c.family_slug) > -1 && c.family_slug !== 'test-class' && c.cohort_date >= today;
+      });
+      if (!rows.length) return;                       /* leave the section as-is, never an empty box */
+      list.innerHTML = rows.slice(0, SHOW).map(function (c) {
+        var f2f = c.family_slug.indexOf('f2f-') === 0;
+        var bits = [];
+        if (SHOWFMT) bits.push(f2f ? 'Face-to-face' : 'Online');
+        if (c.session_time) bits.push(esc(c.session_time));
+        if (c.price_sgd) bits.push('S$' + String(c.price_sgd).replace(/\.00$/, ''));
+        var meta = bits.join(' &middot; ');
+        /* A full date is deliberately NOT a link and is dimmed, so it cannot read as clickable. */
+        if (c.is_full) return '<li class="ilx__row ilx__row--full"><span class="ilx__d">' + nice(c.cohort_date)
+          + '</span><span class="ilx__m">' + meta + '</span><span class="ilx__x">Full</span></li>';
+        var href = 'https://events.impactuslearning.com/portal/?course=' + encodeURIComponent(c.family_slug)
+          + '&amp;date=' + c.cohort_date + '&amp;time=' + slot(c.session_time);
+        return '<li class="ilx__row"><a href="' + href + '" data-ga-event="cta_click"'
+          + ' data-ga-label="date_pick" data-ga-location="dates"><span class="ilx__d">' + nice(c.cohort_date)
+          + '</span><span class="ilx__m">' + meta + '</span><span class="ilx__x">Reserve &rarr;</span></a></li>';
+      }).join('');
+      var extra = rows.length - SHOW;
+      if (note) {
+        var tail = '';
+        note.innerHTML = extra > 0
+          ? ('+ ' + extra + ' more ' + (extra === 1 ? 'date' : 'dates') + '. ' + tail)
+          : tail;
+        note.hidden = !note.innerHTML.trim();
+      }
+      box.hidden = false;
+      box.classList.add('in'); if (note) note.classList.add('in');
+    })
+    .catch(function () { /* portal link below is the fallback */ });
+}());
 </script>
 </body>
 </html>
