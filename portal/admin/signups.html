@@ -61,11 +61,11 @@
   <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
   <nav class="tabs">
     <a class="tab" href="./" target="_blank">Dashboard</a>
-    <a class="tab" href="students.html" target="_blank">Students</a>
-    <a class="tab active" href="signups.html">Signups</a>
-    <a class="tab" href="earnings.html" target="_blank">Earnings ↗</a>
-    <a class="tab" href="referrals.html" target="_blank">Referrals ↗</a>
-    <a class="tab" href="coupons.html" target="_blank">Discounts ↗</a>
+    <a class="tab" href="students" target="_blank">Students</a>
+    <a class="tab active" href="signups">Signups</a>
+    <a class="tab" href="earnings" target="_blank">Earnings ↗</a>
+    <a class="tab" href="referrals" target="_blank">Referrals ↗</a>
+    <a class="tab" href="coupons" target="_blank">Discounts ↗</a>
   </nav>
   <button class="btn ghost sm hidden" id="signout" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff">Sign out</button>
 </div></header>
@@ -325,7 +325,7 @@ function renderTable() {
       th('seen', 'Last seen', true) + th('logins', 'Logins', true) + th('pts', 'Points', true) +
     '</tr></thead><tbody>' + rows.map(r => {
       const who = '<strong>' + esc(r.name) + '</strong>' + (r.preferred_name ? ' <span class="muted">(' + esc(r.preferred_name) + ')</span>' : '') +
-        '<br><a class="muted" href="students.html?q=' + encodeURIComponent(r.email) + '" target="_blank">' + esc(r.email) + '</a>' +
+        '<br><a class="muted" href="students?q=' + encodeURIComponent(r.email) + '" target="_blank">' + esc(r.email) + '</a>' +
         (r.corp_name ? ' <span class="pill">🏢 ' + esc(r.corp_name) + '</span>' : '');
       const when = r.account_created_at
         ? '<strong>' + esc(sgWhen(r.account_created_at)) + '</strong>'

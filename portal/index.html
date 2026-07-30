@@ -65,7 +65,7 @@
   var forward = ['preview', 'payment', 'setup', 'ref', 'course', 'date', 'time'];
   var wanted = forward.some(function (k) { return q.has(k); });
   if (h.indexOf('access_token') > -1 || h.indexOf('error') > -1 || wanted) {
-    location.replace('app.html' + location.search + location.hash);
+    location.replace('app' + location.search + location.hash);
   }
 })();
 </script>
