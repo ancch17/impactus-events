@@ -83,7 +83,7 @@ h1,h2,h3{letter-spacing:-.035em;line-height:1.02;font-weight:700;}
 .nav__r a:hover{color:var(--ink);}
 .nav__cta{font-family:var(--sans);font-size:14px!important;font-weight:600!important;color:#fff!important;background:var(--ink);padding:11px 20px;border-radius:2px;transition:background .18s;}
 .nav__cta:hover{background:var(--jade);}
-@media(max-width:720px){ .nav__r{gap:16px;} .nav__r a:not(.nav__cta){display:none;} .nav__logo img{height:28px;} }
+@media(max-width:720px){ .nav__r{gap:16px;} .nav__r a:not(.nav__cta):not(.nav__dates){display:none;} .nav__logo img{height:28px;} }
 
 /* ── hero ── */
 .hero{padding:124px 0 100px;border-bottom:1px solid var(--rule);}
@@ -344,7 +344,7 @@ section{padding:104px 0;scroll-margin-top:78px;}
       <div class="nav__r">
         <a href="#build">What you build</a>
         <a href="#session">The session</a>
-        <a href="#dates">Dates</a>
+        <a href="#dates" class="nav__dates">Dates</a>
         <a href="https://events.impactuslearning.com/portal/" class="nav__cta" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="header">Reserve Seat</a>
       </div>
     </div>
@@ -427,11 +427,29 @@ section{padding:104px 0;scroll-margin-top:78px;}
   </div>
 </section>
 
+<!-- DATES -->
+<section class="dates" id="dates">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="plate-no">01 / DATES</span>
+      <h2 class="h-lg">Pick a date that suits you.</h2>
+      <p class="body-2" style="max-width:640px;">Straight from the booking system, so what you see is what is open. Choose a date and it comes with you &mdash; you set up your account on the way, and that date is waiting for you when you land. Every Build date is face-to-face at Paya Lebar Square. All times Singapore.</p>
+    </div>
+      <div class="ilx rv" id="ilx" hidden>
+        <ol class="ilx__list" id="ilxlist"></ol>
+      </div>
+      <p class="ilx__note rv" id="ilxnote"></p>
+    <div class="rv" style="margin-top:36px;">
+      <a href="https://events.impactuslearning.com/portal/" class="btn btn--p" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="dates">Reserve Seat. Book and Manage Courses.</a>
+    </div>
+  </div>
+</section>
+
 <!-- PREREQUISITE -->
 <section class="prereq">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="plate-no">01 / BEFORE YOU BOOK</span>
+      <span class="plate-no">02 / BEFORE YOU BOOK</span>
       <h2 class="h-lg">Level 1 first.<br>This one isn't negotiable.</h2>
     </div>
     <div class="prereq__box tick rv">
@@ -457,7 +475,7 @@ section{padding:104px 0;scroll-margin-top:78px;}
 <section class="builds" id="build">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="plate-no">02 / THE WORK</span>
+      <span class="plate-no">03 / THE WORK</span>
       <h2 class="h-lg">Five things people build here.</h2>
       <p class="lede">These are the tracks Andrew teaches most often. You pick one and go deep &mdash; or bring something else entirely, which is what most people do.</p>
     </div>
@@ -557,7 +575,7 @@ section{padding:104px 0;scroll-margin-top:78px;}
 <section class="dark">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="plate-no">03 / THE STEP UP</span>
+      <span class="plate-no">04 / THE STEP UP</span>
       <h2 class="h-lg">Level 1 taught you the tool.<br>Level 2 hands you the keys.</h2>
       <p class="lede">Same trainer, same tools, completely different session. One is learning. The other is making.</p>
     </div>
@@ -581,7 +599,7 @@ section{padding:104px 0;scroll-margin-top:78px;}
   <div class="wrap">
     <div class="free__grid">
       <div>
-        <span class="plate-no" style="display:block;margin-bottom:16px;">04 / HOW IT RUNS</span>
+        <span class="plate-no" style="display:block;margin-bottom:16px;">05 / HOW IT RUNS</span>
         <h2 class="h-lg" style="margin-bottom:22px;">There's no syllabus.<br>That's deliberate.</h2>
         <p class="lede">A fixed curriculum works when everyone wants the same thing. In Level 2 they don't &mdash; one person is adding payments, another is stuck on a database, a third wants to know why their tracking shows nothing. So the session bends to the room.</p>
         <p class="body-2" style="margin-top:22px;">What stays fixed is the shape: you arrive with a project, you leave with it further along than you could have got alone in a week.</p>
@@ -601,7 +619,7 @@ section{padding:104px 0;scroll-margin-top:78px;}
 <section class="sess" id="session">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="plate-no">05 / THE SESSION</span>
+      <span class="plate-no">06 / THE SESSION</span>
       <h2 class="h-lg">Three and a half hours,<br>in a room in Paya Lebar.</h2>
     </div>
     <div class="sess__grid rv">
@@ -640,7 +658,7 @@ section{padding:104px 0;scroll-margin-top:78px;}
 <!-- REVIEWS -->
 <section class="revs">
   <div class="wrap">
-    <span class="plate-no" style="display:block;margin-bottom:16px;">06 / THE PROOF</span>
+    <span class="plate-no" style="display:block;margin-bottom:16px;">07 / THE PROOF</span>
     <div class="revs__head">
       <div class="revs__score">5.0</div>
       <div>
@@ -656,24 +674,6 @@ section{padding:104px 0;scroll-margin-top:78px;}
     </div>
   </div>
   <div class="revs__track" id="revtrack"></div>
-</section>
-
-<!-- DATES -->
-<section class="dates" id="dates">
-  <div class="wrap">
-    <div class="sec-head rv">
-      <span class="plate-no">07 / DATES</span>
-      <h2 class="h-lg">Pick a date that suits you.</h2>
-      <p class="body-2" style="max-width:640px;">Straight from the booking system, so what you see is what is open. Choose a date and it comes with you &mdash; you set up your account on the way, and that date is waiting for you when you land. Every Build date is face-to-face at Paya Lebar Square. All times Singapore.</p>
-    </div>
-      <div class="ilx rv" id="ilx" hidden>
-        <ol class="ilx__list" id="ilxlist"></ol>
-      </div>
-      <p class="ilx__note rv" id="ilxnote"></p>
-    <div class="rv" style="margin-top:36px;">
-      <a href="https://events.impactuslearning.com/portal/" class="btn btn--p" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="dates">Reserve Seat. Book and Manage Courses.</a>
-    </div>
-  </div>
 </section>
 
 <!-- FAQ -->

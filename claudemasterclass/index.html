@@ -234,9 +234,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <img src="https://events.impactuslearning.com/images/logo-dark-nobg.png" alt="Impactus Learning" class="hdr__logo">
     </a>
     <nav class="hdr__nav">
-      <a href="#agenda">The class</a>
-      <a href="#reviews">Reviews</a>
       <a href="#dates">Dates</a>
+      <a href="#reviews">Reviews</a>
+      <a href="#agenda">The class</a>
       <a href="#certificate">Certificate</a>
       <a href="https://events.impactuslearning.com/portal/">Book</a>
     </nav>
@@ -245,11 +245,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 </header>
 
 <nav class="chips" id="chips" aria-label="Jump to a section">
+  <a href="#ladder">Levels</a>
+  <a href="#dates">Dates</a>
   <a href="#reviews">Reviews</a>
   <a href="#agenda">The class</a>
-  <a href="#dates">Dates</a>
   <a href="#certificate">Certificate</a>
-  <a href="#ladder">Levels</a>
 </nav>
 
 <!-- ============ HERO ============ -->
@@ -316,6 +316,61 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ============ THE LADDER ============ -->
+<style>.lfam img{width:100%;max-width:120px;height:auto;display:block;border-radius:8px;align-self:center;}@media(max-width:720px){.lfam img{max-width:88px;}}</style>
+<section class="section ladder" id="ladder">
+  <div class="wrap">
+    <div class="section__head section__head--center reveal">
+      <span class="eyebrow eyebrow--center">Where this class sits</span>
+      <h2 class="h2" style="margin-top:20px;">Level 1 is <em>here.</em></h2>
+      <p class="section__intro">Level is what you can make. Format is how you learn it &mdash; online or face-to-face, whichever suits you.</p>
+    </div>
+    <div class="reveal">
+      <div class="lrow">
+        <div class="lfam"><img src="https://events.impactuslearning.com/images/thumb-claude.jpg" alt="Claude" width="400" height="400" loading="lazy"></div>
+        <div class="rung rung--here">
+          <div class="rung__l">Level 1</div>
+          <div class="rung__n">Master Claude &ndash; Agentic AI</div>
+          <div class="rung__d">From zero to a working app in one session. Online or face-to-face.</div>
+        </div>
+        <a class="rung" href="https://events.impactuslearning.com/claudebuild/">
+          <div class="rung__l">Level 2</div>
+          <div class="rung__n">Claude Masterclass &ndash; Build</div>
+          <div class="rung__d">You build the real thing, in the room. Face-to-face only.</div>
+        </a>
+      </div>
+      <div class="lrow">
+        <div class="lfam"><img src="https://events.impactuslearning.com/images/thumb-animation.jpg" alt="Animation" width="400" height="400" loading="lazy"></div>
+        <a class="rung" href="https://events.impactuslearning.com/animation/">
+          <div class="rung__l">Level 1</div>
+          <div class="rung__n">AI Animation Masterclass</div>
+          <div class="rung__d">You direct every shot by hand. Online or face-to-face.</div>
+        </a>
+        <a class="rung" href="https://events.impactuslearning.com/animationautomation/">
+          <div class="rung__l">Level 2</div>
+          <div class="rung__n">AI Animation &ndash; Automation</div>
+          <div class="rung__d">The agent runs the pipeline. You supervise. Face-to-face only.</div>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DATES ============ -->
+<section class="section" id="dates">
+  <div class="wrap">
+    <div class="section__head reveal">
+      <span class="eyebrow">Upcoming dates</span>
+      <h2 class="h2" style="margin-top:20px;">Pick a date that <em>suits you.</em></h2>
+      <p class="section__intro">Straight from the booking system, so what you see is what is open. Choose a date and it comes with you &mdash; you set up your account on the way, and that date is waiting for you when you land.</p>
+    </div>
+      <div class="ilx reveal" id="ilx" hidden>
+        <ol class="ilx__list" id="ilxlist"></ol>
+      </div>
+      <p class="ilx__note reveal" id="ilxnote"><a href="https://events.impactuslearning.com/portal/" data-ga-event="cta_click" data-ga-label="reserve_seat" data-ga-location="dates_note">See every date in the Reserve Seat portal &rarr;</a></p>
   </div>
 </section>
 
@@ -3200,20 +3255,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 </section>
 
 <!-- ============ CERTIFICATE ============ -->
-<section class="section" id="dates">
-  <div class="wrap">
-    <div class="section__head reveal">
-      <span class="eyebrow">Upcoming dates</span>
-      <h2 class="h2" style="margin-top:20px;">Pick a date that <em>suits you.</em></h2>
-      <p class="section__intro">Straight from the booking system, so what you see is what is open. Choose a date and it comes with you &mdash; you set up your account on the way, and that date is waiting for you when you land.</p>
-    </div>
-      <div class="ilx reveal" id="ilx" hidden>
-        <ol class="ilx__list" id="ilxlist"></ol>
-      </div>
-      <p class="ilx__note reveal" id="ilxnote"><a href="https://events.impactuslearning.com/portal/" data-ga-event="cta_click" data-ga-label="reserve_seat" data-ga-location="dates_note">See every date in the Reserve Seat portal &rarr;</a></p>
-  </div>
-</section>
-
 <section class="section" id="certificate">
   <div class="wrap">
     <div class="cert__grid">
@@ -3229,46 +3270,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Signed by Dr. Andrew Chew, Founder &amp; Principal Trainer</li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>A forward-thinking signal for your resume and LinkedIn</li>
         </ul>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ THE LADDER ============ -->
-<style>.lfam img{width:100%;max-width:120px;height:auto;display:block;border-radius:8px;align-self:center;}@media(max-width:720px){.lfam img{max-width:88px;}}</style>
-<section class="section ladder" id="ladder">
-  <div class="wrap">
-    <div class="section__head section__head--center reveal">
-      <span class="eyebrow eyebrow--center">Where this class sits</span>
-      <h2 class="h2" style="margin-top:20px;">Level 1 is <em>here.</em></h2>
-      <p class="section__intro">Level is what you can make. Format is how you learn it &mdash; online or face-to-face, whichever suits you.</p>
-    </div>
-    <div class="reveal">
-      <div class="lrow">
-        <div class="lfam"><img src="https://events.impactuslearning.com/images/thumb-claude.jpg" alt="Claude" width="400" height="400" loading="lazy"></div>
-        <div class="rung rung--here">
-          <div class="rung__l">Level 1</div>
-          <div class="rung__n">Master Claude &ndash; Agentic AI</div>
-          <div class="rung__d">From zero to a working app in one session. Online or face-to-face.</div>
-        </div>
-        <a class="rung" href="https://events.impactuslearning.com/claudebuild/">
-          <div class="rung__l">Level 2</div>
-          <div class="rung__n">Claude Masterclass &ndash; Build</div>
-          <div class="rung__d">You build the real thing, in the room. Face-to-face only.</div>
-        </a>
-      </div>
-      <div class="lrow">
-        <div class="lfam"><img src="https://events.impactuslearning.com/images/thumb-animation.jpg" alt="Animation" width="400" height="400" loading="lazy"></div>
-        <a class="rung" href="https://events.impactuslearning.com/animation/">
-          <div class="rung__l">Level 1</div>
-          <div class="rung__n">AI Animation Masterclass</div>
-          <div class="rung__d">You direct every shot by hand. Online or face-to-face.</div>
-        </a>
-        <a class="rung" href="https://events.impactuslearning.com/animationautomation/">
-          <div class="rung__l">Level 2</div>
-          <div class="rung__n">AI Animation &ndash; Automation</div>
-          <div class="rung__d">The agent runs the pipeline. You supervise. Face-to-face only.</div>
-        </a>
       </div>
     </div>
   </div>
@@ -3389,7 +3390,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   hdrH(); onScroll();
   if(toTop) toTop.addEventListener('click',function(){ window.scrollTo({top:0,behavior:'smooth'}); });
   // scroll-spy: light up the chip and the desktop nav link for the section you are in
-  var ids=['reviews','agenda','dates','certificate','ladder'];
+  var ids=['ladder','dates','reviews','agenda','certificate'];
   var targets=ids.map(function(id){return document.getElementById(id);}).filter(Boolean);
   if('IntersectionObserver' in window && targets.length){
     var current=null;
