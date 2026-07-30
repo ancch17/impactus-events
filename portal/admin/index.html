@@ -238,16 +238,18 @@
 
     <div class="card" id="cancelcard" style="display:none;border:1px solid #f3c9c9">
       <h2 id="canceltitle" style="color:var(--red)">Cancel class</h2>
-      <p class="muted" style="margin-top:-6px">Choose what happens to each participant, then notify everyone. Transfers keep their payment &amp; points; credit refunds go back as points instantly; cash refunds are sent back to the original payment method automatically via Stripe.</p>
+      <p class="muted" style="margin-top:-6px">Choose what happens to <strong>every</strong> participant — the class can't be cancelled while anyone is still undecided. Each person's email spells out exactly what was done with their seat. Transfers keep their payment &amp; points; credit refunds go back as points instantly; cash refunds are sent back to the original payment method automatically via Stripe.</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0">
         <span class="muted" style="font-size:13px">Set everyone to:</span>
         <select id="cx-bulk" style="width:auto">
+          <option value="">— choose —</option>
           <option value="refund_credit">Refund as credit (points)</option>
           <option value="refund_cash">Refund to original payment</option>
         </select>
         <button class="btn ghost sm" id="cx-applyall">Apply to all</button>
       </div>
       <div id="cancelroster"></div>
+      <div id="cx-undecided" style="font-size:13px;font-weight:600;margin-top:8px"></div>
       <label style="margin-top:14px">Email subject</label>
       <input id="cx-subject">
       <label>Message (before the personal outcome line). Use {first} for their name.</label>
@@ -258,6 +260,7 @@
         <button class="btn ghost sm" id="cx-close">Close</button>
       </div>
       <div class="msg" id="cancelmsg"></div>
+      <div class="msg ok" id="cx-applied" style="display:none"></div>
     </div>
 
     <!-- Cohorts list sits BELOW the edit form + roster: pick a class up top, work it, then
@@ -976,9 +979,19 @@ async function callFn(name, payload) {
 }
 
 // ---------- Cancel a class ----------
+// NOTHING is pre-decided here. The action <select> opens on "— choose —" and the red button
+// stays shut until every participant has one: on 2026-07-30 the row defaulted to "refund as
+// credit", a stray second click applied that default, and a seat Andrew meant to TRANSFER was
+// credit-refunded instead. cancel-cohort now rejects an undecided roster server-side too —
+// the disabled button is only the polite half of the guard.
 let cancelCourse = null;
+let cancelLocked = false;
 window.openCancel = function (cid) {
   cancelCourse = cid;
+  cancelLocked = false;
+  $('cx-applied').style.display = 'none';
+  ['cx-bulk','cx-applyall','cx-preview','cx-go','cx-subject','cx-body'].forEach(i => $(i).disabled = false);
+  $('cx-bulk').value = '';
   const c = byCourse[cid];
   const rows = bookings.filter(b => b.course_id === cid && b.status === 'confirmed');
   $('cancelcard').style.display = '';
@@ -994,6 +1007,7 @@ window.openCancel = function (cid) {
           <td><strong>${s.name}</strong></td>
           <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}</td>
           <td><select class="cx-action" data-b="${b.id}" style="width:auto">
+              <option value="">— choose —</option>
               <option value="refund_credit">Refund as credit (points)</option>
               <option value="refund_cash">Refund to original payment</option>
               <option value="transfer">Transfer to…</option>
@@ -1003,8 +1017,11 @@ window.openCancel = function (cid) {
       }).join('') + '</tbody></table>';
     document.querySelectorAll('.cx-action').forEach(sel => sel.onchange = () => {
       document.querySelector(`.cx-target[data-b="${sel.dataset.b}"]`).classList.toggle('hidden', sel.value !== 'transfer');
+      updateCancelReady();
     });
+    document.querySelectorAll('.cx-target').forEach(sel => sel.onchange = updateCancelReady);
   }
+  updateCancelReady();
   $('cx-subject').value = `Important: ${c.name} on ${fdate(c.cohort_date)} has been cancelled`;
   $('cx-body').value = `Hi {first},\n\nWe're very sorry to let you know that ${c.name} on ${fdate(c.cohort_date)} has been cancelled.`;
   $('cancelmsg').className = 'msg';
@@ -1012,6 +1029,7 @@ window.openCancel = function (cid) {
 };
 $('cx-applyall').onclick = () => {
   const v = $('cx-bulk').value;
+  if (!v) return msg('cancelmsg', 'err', 'Pick what everyone gets first.');
   document.querySelectorAll('.cx-action').forEach(sel => { sel.value = v; sel.onchange(); });
 };
 $('cx-close').onclick = () => { $('cancelcard').style.display = 'none'; cancelCourse = null; };
@@ -1021,7 +1039,7 @@ $('cx-close').onclick = () => { $('cancelcard').style.display = 'none'; cancelCo
 // 31 Oct class was created while the card was open and looked missing. loadAll() rebuilds just
 // the <select>s, keeping each row's current choice and everything typed into subject/body.
 function refreshCancelTargets() {
-  if (!cancelCourse || $('cancelcard').style.display === 'none') return;
+  if (!cancelCourse || cancelLocked || $('cancelcard').style.display === 'none') return;
   document.querySelectorAll('.cx-target').forEach(sel => {
     const keep = sel.value;
     sel.innerHTML = transferOptions(cancelCourse, keep);
@@ -1030,23 +1048,67 @@ function refreshCancelTargets() {
 function collectDispositions() {
   const disp = {};
   document.querySelectorAll('.cx-action').forEach(sel => {
-    const bid = sel.dataset.b, action = sel.value, entry = { action };
+    const bid = sel.dataset.b, action = sel.value;
+    if (!action) return;                       // undecided rows are never sent
+    const entry = { action };
     if (action === 'transfer') entry.target_course_id = document.querySelector(`.cx-target[data-b="${bid}"]`).value;
     disp[bid] = entry;
   });
   return disp;
 }
+// Rows still without a decision (no action, or transfer with no destination).
+function undecidedRows() {
+  return [...document.querySelectorAll('.cx-action')].filter(sel =>
+    !sel.value || (sel.value === 'transfer' && !document.querySelector(`.cx-target[data-b="${sel.dataset.b}"]`).value));
+}
+function undecidedNames() {
+  return undecidedRows().map(sel => (sel.closest('tr').querySelector('strong') || {}).textContent || '?').join(', ');
+}
+function updateCancelReady() {
+  const total = document.querySelectorAll('.cx-action').length;
+  const pending = undecidedRows().length;
+  const el = $('cx-undecided');
+  if (cancelLocked || !total) { el.textContent = ''; }
+  else if (pending) { el.style.color = 'var(--red)'; el.textContent = `\u26a0 ${pending} of ${total} participant(s) still undecided — every seat needs a choice before this class can be cancelled.`; }
+  else { el.style.color = '#1f9d55'; el.textContent = `\u2713 All ${total} participant(s) decided.`; }
+  if (!cancelLocked) $('cx-go').disabled = pending > 0;
+  return pending;
+}
+function actionsLine(a) {
+  const bits = [];
+  if (a && a.transfer) bits.push(`${a.transfer} transferred`);
+  if (a && a.refund_credit) bits.push(`${a.refund_credit} refunded as credit (points)`);
+  if (a && a.refund_cash) bits.push(`${a.refund_cash} refunded to original payment`);
+  return bits.join(' · ');
+}
+// Once a class is cancelled the card is a receipt, not a form. Everything is frozen so a second
+// click is impossible; Close is the only way out. (cancel-cohort also 409s an already-cancelled
+// class, so even a stale tab can't re-run it.)
+function lockCancelCard(text) {
+  cancelLocked = true;
+  document.querySelectorAll('#cancelcard select, #cancelcard button, #cancelcard input, #cancelcard textarea')
+    .forEach(el => { if (el.id !== 'cx-close') el.disabled = true; });
+  $('cx-undecided').textContent = '';
+  const el = $('cx-applied');
+  el.style.display = ''; el.className = 'msg ok'; el.textContent = text;
+}
 $('cx-preview').onclick = async () => {
-  if (!cancelCourse) return;
+  if (!cancelCourse || cancelLocked) return;
+  if (undecidedRows().length) return msg('cancelmsg', 'err', `Decide what happens to every participant first — still undecided: ${undecidedNames()}.`);
   msg('cancelmsg', 'ok', 'Checking…');
   const { ok, out } = await callFn('cancel-cohort', { course_id: cancelCourse, dispositions: collectDispositions(), dry_run: true });
   if (!ok) return msg('cancelmsg', 'err', out.error || 'Preview failed');
-  msg('cancelmsg', 'ok', `Would affect ${out.would_affect} participant(s). No changes made — press “Cancel class & notify” to apply.`);
+  const line = actionsLine(out.actions);
+  msg('cancelmsg', 'ok', `Would affect ${out.would_affect} participant(s)${line ? ' — ' + line : ''}. No changes made — press “Cancel class & notify” to apply.`);
 };
 $('cx-go').onclick = async () => {
-  if (!cancelCourse) return;
+  if (!cancelCourse || cancelLocked) return;
+  if (undecidedRows().length) return msg('cancelmsg', 'err', `Decide what happens to every participant first — still undecided: ${undecidedNames()}.`);
   const c = byCourse[cancelCourse];
-  if (!confirm(`Cancel ${c.name} on ${fdate(c.cohort_date)}?\n\nThis applies all refunds/transfers and emails everyone. It can't be undone.`)) return;
+  const counts = {};
+  Object.values(collectDispositions()).forEach(d => { counts[d.action] = (counts[d.action] || 0) + 1; });
+  const plan = actionsLine(counts);
+  if (!confirm(`Cancel ${c.name} on ${fdate(c.cohort_date)}?\n\n${plan || 'No participants.'}\n\nThis applies all refunds/transfers and emails everyone. It can't be undone.`)) return;
   $('cx-go').disabled = true; msg('cancelmsg', 'ok', 'Cancelling and notifying…');
   const { ok, out } = await callFn('cancel-cohort', {
     course_id: cancelCourse, dispositions: collectDispositions(),
@@ -1054,9 +1116,12 @@ $('cx-go').onclick = async () => {
   });
   $('cx-go').disabled = false;
   if (!ok) return msg('cancelmsg', 'err', out.error || 'Cancel failed');
-  let m = `Class cancelled. ${out.affected} participant(s) processed. Emails sent: ${out.emails_sent}${out.emails_failed ? ', failed: ' + out.emails_failed : ''}.`;
+  const line = actionsLine(out.actions);
+  let m = `Class cancelled. ${out.affected} participant(s) processed${line ? ' — ' + line : ''}. Emails sent: ${out.emails_sent}${out.emails_failed ? ', failed: ' + out.emails_failed : ''}.`;
   if (out.note) m += ' ' + out.note;
-  msg('cancelmsg', 'ok', m);
+  $('cancelmsg').className = 'msg';
+  $('cancelmsg').textContent = '';
+  lockCancelCard(m);
   await loadAll();
 };
 
