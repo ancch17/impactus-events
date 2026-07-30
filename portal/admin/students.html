@@ -638,7 +638,12 @@ function render() {
                  <button class="btn ghost sm" onclick="anonymiseStudent('${s.id}')" style="padding:1px 6px;font-size:10.5px;color:var(--red)" title="PDPA erasure request — strips name, email, mobile and remarks. Keeps their bookings, payments and points so revenue stays correct.">🕶 anonymise</button>`}
           </div>
         </td>
-        <td>${esc(s.email || '—')}<br><span class="muted">${esc(s.mobile || '—')}</span></td>
+        <td>${esc(s.email || '—')}
+          <div id="mobcell-${s.id}" style="margin-top:2px">
+            <span class="muted">${esc(s.mobile || '—')}</span>
+            ${isAnon(s) ? '' : `<button class="btn ghost sm" onclick="editMobile('${s.id}')" style="margin-left:4px;padding:1px 6px;font-size:10.5px" title="The number the class WhatsApp goes to. A student who retypes it at sign-in does NOT change it — this is the only place it can be corrected.">✎</button>`}
+          </div>
+        </td>
         <td>${clsHtml}</td>
         <td class="num">${paidHtml}</td>
         <td id="ptscell-${s.id}" style="min-width:110px">
@@ -694,6 +699,42 @@ window.savePreferredName = async function (id) {
   if (error) return msg('stu-msg', 'err', error.message);
   students.find(x => x.id === id).preferred_name = val || null;
   msg('stu-msg', 'ok', 'Preferred name saved — used for portal greeting and {first} in emails.');
+  render();
+};
+
+// Mobile. This is the ONLY place a number can be corrected. The sign-in form asks every
+// student for a mobile on every visit, but that value only reaches the DB when the auth row
+// is first INSERTed (and, for an imported student, only if the row had no number) — a
+// returning student who types a new one is not editing anything. So when someone says "I
+// changed my phone", it lands here.
+// Stored shape is always "+<cc> <number>" (92 of 99 rows are +65) — keep it that way or the
+// roster's Copy-mobiles / wa.me links go ragged.
+window.editMobile = function (id) {
+  const s = students.find(x => x.id === id);
+  const cell = $('mobcell-' + id);
+  cell.innerHTML = `<div style="display:flex;gap:4px;align-items:center;margin-top:2px">
+      <input id="mobin-${id}" type="tel" value="${esc(s.mobile || '')}" placeholder="+65 9123 4567" style="font-size:11.5px;padding:3px 6px;width:132px">
+      <button class="btn sm" onclick="saveMobile('${id}')" style="padding:2px 8px;font-size:10.5px">Save</button>
+      <button class="btn ghost sm" onclick="render()" style="padding:2px 8px;font-size:10.5px">✕</button>
+    </div>`;
+  $('mobin-' + id).focus();
+};
+window.saveMobile = async function (id) {
+  const raw = $('mobin-' + id).value.trim();
+  let val = null;
+  if (raw) {
+    const digits = raw.replace(/[^0-9]/g, '');
+    if (digits.length < 6) return msg('stu-msg', 'err', 'That is not a mobile number. Type 6+ digits, or clear the box to remove it.');
+    // A bare 8-digit SG mobile is the common case, so prefix it. Anything else must carry its
+    // own country code — guessing +65 on a Malaysian number is worse than refusing.
+    if (raw.startsWith('+')) val = raw;
+    else if (/^[89][0-9]{7}$/.test(digits)) val = '+65 ' + raw;   // keep the spacing as typed, like the sign-in form does
+    else return msg('stu-msg', 'err', 'Start with + and the country code (e.g. +60 12 345 6789). Only a plain 8-digit Singapore number can be typed without one.');
+  }
+  const { error } = await sb.from('students').update({ mobile: val }).eq('id', id);
+  if (error) return msg('stu-msg', 'err', error.message);
+  students.find(x => x.id === id).mobile = val;
+  msg('stu-msg', 'ok', val ? 'Mobile saved — the class WhatsApp list picks this up.' : 'Mobile cleared.');
   render();
 };
 
