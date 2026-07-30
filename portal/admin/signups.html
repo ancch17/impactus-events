@@ -37,6 +37,9 @@
   .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
   .btn.sm { padding:6px 11px; font-size:12.5px; }
   .btn.on { background:var(--navy); color:#fff; }
+  /* House rule: a disabled control beats a vanished one — Andrew scans the row for what is
+     still steppable, so the ‹ › stay put and grey out at the ends of the record. */
+  .btn:disabled { opacity:.35; cursor:default; }
   input, select { font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
   .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:10px; margin-top:16px; }
   .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
@@ -95,15 +98,21 @@
 
     <div class="card">
       <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">Accounts created over time
-        <span style="display:flex;gap:6px">
+        <span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span style="display:flex;gap:4px;align-items:center;margin-right:6px">
+            <button class="btn ghost sm" id="w-prev" title="Earlier">&lsaquo;</button>
+            <span id="w-label" style="font-size:12.5px;font-weight:700;min-width:76px;text-align:center"></span>
+            <button class="btn ghost sm" id="w-next" title="Later">&rsaquo;</button>
+          </span>
           <button class="btn ghost sm on" id="p-day">Day</button>
           <button class="btn ghost sm" id="p-week">Week</button>
           <button class="btn ghost sm" id="p-month">Month</button>
+          <button class="btn ghost sm" id="p-year">Year</button>
         </span>
       </h2>
       <div style="position:relative;height:290px"><canvas id="chart"></canvas></div>
       <div id="periodtable" style="margin-top:14px;overflow-x:auto"></div>
-      <p class="muted" style="margin-top:8px">Dates and times are <strong>Singapore time</strong>. A <span class="pill new">new account</span> is someone with no record here before they signed up. An <span class="pill act">activation</span> is a student already in the CRM (the Luma import, or added by hand) creating a login for the first time — worth watching separately, because when the gate opens your existing students activating is a different event from strangers arriving.</p>
+      <p class="muted" style="margin-top:8px">Dates and times are <strong>Singapore time</strong>. A <span class="pill new">new account</span> is someone with no record here before they signed up. An <span class="pill act">activation</span> is a student already in the CRM (the Luma import, or added by hand) creating a login for the first time — worth watching separately, because when the gate opens your existing students activating is a different event from strangers arriving.<br><strong>Day</strong> shows one calendar month, <strong>Week</strong> and <strong>Month</strong> one calendar year, <strong>Year</strong> every year on record — use <strong>&lsaquo; &rsaquo;</strong> to step back. Empty periods are drawn as zero so a quiet stretch is visible; the table below lists only the periods with activity.</p>
     </div>
 
     <div class="card">
@@ -214,15 +223,80 @@ function renderKPIs() {
 }
 
 // ---------- chart ----------
-const periodKey = (day) => period === 'day' ? day : period === 'week' ? mondayOf(day) : day.slice(0, 7);
-function periodLabel(k) {
+// Every view is framed by a CALENDAR WINDOW and zero-filled, rather than being built from
+// whichever periods happen to hold a row. Before this, a single month of data rendered as one
+// full-width block and a dead fortnight simply vanished off the axis — the chart compressed
+// away exactly the gaps you want to see. The window is what the ‹ › buttons step.
+//
+//   day   → one calendar month  (28–31 bars)   week  → one calendar year (52–53 bars)
+//   month → one calendar year   (12 bars)      year  → every year on record, no paging
+//
+// `anchor` identifies the window: 'YYYY-MM' for day, 'YYYY' for week/month, unused for year.
+let anchor = '';
+
+const addMonths = (ym, n) => {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+};
+const addDays = (iso, n) => {
+  const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+};
+
+// Paging is bounded by the record: earliest account → today. There is nothing to see either
+// side of that, and an unbounded ‹ walks off into empty years forever.
+function anchorBounds() {
+  const days = all.filter(r => r.account_created_at).map(r => r.day).sort();
+  const first = days[0] || todaySG(), t = todaySG();
+  return period === 'day' ? [first.slice(0, 7), t.slice(0, 7)] : [first.slice(0, 4), t.slice(0, 4)];
+}
+const stepAnchor = (a, n) => period === 'day' ? addMonths(a, n) : String(+a + n);
+
+function windowKeys() {
+  const [lo, hi] = anchorBounds(), out = [];
+  if (period === 'day') {
+    const end = addMonths(anchor, 1) + '-01';
+    for (let d = anchor + '-01'; d < end; d = addDays(d, 1)) out.push(d);
+  } else if (period === 'week') {
+    // Anchored on the Monday of 1 Jan so no early-January day falls outside its own year.
+    const end = mondayOf(anchor + '-12-31');
+    for (let w = mondayOf(anchor + '-01-01'); w <= end; w = addDays(w, 7)) out.push(w);
+  } else if (period === 'month') {
+    for (let m = 1; m <= 12; m++) out.push(anchor + '-' + String(m).padStart(2, '0'));
+  } else {
+    for (let y = +lo; y <= +hi; y++) out.push(String(y));
+  }
+  return out;
+}
+function windowTitle() {
+  if (period === 'year') return 'All time';
+  if (period === 'day') return new Date(anchor + '-01T00:00:00').toLocaleDateString('en-SG', { month: 'short', year: 'numeric' });
+  return anchor;
+}
+
+const periodKey = (day) => period === 'day' ? day : period === 'week' ? mondayOf(day)
+  : period === 'month' ? day.slice(0, 7) : day.slice(0, 4);
+// `long` carries the year for the table, where a bare "Jan" loses its context once the row is
+// copied out; the chart leaves it off because the window title above already says the year.
+function periodLabel(k, long) {
   if (period === 'day') return new Date(k + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
   if (period === 'week') return 'Wk of ' + new Date(k + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
-  return new Date(k + '-01T00:00:00').toLocaleDateString('en-SG', { month: 'short', year: 'numeric' });
+  if (period === 'month') return new Date(k + '-01T00:00:00').toLocaleDateString('en-SG', long ? { month: 'short', year: 'numeric' } : { month: 'short' });
+  return k;
+}
+function renderWindowNav() {
+  const [lo, hi] = anchorBounds(), pageable = period !== 'year';
+  $('w-label').textContent = windowTitle();
+  $('w-prev').disabled = !pageable || anchor <= lo;
+  $('w-next').disabled = !pageable || anchor >= hi;
 }
 function renderChart() {
   const accounts = all.filter(r => r.account_created_at);
-  const keys = [...new Set(accounts.map(r => periodKey(r.day)))].sort();
+  const [lo, hi] = anchorBounds();
+  if (!anchor || anchor < lo || anchor > hi) anchor = hi;   // keep the window inside the record
+  renderWindowNav();
+  const keys = windowKeys();
   const series = (k) => keys.map(key => accounts.filter(r => periodKey(r.day) === key && r.signup_kind === k).length);
   // The canvas is a nice-to-have; the numbers underneath are the point. Chart.js comes off a
   // CDN, so if cdnjs is unreachable this must NOT take the rest of the page down with it —
@@ -232,14 +306,18 @@ function renderChart() {
     if (chart) chart.destroy();
     chart = new Chart($('chart'), {
       type: 'bar',
-      data: { labels: keys.map(periodLabel), datasets: [
-        { label: 'New accounts', data: series('new'), backgroundColor: '#2f6bd8', stack: 's' },
-        { label: 'Activations',  data: series('activation'), backgroundColor: '#1a9a5c', stack: 's' },
+      // NOT `keys.map(periodLabel)` — map passes the index as the second arg, which lands in
+      // `long` and flips every label but the first into the long form.
+      data: { labels: keys.map(k => periodLabel(k)), datasets: [
+        // maxBarThickness matters most in Year view: with one or two categories Chart.js
+        // stretches a bar to half the canvas and it reads as a slab, not a measurement.
+        { label: 'New accounts', data: series('new'), backgroundColor: '#2f6bd8', stack: 's', maxBarThickness: 64 },
+        { label: 'Activations',  data: series('activation'), backgroundColor: '#1a9a5c', stack: 's', maxBarThickness: 64 },
       ] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
-        scales: { x: { stacked: true, grid: { display: false } },
+        scales: { x: { stacked: true, grid: { display: false }, ticks: { autoSkip: true, maxRotation: 0, font: { size: 10 } } },
           y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } },
       },
     });
@@ -256,21 +334,28 @@ function renderChart() {
       ac: rs.filter(r => r.signup_kind === 'activation').length, cv: rs.filter(r => r.converted).length };
   });
   const sum = (f) => totals.reduce((s, t) => s + f(t), 0);
-  $('periodtable').innerHTML = !totals.length ? '<p class="muted">No accounts created yet.</p>' :
+  // The CHART is zero-filled so a quiet stretch shows as a gap; the TABLE lists only the
+  // periods that actually did something, because 31 rows of zeros is not a report.
+  const rows = totals.filter(t => t.n);
+  $('periodtable').innerHTML = !rows.length ? '<p class="muted">No accounts created in ' + esc(period === 'year' ? 'the record' : windowTitle()) + '.</p>' :
     '<table><thead><tr><th>Period</th><th class="num">New</th><th class="num">Activations</th><th class="num">Total</th><th class="num">Booked since</th></tr></thead><tbody>' +
-    totals.slice().reverse().map(t => '<tr><td>' + periodLabel(t.k) + '</td><td class="num">' + t.nw + '</td><td class="num">' + t.ac +
+    rows.slice().reverse().map(t => '<tr><td>' + periodLabel(t.k, true) + '</td><td class="num">' + t.nw + '</td><td class="num">' + t.ac +
       '</td><td class="num"><strong>' + t.n + '</strong></td><td class="num muted">' + t.cv + '</td></tr>').join('') +
-    '<tr class="total"><td>Total</td><td class="num">' + sum(t => t.nw) + '</td><td class="num">' + sum(t => t.ac) +
+    '<tr class="total"><td>Total · ' + esc(windowTitle()) + '</td><td class="num">' + sum(t => t.nw) + '</td><td class="num">' + sum(t => t.ac) +
       '</td><td class="num">' + sum(t => t.n) + '</td><td class="num">' + sum(t => t.cv) + '</td></tr></tbody></table>';
 }
 function setPeriod(p) {
   period = p;
-  ['p-day','p-week','p-month'].forEach(id => $(id).classList.toggle('on', id === 'p-' + p));
+  anchor = anchorBounds()[1];   // switching granularity always lands you on the newest window
+  ['p-day','p-week','p-month','p-year'].forEach(id => $(id).classList.toggle('on', id === 'p-' + p));
   renderChart();
 }
 $('p-day').onclick = () => setPeriod('day');
 $('p-week').onclick = () => setPeriod('week');
 $('p-month').onclick = () => setPeriod('month');
+$('p-year').onclick = () => setPeriod('year');
+$('w-prev').onclick = () => { anchor = stepAnchor(anchor, -1); renderChart(); };
+$('w-next').onclick = () => { anchor = stepAnchor(anchor, 1); renderChart(); };
 
 // ---------- table ----------
 // House convention: numeric columns open high→low, text A–Z. "When" is treated as numeric
