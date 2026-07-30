@@ -867,6 +867,11 @@ const LEVELS = {};
   const l = LEVEL_BY_KEY[key];
   LEVELS[slug] = { key, short: l.short, title: l.name, color: l.color, f2f };
 });
+// PERMANENT test fixture (Andrew, 2026-07-30): the test-class family stays forever — even when
+// the gate is public — and is labelled "Test Class" on the calendar/cards ON PURPOSE, so nobody
+// books it by accident. Registered here in LEVELS only, NOT in LEVEL_ORDER, so it never gets a
+// chip in the student course key. Do not delete this entry or the family.
+LEVELS['test-class'] = { key: 'test', short: 'Test Class', title: 'Test Class', color: '#64748b', f2f: false };
 const lvlOf = (slug) => LEVELS[slug] || { key: 'x', short: 'Class', title: '', color: '#64748b', f2f: false };
 
 let allCohorts = [], attendedMap = {}, calMonth = null, calFilter = '';
