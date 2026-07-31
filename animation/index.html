@@ -69,6 +69,49 @@ body::before {
 .float-cta::before { content:''; width:8px; height:8px; border-radius:50%; background:#fff; animation:pulse 2s ease-in-out infinite; }
 @media(max-width:480px){ .float-cta { bottom:16px; right:16px; padding:14px 22px; font-size:14px; } }
 
+/* ─── LONG-PAGE NAVIGATION KIT ───────────────────────────────────────────────
+   Ported from /claudemasterclass/. This page is ~12,900px desktop / ~21,000px
+   mobile — roughly 24 screens — and had no way to jump or to get back to the top.
+   ⚠️ The chip bar's hidden state clears BOTH its own height and the live header
+   height. `translateY(-130%)` is a percentage of the ELEMENT, not of its offset,
+   and once left the bar sitting across the header on mobile. Do not reintroduce it.
+   ⚠️ .to-top's bottom offset is measured against the floating portal capsule
+   (a constant 170x77 at bottom:20px, so its top edge is 97px up). If that capsule
+   is ever reflowed, re-measure — the two must not overlap. Same right offset. */
+.sprog{position:fixed;top:0;left:0;right:0;height:3px;background:var(--grad2);
+  transform:scaleX(0);transform-origin:0 50%;z-index:110;pointer-events:none;
+  transition:transform .1s linear;}
+
+.chips{position:fixed;top:var(--hdr-h,81px);left:0;right:0;z-index:49;display:flex;gap:8px;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;padding:8px 14px;
+  background:rgba(8,11,18,.93);-webkit-backdrop-filter:blur(12px) saturate(1.2);
+  backdrop-filter:blur(12px) saturate(1.2);border-bottom:1px solid var(--border);
+  scrollbar-width:none;
+  transform:translateY(calc(-100% - var(--hdr-h,81px) - 8px));
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:transform .35s ease,opacity .3s ease,visibility 0s linear .35s;}
+.chips::-webkit-scrollbar{display:none;}
+.chips.is-vis{transform:none;opacity:1;visibility:visible;pointer-events:auto;
+  transition:transform .35s ease,opacity .3s ease,visibility 0s;}
+.chips a{flex:0 0 auto;font-size:12.5px;font-weight:600;color:var(--muted);
+  background:var(--surface);border:1px solid var(--border);border-radius:50px;
+  padding:7px 14px;white-space:nowrap;transition:background .2s,color .2s,border-color .2s;}
+.chips a.on{background:var(--blue);border-color:var(--blue);color:#fff;}
+
+.to-top{position:fixed;right:20px;bottom:109px;z-index:9998;width:44px;height:44px;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--surface);border:1px solid var(--border);color:var(--text);
+  cursor:pointer;padding:0;opacity:0;visibility:hidden;transform:translateY(6px);
+  transition:opacity .3s ease,transform .3s ease,visibility 0s linear .3s,border-color .2s;}
+.to-top.is-vis{opacity:1;visibility:visible;transform:none;
+  transition:opacity .3s ease,transform .3s ease,visibility 0s,border-color .2s;}
+.to-top:hover{border-color:var(--blue);color:var(--blue);}
+
+/* Every jump target clears the sticky header AND the chip bar under it
+   (81 + 50 + breathing room). Beats the older per-section 90px rules on
+   specificity, which is intended — those predate the chip bar. */
+section[id]{scroll-margin-top:140px;}
+
 /* ─── DATES / BOOKING CARDS ─── */
 .dates { border-bottom:1px solid var(--border); scroll-margin-top:90px; }
 .dates__grid { display:grid; grid-template-columns:repeat(2,1fr); gap:24px; margin-top:44px; max-width:780px; }
@@ -384,6 +427,8 @@ section { padding:80px 0; }
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5KXF6DVD" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
 
+<div class="sprog" id="sprog" aria-hidden="true"></div>
+
 <!-- NAV -->
 <nav class="nav">
   <div class="wrap">
@@ -400,6 +445,18 @@ section { padding:80px 0; }
       </div>
     </div>
   </div>
+</nav>
+
+<!-- Section jump bar. Shown at EVERY width, unlike /claudemasterclass/, because this
+     page has no desktop section nav to fall back on. Slides in past the hero. -->
+<nav class="chips" id="chips" aria-label="Jump to a section">
+  <a href="#ladder">Levels</a>
+  <a href="#dates">Dates</a>
+  <a href="#samples">Samples</a>
+  <a href="#schedule">Agenda</a>
+  <a href="#reviews">Reviews</a>
+  <a href="#pricing">Format</a>
+  <a href="#venue">Venue</a>
 </nav>
 
 <!-- HERO -->
@@ -1200,6 +1257,9 @@ function playVideo(el){
 }
 </script>
 
+<button class="to-top" id="toTop" type="button" aria-label="Back to top">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+</button>
 <a href="https://events.impactuslearning.com/portal/" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="float" style="position:fixed;bottom:20px;right:20px;z-index:9999;background:#f5b731;color:#101a2d;font-weight:700;padding:12px 18px;border-radius:99px;text-decoration:none;font-family:Inter,system-ui,sans-serif;font-size:13.5px;max-width:170px;line-height:1.3;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.3)" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="float">Reserve Seat. Book and Manage Courses.</a>
 <script>
 /* Live cohort dates. Reads the public open_cohorts view with the publishable key — the same
@@ -1283,5 +1343,58 @@ function playVideo(el){
     .catch(function () { /* portal link below is the fallback */ });
 }());
 </script>
+<script>
+/* Long-page navigation kit. --hdr-h is MEASURED, never hardcoded: the nav is 81px
+   normally but 71px under 480px where the logo shrinks, and the chip bar's hidden
+   transform is computed from it. Re-measured on scroll, on resize and after webfonts
+   swap (a font swap changes the header height and the offline render never sees it). */
+(function () {
+  var root = document.documentElement,
+      nav = document.querySelector('.nav'),
+      chips = document.getElementById('chips'),
+      sprog = document.getElementById('sprog'),
+      toTop = document.getElementById('toTop');
+
+  function hdrH() { if (nav) root.style.setProperty('--hdr-h', nav.offsetHeight + 'px'); }
+
+  function onScroll() {
+    var y = window.pageYOffset || root.scrollTop;
+    var max = (root.scrollHeight - window.innerHeight) || 1;
+    if (sprog) sprog.style.transform = 'scaleX(' + Math.min(y / max, 1) + ')';
+    var show = y > 560;                       /* past the hero, not over it */
+    if (chips) chips.classList.toggle('is-vis', show);
+    if (toTop) toTop.classList.toggle('is-vis', show);
+    hdrH();
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', function () { hdrH(); }, { passive: true });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(hdrH);
+  hdrH(); onScroll();
+
+  if (toTop) toTop.addEventListener('click', function () {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  /* Scroll-spy: light the chip for the section you are in, and the header's Dates
+     link when that is the section. rootMargin keeps only the middle band live, so
+     exactly one section is current at a time. */
+  var ids = ['ladder', 'dates', 'samples', 'schedule', 'reviews', 'pricing', 'venue'];
+  var links = [].slice.call(document.querySelectorAll('.chips a, .nav__links a'));
+  var targets = ids.map(function (id) { return document.getElementById(id); }).filter(Boolean);
+  if ('IntersectionObserver' in window && targets.length) {
+    var current = null;
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) current = e.target.id; });
+      if (!current) return;
+      links.forEach(function (a) {
+        a.classList.toggle('on', a.getAttribute('href') === '#' + current);
+      });
+    }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+    targets.forEach(function (x) { io.observe(x); });
+  }
+}());
+</script>
 </body>
+
 </html>
