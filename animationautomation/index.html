@@ -156,6 +156,49 @@ body.scrolled .nav{top:0;}
 }
 .link-under:hover{gap:15px;}
 
+
+/* ─── LONG-PAGE NAVIGATION KIT ───────────────────────────────────────────────
+   z-index 300 on .sprog: this page stacks a fixed #topbar over a fixed .nav (100)
+   over the capsule (150), so anything lower is buried. The chip bar sits at the
+   MEASURED bottom of .nav — that element is fixed under the topbar and jumps to
+   top:0 once body.scrolled, so its height alone is not its position.
+   .to-top's 112px is only the no-JS fallback; JS parks it off the live capsule,
+   which is 230-270 wide and 64-80 tall across three of its own media queries. */
+.sprog{position:fixed;top:0;left:0;right:0;height:3px;background:var(--accent);
+  transform:scaleX(0);transform-origin:0 50%;z-index:300;pointer-events:none;
+  transition:transform .1s linear;}
+.chips{display:none;}
+@media(max-width:760px){
+  .chips{position:fixed;top:var(--hdr-h,120px);left:0;right:0;z-index:99;display:flex;gap:8px;
+    overflow-x:auto;-webkit-overflow-scrolling:touch;padding:8px 14px;
+    background:rgba(247,244,239,.94);-webkit-backdrop-filter:blur(12px) saturate(1.3);
+    backdrop-filter:blur(12px) saturate(1.3);border-bottom:1px solid var(--hair);
+    scrollbar-width:none;
+    transform:translateY(calc(-100% - var(--hdr-h,120px) - 8px));
+    opacity:0;visibility:hidden;pointer-events:none;
+    transition:transform .35s var(--ease),opacity .3s var(--ease),visibility 0s linear .35s;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chips.is-vis{transform:none;opacity:1;visibility:visible;pointer-events:auto;
+    transition:transform .35s var(--ease),opacity .3s var(--ease),visibility 0s;}
+  .chips a{flex:0 0 auto;font-size:10.5px;font-weight:700;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted);background:var(--wall);
+    border:1px solid var(--line);border-radius:100px;padding:7px 14px;white-space:nowrap;
+    transition:background .2s,color .2s,border-color .2s;}
+  .chips a.on{background:var(--accent);border-color:var(--accent);color:#FFF8F2;}
+  /* header assembly + chip bar. 110px alone leaves the heading under the chips;
+     180px cleared them but left ~190px of dead space because .sec carries 130px of
+     its own top padding. 140 lands the section 21px under the bars. */
+  html{scroll-padding-top:140px;}
+}
+.to-top{position:fixed;right:20px;bottom:112px;z-index:149;width:44px;height:44px;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--wall);border:1px solid var(--line);color:var(--ink);
+  cursor:pointer;padding:0;opacity:0;visibility:hidden;transform:translateY(6px);
+  transition:opacity .3s var(--ease),transform .3s var(--ease),visibility 0s linear .3s,border-color .2s;}
+.to-top.is-vis{opacity:1;visibility:visible;transform:none;
+  transition:opacity .3s var(--ease),transform .3s var(--ease),visibility 0s,border-color .2s;}
+.to-top:hover{border-color:var(--accent);color:var(--accent);}
+
 /* ─── floating reserve capsule ─── */
 .float{
   position:fixed;bottom:20px;right:20px;z-index:150;
@@ -719,10 +762,15 @@ body.scrolled .nav{top:0;}
 </div>
 
 <!-- ══ FLOATING RESERVE ══ -->
+<button class="to-top" id="toTop" type="button" aria-label="Back to top">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+</button>
 <a class="float" id="float" href="https://events.impactuslearning.com/portal/" data-ga-event="cta_click" data-ga-label="student_portal" data-ga-location="float">
   <span class="float__dot"></span>
   Reserve Seat. Book and Manage Courses.
 </a>
+
+<div class="sprog" id="sprog" aria-hidden="true"></div>
 
 <!-- ══ NAV ══ -->
 <nav class="nav" id="nav">
@@ -742,6 +790,20 @@ body.scrolled .nav{top:0;}
       </div>
     </div>
   </div>
+</nav>
+
+<!-- Section jump bar. Mobile only: the desktop nav already carries these links,
+     and the breakpoint below matches this page's own nav-cull width exactly, so
+     there is never a band with neither. -->
+<nav class="chips" id="chips" aria-label="Jump to a section">
+  <a href="#ladder">Levels</a>
+  <a href="#dates">Dates</a>
+  <a href="#wild">The Reels</a>
+  <a href="#pipeline">The Pipeline</a>
+  <a href="#kit">The Kit</a>
+  <a href="#session">The Session</a>
+  <a href="#venue">The Room</a>
+  <a href="#requirements">What You Need</a>
 </nav>
 
 <!-- ══ HERO ══ -->
@@ -1635,6 +1697,80 @@ document.querySelectorAll('.rv').forEach(function(el){ io.observe(el); });
       box.classList.add('in'); if (note) note.classList.add('in');
     })
     .catch(function () { /* portal link below is the fallback */ });
+}());
+</script>
+<script>
+/* Long-page navigation kit — see /animation/ for the first port.
+   --hdr-h is the measured BOTTOM of .nav, not its height, because this page's
+   header assembly moves (fixed nav, and on aa a fixed topbar above it that the
+   scrolled state collapses). Height alone would misplace the chip bar.
+   .to-top is parked off the MEASURED capsule every tick rather than off matched
+   media queries — two stacked fixed controls with different breakpoints have
+   collided here before. */
+(function () {
+  var root = document.documentElement,
+      nav = document.querySelector('.nav'),
+      chips = document.getElementById('chips'),
+      sprog = document.getElementById('sprog'),
+      toTop = document.getElementById('toTop'),
+      pill = document.querySelector('a[data-ga-location="float"]');
+
+  function metrics() {
+    if (nav) {
+      /* ceil, not round: rounding DOWN puts the chip bar a sub-pixel inside the nav,
+         which the overlap gate reads as two fixed elements colliding. */
+      var b = nav.getBoundingClientRect().bottom;
+      root.style.setProperty('--hdr-h', Math.max(0, Math.ceil(b)) + 'px');
+    }
+    if (toTop && pill && pill.offsetHeight > 0) {
+      /* Transform-INDEPENDENT geometry. The capsule animates (translateY + scale on
+         reveal, a glow keyframe forever), so getBoundingClientRect() mid-animation
+         parks the button in the wrong place and it can land ON the capsule.
+         offsetHeight and the computed `bottom` ignore transforms entirely. */
+      var cb = parseFloat(getComputedStyle(pill).bottom);
+      if (!isFinite(cb)) cb = 20;
+      toTop.style.bottom = Math.round(cb + pill.offsetHeight + 12) + 'px';
+    }
+  }
+
+  /* The nav TRANSITIONS its top (.45s here). Scroll events stop before that
+     animation ends, so the last --hdr-h written would be a stale mid-flight value
+     and the chip bar would sit detached from the header. Re-measure when it lands. */
+  if (nav) nav.addEventListener('transitionend', metrics);
+
+  function onScroll() {
+    var y = window.pageYOffset || root.scrollTop;
+    var max = (root.scrollHeight - window.innerHeight) || 1;
+    if (sprog) sprog.style.transform = 'scaleX(' + Math.min(y / max, 1) + ')';
+    var show = y > 560;
+    if (chips) chips.classList.toggle('is-vis', show);
+    if (toTop) toTop.classList.toggle('is-vis', show);
+    metrics();
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', function () { metrics(); }, { passive: true });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(metrics);
+  metrics(); onScroll();
+
+  if (toTop) toTop.addEventListener('click', function () {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  var ids = ['ladder', 'dates', 'wild', 'pipeline', 'kit', 'session', 'venue', 'requirements'];
+  var links = [].slice.call(document.querySelectorAll('.chips a, .nav a'));
+  var targets = ids.map(function (id) { return document.getElementById(id); }).filter(Boolean);
+  if ('IntersectionObserver' in window && targets.length) {
+    var current = null;
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) current = e.target.id; });
+      if (!current) return;
+      links.forEach(function (a) {
+        a.classList.toggle('on', a.getAttribute('href') === '#' + current);
+      });
+    }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+    targets.forEach(function (x) { io.observe(x); });
+  }
 }());
 </script>
 </body>
