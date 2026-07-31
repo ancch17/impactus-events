@@ -440,6 +440,7 @@
 const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
 const PORTAL_URL = 'https://events.impactuslearning.com/portal/';
+const SITE_URL = 'https://impactuslearning.com/';   // referral share links land here, not on the portal
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
 
 const $ = (id) => document.getElementById(id);
@@ -481,7 +482,6 @@ let student = null, balance = 0, courses = [], selCourse = null, myEmail = '';
 // them — quoting the raw balance is what made the page and Stripe disagree.
 let holds = [], holdTick = null;
 
-// referral code from ?ref=
 // Surface auth errors from the magic link (expired / already used)
 const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
 if (hashParams.get('error_description') || hashParams.get('error')) {
@@ -490,8 +490,30 @@ if (hashParams.get('error_description') || hashParams.get('error')) {
   history.replaceState({}, '', location.pathname + location.search);
 }
 const params = new URLSearchParams(location.search);
-if (params.get('ref')) {
-  $('refcode').value = params.get('ref').toUpperCase();
+/* Referral intake. Share links now point at impactuslearning.com (the company homepage), whose
+   main.js stores the code in an `il_ref` cookie on `.impactuslearning.com` — readable here
+   because the portal lives on a subdomain of the same parent. A new person browses the whole
+   site and every course page first; the code is still waiting when they finally sign up.
+   An explicit ?ref= in the URL beats the cookie, and old ?ref= links / downloaded QR cards
+   keep working unchanged. */
+function refCookieRead() {
+  try {
+    const m = document.cookie.match(/(?:^|;\s*)il_ref=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  } catch (e) { return ''; }
+}
+function refCookieWrite(code) {
+  // Written on a direct ?ref= visit too, so the code survives if they wander off to browse
+  // the course pages and come back to sign up later. 60 days.
+  try {
+    document.cookie = 'il_ref=' + encodeURIComponent(code) +
+      '; domain=.impactuslearning.com; path=/; max-age=5184000; SameSite=Lax; Secure';
+  } catch (e) {}
+}
+const refIncoming = ((params.get('ref') || refCookieRead()) || '').trim().toUpperCase();
+if (refIncoming) {
+  $('refcode').value = refIncoming;
+  if (params.get('ref')) refCookieWrite(refIncoming);
   setTimeout(() => msg('loginmsg', 'ok', "Your friend's referral is attached ✓ — sign up above to get started."), 300);
 }
 
@@ -626,7 +648,9 @@ async function showApp(session) {
   balance = student.balance_points;
   $('hello').textContent = 'Welcome back, ' + (student.preferred_name && student.preferred_name.trim() ? student.preferred_name.trim() : student.name.split(' ')[0]);
   $('balline').textContent = balance > 0 ? `You've earned S$${balance} toward your next class` : 'Book your first class to start earning rebates';
-  const reflink = PORTAL_URL + '?ref=' + student.referral_code;
+  // The share link lands on the company homepage — a new person can browse every course
+  // first; the site carries the code into the portal for whenever they decide to sign up.
+  const reflink = SITE_URL + '?ref=' + student.referral_code;
   $('reflink').value = reflink;
   $('refqr').innerHTML = '';
   // The QR library is a CDN script — if it fails to load, the rest of the portal must still work.
@@ -873,7 +897,7 @@ async function downloadShareCard() {
     // Footer
     ctx.font = '600 15px Inter, system-ui, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,.55)';
-    ctx.fillText('events.impactuslearning.com · Rebates on every class you attend', W / 2, H - 50);
+    ctx.fillText('impactuslearning.com · Rebates on every class you attend', W / 2, H - 50);
 
     const finalUrl = cv.toDataURL('image/png');
     const a = document.createElement('a');
