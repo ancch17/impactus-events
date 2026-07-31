@@ -3070,6 +3070,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   .spfan__pair{display:inline-flex;align-items:center;gap:7px;}
   .spcard__go--stretch::after{content:'';position:absolute;inset:0;z-index:1;}
   .spcard__face{width:78px;height:78px;border-radius:50%;object-fit:cover;border:3px solid var(--card);box-shadow:var(--shadow-md);margin-top:-66px;position:relative;z-index:2;}
+  /* on the featured card the copy sits BESIDE the visual, so there is no boundary to straddle */
+  .spcard--feat .spcard__face{width:84px;height:84px;margin-top:0;margin-bottom:2px;}
   /* single-pane visuals */
   .spb--solo{width:100%;max-width:340px;}
   .spcard--sm:hover .spb--solo{transform:translateY(-4px);}
@@ -3120,6 +3122,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     .m-loyhead span{font-size:6px;letter-spacing:.1em;}
     .spfan__flow a{font-size:11px;padding:5px 10px;}
     .spcard__face{width:66px;height:66px;margin-top:-58px;}
+    /* stacked here, so the featured medallion straddles the boundary too */
+    .spcard--feat .spcard__face{width:66px;height:66px;margin-top:-58px;}
   }
 
   /* Agenda timeline */
@@ -3290,9 +3294,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="spcard spcard--feat spcard--tee reveal">
         <div class="spcard__in">
           <div class="spcard__copy">
-            <span class="spcard__tag">The Full Ecosystem</span>
+            <img class="spcard__face" src="images/spotlight-stephanie.jpg" alt="T Stephanie, owner of Tee (DOT) Nail Bar" width="320" height="320" loading="lazy">
+            <span class="spcard__tag">T Stephanie &middot; Nail Studio Owner</span>
             <h3 class="spcard__h">Not just a website.<br><em>A whole system.</em></h3>
-            <p class="spcard__b">An entire customer journey for one nail studio — a landing page that sells, live appointment booking, and a digital loyalty stamp card that keeps clients coming back. Every piece created with Claude, quickly.</p>
+            <p class="spcard__b">Stephanie didn't stop at a landing page. She built the entire customer journey — a site that sells, live appointment booking, and a digital loyalty stamp card that keeps clients coming back. Three connected pieces, all created with Claude, quickly.</p>
             <div class="spcard__meta"><span><b>Tee (DOT) Nail Bar</b> · Sembawang</span><a class="spcard__go spcard__go--stretch" href="https://teedotnailbar.com/" target="_blank" rel="noopener" data-ga-event="cta_click" data-ga-label="spotlight_teedotnailbar" data-ga-location="spotlight">Visit the live site <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></a></div>
           </div>
           <div class="spcard__vis">
@@ -3371,6 +3376,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
         </div>
         <div class="spcard__copy">
+          <img class="spcard__face" src="images/spotlight-elaine.jpg" alt="Elaine Tan, owner of Yi Oasis" width="320" height="320" loading="lazy">
           <span class="spcard__tag">Elaine Tan &middot; Massage &amp; Wellness</span>
           <h3 class="spcard__h">From word of mouth<br><em>to well represented.</em></h3>
           <p class="spcard__b">Elaine's massage studio ran on regulars. Now it has an online home as serene as the studio itself — and a whole new way to be found.</p>
