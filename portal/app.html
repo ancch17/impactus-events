@@ -516,7 +516,10 @@ const refIncoming = ((params.get('ref') || refCookieRead()) || '').trim().toUppe
 if (refIncoming) {
   $('refcode').value = refIncoming;
   if (params.get('ref')) refCookieWrite(refIncoming);
-  setTimeout(() => msg('loginmsg', 'ok', "Your friend's referral is attached ✓ — sign up above to get started."), 300);
+  // Honest wording (Andrew, 2026-08-04): referrals are only recorded when a brand-new account
+  // is created — a past student activating an existing record never gets referred_by set
+  // (see handle_new_auth_user), so don't promise "attached" to someone it won't count for.
+  setTimeout(() => msg('loginmsg', 'ok', "Your friend's referral code is filled in ✓ — it counts when you create a new account. Sign up above to get started."), 300);
 }
 
 /* ── The date picked on a marketing page ───────────────────────────────────────
