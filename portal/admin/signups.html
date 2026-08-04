@@ -113,7 +113,7 @@
       </h2>
       <div style="position:relative;height:290px"><canvas id="chart"></canvas></div>
       <div id="periodtable" style="margin-top:14px;overflow-x:auto"></div>
-      <p class="muted" style="margin-top:8px">Dates and times are <strong>Singapore time</strong>. A <span class="pill new">new account</span> is someone with no record here before they signed up. An <span class="pill act">activation</span> is a student already in the CRM (the Luma import, or added by hand) creating a login for the first time — worth watching separately, because when the gate opens your existing students activating is a different event from strangers arriving.<br><strong>Day</strong> shows one calendar month, <strong>Week</strong> and <strong>Month</strong> one calendar year, <strong>Year</strong> every year on record — use <strong>&lsaquo; &rsaquo;</strong> to step back. Empty periods are drawn as zero so a quiet stretch is visible; the table below lists only the periods with activity.</p>
+      <p class="muted" style="margin-top:8px">Dates and times are <strong>Singapore time</strong>. A <span class="pill new">new account</span> is someone with no record here before they signed up. An <span class="pill act">activation</span> is a student already in the CRM (the Luma import, or added by hand) creating a login for the first time — worth watching separately, because when the gate opens your existing students activating is a different event from strangers arriving.<br><strong>Day</strong> shows one calendar month, <strong>Week</strong> and <strong>Month</strong> one calendar year, <strong>Year</strong> every year on record — use <strong>&lsaquo; &rsaquo;</strong> to step back. Empty periods are drawn as zero so a quiet stretch is visible; the table below lists only the periods with activity. <strong>Booked since</strong> counts people who went on to book; <strong>Courses booked</strong> counts the confirmed seats those signups have taken since creating their account.</p>
     </div>
 
     <div class="card">
@@ -332,18 +332,22 @@ function renderChart() {
   const totals = keys.map(k => {
     const rs = accounts.filter(r => periodKey(r.day) === k);
     return { k, n: rs.length, nw: rs.filter(r => r.signup_kind === 'new').length,
-      ac: rs.filter(r => r.signup_kind === 'activation').length, cv: rs.filter(r => r.converted).length };
+      ac: rs.filter(r => r.signup_kind === 'activation').length, cv: rs.filter(r => r.converted).length,
+      // Confirmed seats taken SINCE the account existed (signup_report.bookings_after_signup).
+      // Deliberately not lifetime: an activation's pre-signup Luma-era bookings would make the
+      // gate look successful on day one — same doctrine as the `converted` flag.
+      bk: rs.reduce((s, r) => s + Number(r.bookings_after_signup || 0), 0) };
   });
   const sum = (f) => totals.reduce((s, t) => s + f(t), 0);
   // The CHART is zero-filled so a quiet stretch shows as a gap; the TABLE lists only the
   // periods that actually did something, because 31 rows of zeros is not a report.
   const rows = totals.filter(t => t.n);
   $('periodtable').innerHTML = !rows.length ? '<p class="muted">No accounts created in ' + esc(period === 'year' ? 'the record' : windowTitle()) + '.</p>' :
-    '<table><thead><tr><th>Period</th><th class="num">New</th><th class="num">Activations</th><th class="num">Total</th><th class="num">Booked since</th></tr></thead><tbody>' +
+    '<table><thead><tr><th>Period</th><th class="num">New</th><th class="num">Activations</th><th class="num">Total</th><th class="num">Booked since</th><th class="num">Courses booked</th></tr></thead><tbody>' +
     rows.slice().reverse().map(t => '<tr><td>' + periodLabel(t.k, true) + '</td><td class="num">' + t.nw + '</td><td class="num">' + t.ac +
-      '</td><td class="num"><strong>' + t.n + '</strong></td><td class="num muted">' + t.cv + '</td></tr>').join('') +
+      '</td><td class="num"><strong>' + t.n + '</strong></td><td class="num muted">' + t.cv + '</td><td class="num">' + t.bk + '</td></tr>').join('') +
     '<tr class="total"><td>Total · ' + esc(windowTitle()) + '</td><td class="num">' + sum(t => t.nw) + '</td><td class="num">' + sum(t => t.ac) +
-      '</td><td class="num">' + sum(t => t.n) + '</td><td class="num">' + sum(t => t.cv) + '</td></tr></tbody></table>';
+      '</td><td class="num">' + sum(t => t.n) + '</td><td class="num">' + sum(t => t.cv) + '</td><td class="num">' + sum(t => t.bk) + '</td></tr></tbody></table>';
 }
 function setPeriod(p) {
   period = p;
