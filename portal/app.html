@@ -1322,11 +1322,33 @@ function renderPaySummary(c) {
 }
 
 // Points are applied automatically — the student never picks an amount.
-// Always the whole balance, capped at what's still due after any discount code.
-// (The server recomputes this independently; this is only the on-screen preview.)
-function autoPoints() {
-  const discounted = Number(selCourse.price_sgd) - (coupon ? coupon.discount : 0);
-  return Math.max(0, Math.min(spendablePoints(selCourse.id), Math.floor(discounted)));
+// POINTS COME OFF THE CLASS FEE FIRST (2026-08-04, it used to be coupon-first): the whole
+// spendable balance, capped at the fee. A PERCENTAGE code then discounts the nett that is
+// left. Fixed-S$ and free-pass codes still come off the full fee before points, so points
+// a full cover would make redundant are never burned; a resumed hold restores its coupon
+// as a fixed snapshot, which lands in the same branch and reproduces the held numbers.
+// Mirrors create-checkout exactly, including the S$0.50-floor handback — rule 6: the
+// number beside "Pay" is computed by the rule the server will use, one formula, not two.
+function quote() {
+  const price = Number(selCourse.price_sgd);
+  const spend = spendablePoints(selCourse.id);
+  const isPercent = coupon && coupon.kind === 'percent' && coupon.value != null && Number(coupon.value) < 100;
+  let pts, discount;
+  if (!coupon || isPercent) {
+    pts = Math.max(0, Math.min(spend, Math.floor(price)));
+    discount = isPercent ? +(((price - pts) * Number(coupon.value)) / 100).toFixed(2) : 0;
+  } else {
+    discount = Math.min(Number(coupon.discount) || 0, price);
+    pts = Math.max(0, Math.min(spend, Math.floor(price - discount)));
+  }
+  let pay = +(price - discount - pts).toFixed(2);
+  while (pay > 0 && pay < 0.5 && pts > 0) {   // Stripe's S$0.50 floor, mirrored from the server
+    pts -= 1;
+    if (isPercent) discount = +(((price - pts) * Number(coupon.value)) / 100).toFixed(2);
+    pay = +(price - discount - pts).toFixed(2);
+  }
+  if (pay > 0 && pay < 0.5) pay = 0;
+  return { pts, discount, pay };
 }
 
 $('couponbtn').onclick = async () => {
@@ -1340,7 +1362,10 @@ $('couponbtn').onclick = async () => {
     msg('couponmsg', 'err', (data && data.message) || (error && error.message) || 'Code not recognised');
     updateBreakdown(); return;
   }
-  coupon = { code: code.toUpperCase(), discount: Number(data.discount), label: data.label };
+  // `discount` arrives null for a percentage code — quote() computes it on the nett
+  // after points. kind/value are what the formula actually needs.
+  coupon = { code: code.toUpperCase(), kind: data.kind, value: data.value == null ? null : Number(data.value),
+             discount: data.discount == null ? 0 : Number(data.discount), label: data.label };
   msg('couponmsg', 'ok', data.label + ' applied ✓');
   updateBreakdown();
 };
@@ -1348,11 +1373,11 @@ $('couponcode').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault()
 
 function updateBreakdown() {
   const price = Number(selCourse.price_sgd);
-  const discount = coupon ? coupon.discount : 0;
-  const discounted = +(price - discount).toFixed(2);
-  const pts = autoPoints();
-  const pay = +(discounted - pts).toFixed(2);
+  const { pts, discount, pay } = quote();
   $('bd-price').textContent = fmt$(price);
+  // Points-first can leave a code with nothing left to discount. The server won't
+  // consume it in that case — tell the student instead of silently dropping the row.
+  if (coupon && discount === 0) msg('couponmsg', 'ok', 'Your points already cover this class — code ' + coupon.code + ' stays unused for another time.');
   const dr = $('bd-disc-row');
   if (discount > 0) { dr.classList.remove('hidden'); $('bd-disc-label').textContent = coupon.label || 'Discount'; $('bd-disc').textContent = '− ' + fmt$(discount); }
   else dr.classList.add('hidden');
@@ -1412,7 +1437,7 @@ async function startCheckout(method) {
     msg('bookmsg', 'ok', 'You already have a seat on this date — it’s in “Your classes” below.');
     return;
   }
-  const payNow = Number(selCourse.price_sgd) - (coupon ? coupon.discount : 0) - autoPoints();
+  const payNow = quote().pay;
   if (payNow > 0 && !PAYMENTS_LIVE) return;   // card checkout not live yet
   checkoutBusy = true;
   document.querySelectorAll('.pm').forEach(b => { b.disabled = true; });
