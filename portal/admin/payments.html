@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- ═══ READ BEFORE EDITING ═══════════════════════════════════════════════
+     Payments ledger — EVERY booking in the order the money moved (booking
+     date/time, Asia/Singapore). Built 2026-08-04 after four same-day Stripe
+     payments looked like "only 2 bookings" in the per-class rosters.
+     Cash KPIs here bucket by BOOKING date; earnings.html buckets by CLASS
+     date — that difference is deliberate, don't "harmonise" it.
+     Rules and past incidents:  CRM Impactus\docs\admin-console.md
+     Non-negotiables + the gotcha list:  CRM Impactus\CLAUDE.md
+     Always FRESH-CLONE before editing - other sessions touch these files.
+════════════════════════════════════════════════════════════════════════ -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Payments — Impactus Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root { --navy:#101a2d; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --red:#c93b3b; --line:#e6e9f0; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:1160px; margin:0 auto; padding:16px; }
+  header { background:var(--navy); color:#fff; position:sticky; top:0; z-index:5; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:12px; padding-bottom:12px; gap:10px; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; }
+  nav.tabs { display:flex; gap:4px; flex-wrap:wrap; }
+  .tab { color:#fff; opacity:.75; padding:6px 12px; border-radius:8px; font-size:13px; text-decoration:none; font-weight:600; }
+  .tab:hover { opacity:1; }
+  .tab.active { background:rgba(255,255,255,.12); opacity:1; color:var(--amber); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; }
+  h1 { font-size:20px; font-weight:800; }
+  h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
+  .muted { color:var(--mut); font-size:13px; }
+  .hidden { display:none !important; }
+  input[type=text], select { padding:9px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; font-family:inherit; background:#fff; }
+  .btn { display:inline-block; padding:8px 15px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .btn.sm { padding:6px 11px; font-size:12.5px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:16px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .kpi .v { font-size:21px; font-weight:800; } .kpi .l { font-size:11.5px; color:var(--mut); margin-top:2px; }
+  .kpi .sub { font-size:11.5px; color:var(--green); margin-top:2px; font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); padding:8px 8px 6px 0; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:9px 8px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  tr.total td { font-weight:800; border-top:2px solid var(--ink); }
+  .num { text-align:right; } th.num { text-align:right; }
+  th.sortable { cursor:pointer; user-select:none; }
+  th.sortable:hover { color:var(--ink); }
+  th .arr { color:var(--amber-d); margin-left:2px; }
+  .pill { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:99px; }
+  .pill.ok { background:#e2f5ea; color:var(--green); }
+  .pill.pend { background:#fdf3d7; color:#8a6d0b; }
+  .pill.cx { background:#fbe5e5; color:var(--red); }
+  .pill.free { background:#eef0f5; color:var(--mut); }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:99px; margin-right:6px; vertical-align:baseline; }
+  .sub2 { font-size:11.5px; color:var(--mut); margin-top:2px; }
+  a.stu { color:inherit; text-decoration:none; border-bottom:1px dotted var(--mut); }
+  a.stu:hover { color:var(--amber-d); }
+  .ref { font-size:11px; color:var(--mut); font-family:ui-monospace,Menlo,Consolas,monospace; cursor:pointer; }
+  .ref:hover { color:var(--ink); }
+  footer { text-align:center; padding:26px 0 34px; }
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
+  <nav class="tabs">
+    <a class="tab" href="./" target="_blank">Dashboard</a>
+    <a class="tab" href="students" target="_blank">Students</a>
+    <a class="tab" href="signups" target="_blank">Signups ↗</a>
+    <a class="tab" href="earnings" target="_blank">Earnings ↗</a>
+    <a class="tab active" href="payments">Payments</a>
+    <a class="tab" href="referrals" target="_blank">Referrals ↗</a>
+    <a class="tab" href="coupons" target="_blank">Discounts ↗</a>
+  </nav>
+  <button class="btn ghost sm hidden" id="signout" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff">Sign out</button>
+</div></header>
+
+<div class="wrap">
+
+  <div id="view-login" class="card hidden" style="max-width:460px;margin:40px auto">
+    <h1>Sign in required</h1>
+    <p class="muted" style="margin-top:6px">Please sign in from the <a href="./" target="_blank">admin dashboard</a> first, then refresh this page.</p>
+    <button class="btn ghost" style="margin-top:14px" onclick="location.reload()">Refresh</button>
+  </div>
+
+  <div id="view-noauth" class="card hidden" style="max-width:420px;margin:40px auto">
+    <h1>Not authorized</h1>
+    <button class="btn ghost" id="noauth-out" style="margin-top:14px">Sign out</button>
+  </div>
+
+  <div id="view-app" class="hidden">
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">Payments — every booking, in order
+        <span style="display:flex;gap:6px;flex-wrap:wrap">
+          <input type="text" id="p-search" placeholder="Search name, email, class, code, ref…" style="min-width:230px">
+          <select id="p-status">
+            <option value="">All statuses</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="pending">Pending (held)</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <button class="btn ghost sm" id="p-xlsx">⬇ Excel</button>
+        </span>
+      </h2>
+      <p class="muted" id="p-count" style="margin:-4px 0 8px"></p>
+      <div id="ledger" style="overflow-x:auto">Loading…</div>
+      <p class="muted" style="margin-top:10px">One row per booking, newest first, timed in Singapore. <strong>Paid</strong> is cash actually received on that seat (net of any refund, shown ↩ beneath). Cash tiles above count <strong>confirmed</strong> seats only, bucketed by <em>booking</em> date — the Earnings tab buckets by <em>class</em> date, so the two tabs split weeks/months differently on purpose. 🏢 corp seats are invoiced to the company, not cash. Click any column heading to sort; click a Stripe ref to copy it.</p>
+    </div>
+
+  </div>
+</div>
+
+<footer class="muted">Impactus Learning Pte Ltd · Admin console</footer>
+
+<script>
+const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+const ADMIN_EMAIL = 'andrew@impactuslearning.com';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const fmt$ = (n) => 'S$' + Number(n).toLocaleString('en-SG', { maximumFractionDigits: 2 });
+const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+// Timestamps are UTC in the DB. ALWAYS convert to Asia/Singapore BEFORE bucketing or displaying —
+// after 16:00 UTC the two calendars disagree and "Today" under-counts (see admin-console.md).
+const fwhen = (ts) => new Date(ts).toLocaleString('en-SG', { timeZone: 'Asia/Singapore', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+const sgDay = (ts) => new Date(ts).toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+function mondayOf(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude L1', 'AI Animation Masterclass': 'Animation L1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude L1', 'F2F AI Animation Masterclass': 'F2F Animation L1', 'F2F AI Animation Automation': 'F2F Animation L2', 'F2F Master Claude - Build': 'F2F Claude L2' };
+const shortName = (n) => SHORTNAMES[n] || n;
+const COURSE_COLORS = { 'Master Claude: Agentic AI Masterclass': '#b83db8', 'F2F Master Claude - Agentic AI Masterclass': '#5e38a8', 'F2F Master Claude - Build': '#372163', 'AI Animation Masterclass': '#22872a', 'F2F AI Animation Masterclass': '#1b6da7', 'F2F AI Animation Automation': '#103f60' };
+function courseColor(n) { if (COURSE_COLORS[n]) return COURSE_COLORS[n]; let h = 0; for (const ch of String(n)) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},52%,45%)`; }
+const FREE = { corp: '🏢 corp inv', comp: 'comp', makeup: 'make-up', refunded: 'refunded', test: 'test', other: 'free' };
+
+let rows = [];
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  route(session);
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') route(s); });
+}
+function route(session) {
+  if (!session) { show('view-login'); return; }
+  if ((session.user.email || '').toLowerCase() !== ADMIN_EMAIL) { show('view-noauth'); return; }
+  $('signout').classList.remove('hidden');
+  show('view-app');
+  loadAll();
+}
+$('signout').onclick = () => sb.auth.signOut();
+$('noauth-out').onclick = () => sb.auth.signOut();
+
+async function loadAll() {
+  const [b, c, s, cp] = await Promise.all([
+    sb.from('bookings').select('*'),
+    sb.from('courses').select('id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id'),
+    sb.from('students').select('id,name,email,referred_by,corp_name,corp_seat_price_sgd,corp_invoice_status'),
+    sb.from('coupons').select('id,code'),
+  ]);
+  const byCourse = Object.fromEntries((c.data || []).map(x => [x.id, x]));
+  const byStudent = Object.fromEntries((s.data || []).map(x => [x.id, x]));
+  const codeOf = Object.fromEntries((cp.data || []).map(x => [x.id, x.code]));
+  rows = (b.data || []).map(bk => {
+    const st = byStudent[bk.student_id] || {};
+    const crs = byCourse[bk.course_id] || {};
+    const cash = Number(bk.cash_paid_sgd || 0);
+    const refunded = Number(bk.refunded_sgd || 0);
+    // Same corp/free reading as earnings.html — a corp seat is S$0 cash but real (invoiced) money.
+    const reason = cash > 0 ? null : (bk.free_reason || (st.corp_name ? 'corp' : null));
+    const corp = reason === 'corp' ? Number(st.corp_seat_price_sgd || bk.price_sgd || 0) : 0;
+    const refr = byStudent[st.referred_by] || null;
+    return {
+      when: bk.created_at, status: bk.status,
+      name: st.name || '(unknown student)', email: st.email || '',
+      refBy: refr ? (refr.name || '') : '', refEmail: refr ? (refr.email || '') : '',
+      course: crs.name || '(deleted class)', cdate: crs.cohort_date || '',
+      list: Number(bk.price_sgd || 0),
+      code: codeOf[bk.coupon_id] || bk.coupon_code || '',
+      disc: Number(bk.discount_sgd || 0),
+      pts: Number(bk.points_redeemed || 0),
+      cash, refunded, corp, reason,
+      ref: bk.payment_ref || '',
+    };
+  }).sort((a, b2) => a.when < b2.when ? 1 : -1);
+  renderKPIs(); renderLedger();
+}
+
+function renderKPIs() {
+  const t = today(), wk = mondayOf(t), mo = t.slice(0, 7);
+  // Cash = confirmed seats only (a cancelled row can still carry cash it once took — counting it
+  // would double Karen Cheng's S$120; earnings.html filters the same way). Bucketed by BOOKING date.
+  const conf = rows.filter(r => r.status === 'confirmed');
+  const sum = (f) => conf.filter(f).reduce((s, r) => s + r.cash, 0);
+  const cnt = (f) => conf.filter(r => f(r) && (r.cash > 0 || r.corp > 0)).length;
+  const refunded = rows.reduce((s, r) => s + r.refunded, 0);
+  const corpAll = conf.reduce((s, r) => s + r.corp, 0);
+  const isToday = (r) => sgDay(r.when) === t;
+  const isWeek = (r) => mondayOf(sgDay(r.when)) === wk;
+  const isMonth = (r) => sgDay(r.when).slice(0, 7) === mo;
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="v">${fmt$(sum(isToday))}</div><div class="l">Cash today</div><div class="sub">${cnt(isToday)} paid booking(s)</div></div>
+    <div class="kpi"><div class="v">${fmt$(sum(isWeek))}</div><div class="l">Cash this week</div><div class="sub">${cnt(isWeek)} paid booking(s)</div></div>
+    <div class="kpi"><div class="v">${fmt$(sum(isMonth))}</div><div class="l">Cash this month</div><div class="sub">${cnt(isMonth)} paid booking(s)</div></div>
+    <div class="kpi"><div class="v">${fmt$(sum(() => true))}</div><div class="l">Cash all-time</div><div class="sub">${cnt(() => true)} paid booking(s)${corpAll ? ` · + ${fmt$(corpAll)} 🏢 corp inv` : ''}</div></div>
+    ${refunded ? `<div class="kpi"><div class="v" style="color:#6b4bab">${fmt$(refunded)}</div><div class="l">↩︎ Refunded (all-time)</div><div class="sub" style="color:var(--mut);font-weight:500">already off the totals</div></div>` : ''}`;
+}
+
+// ---------- click-to-sort headings (numbers open high→low, text/date A–Z) ----------
+let sortKey = 'when', sortDir = -1;
+window.setLedgerSort = function (k) {
+  const numeric = ['list','disc','pts','cash'];
+  if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = numeric.includes(k) ? -1 : (k === 'when' ? -1 : 1); }
+  renderLedger();
+};
+const SORTVAL = {
+  when: (r) => r.when, student: (r) => (r.name || '').toLowerCase(), refby: (r) => (r.refBy || 'zzz').toLowerCase(), course: (r) => shortName(r.course).toLowerCase() + r.cdate,
+  list: (r) => r.list, disc: (r) => r.disc, pts: (r) => r.pts, cash: (r) => r.cash, status: (r) => r.status,
+};
+function headings(cols) {
+  return cols.map(c => `<th class="sortable${c.num ? ' num' : ''}" onclick="setLedgerSort('${c.k}')">${c.label}${sortKey === c.k ? `<span class="arr">${sortDir === 1 ? '▲' : '▼'}</span>` : ''}</th>`).join('');
+}
+
+function filtered() {
+  const q = ($('p-search').value || '').trim().toLowerCase();
+  const st = $('p-status').value;
+  return rows.filter(r => {
+    if (st && r.status !== st) return false;
+    if (!q) return true;
+    return [r.name, r.email, r.refBy, r.course, shortName(r.course), r.code, r.ref, r.status].some(v => String(v).toLowerCase().includes(q));
+  });
+}
+
+function renderLedger() {
+  const list = filtered().slice().sort((a, b) => {
+    const va = SORTVAL[sortKey](a), vb = SORTVAL[sortKey](b);
+    const c = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+    return c * sortDir;
+  });
+  $('p-count').textContent = `${list.length} of ${rows.length} booking(s)` + ($('p-status').value || $('p-search').value.trim() ? ' (filtered)' : '');
+  if (!list.length) { $('ledger').textContent = 'No bookings match.'; return; }
+  const cols = [
+    { k: 'when', label: 'Booked (SGT)' }, { k: 'student', label: 'Student' }, { k: 'refby', label: 'Referred by' }, { k: 'course', label: 'Class' },
+    { k: 'list', label: 'List', num: 1 }, { k: 'disc', label: 'Coupon', num: 1 }, { k: 'pts', label: 'Points', num: 1 },
+    { k: 'cash', label: 'Paid', num: 1 }, { k: 'status', label: 'Status' },
+  ];
+  const PILL = { confirmed: 'ok', pending: 'pend', cancelled: 'cx' };
+  const body = list.map(r => {
+    const coupon = r.code || r.disc ? `${esc(r.code) || '—'}${r.disc ? `<div class="sub2">−${fmt$(r.disc)}</div>` : ''}` : '<span class="muted">—</span>';
+    const paidFlag = r.status === 'confirmed' && r.cash === 0 && !r.reason && !(r.disc || r.pts) ? ' <span title="S$0 seat with no reason recorded">⚠️</span>' : '';
+    const paid = r.cash > 0 || !r.reason
+      ? `<strong>${fmt$(r.cash)}</strong>${paidFlag}`
+      : `<span class="pill free">${FREE[r.reason] || esc(r.reason)}</span>${r.corp ? `<div class="sub2">${fmt$(r.corp)} invoiced</div>` : ''}`;
+    return `<tr>
+      <td style="white-space:nowrap">${fwhen(r.when)}</td>
+      <td><a class="stu" href="students?q=${encodeURIComponent(r.email)}" target="_blank" title="${esc(r.email)}">${esc(r.name)}</a><div class="sub2">${esc(r.email)}</div></td>
+      <td>${r.refBy ? `<a class="stu" href="students?q=${encodeURIComponent(r.refEmail)}" target="_blank" title="${esc(r.refEmail)}">${esc(r.refBy)}</a>` : '<span class="muted">—</span>'}</td>
+      <td><span class="dot" style="background:${courseColor(r.course)}"></span>${esc(shortName(r.course))}<div class="sub2">${r.cdate ? fdate(r.cdate) : '—'}</div></td>
+      <td class="num muted">${fmt$(r.list)}</td>
+      <td class="num">${coupon}</td>
+      <td class="num muted">${r.pts ? '−' + r.pts : '—'}</td>
+      <td class="num">${paid}${r.refunded ? `<div class="sub2" style="color:#6b4bab">↩ ${fmt$(r.refunded)} refunded</div>` : ''}</td>
+      <td><span class="pill ${PILL[r.status] || 'free'}">${esc(r.status)}</span>${r.ref ? `<div class="ref" title="${esc(r.ref)} — click to copy" onclick="navigator.clipboard.writeText('${esc(r.ref)}')">${esc(r.ref.slice(-10))}</div>` : ''}</td>
+    </tr>`;
+  }).join('');
+  const totCash = list.filter(r => r.status === 'confirmed').reduce((s, r) => s + r.cash, 0);
+  const totPts = list.reduce((s, r) => s + r.pts, 0);
+  const totDisc = list.reduce((s, r) => s + r.disc, 0);
+  $('ledger').innerHTML = `<table><thead><tr>${headings(cols)}</tr></thead><tbody>${body}
+    <tr class="total"><td colspan="5">Total (confirmed cash, shown rows)</td>
+    <td class="num">${totDisc ? '−' + fmt$(totDisc) : '—'}</td><td class="num">${totPts ? '−' + totPts : '—'}</td>
+    <td class="num">${fmt$(totCash)}</td><td></td></tr></tbody></table>`;
+}
+$('p-search').oninput = renderLedger;
+$('p-status').onchange = renderLedger;
+
+$('p-xlsx').onclick = () => {
+  const list = filtered().slice().sort((a, b) => a.when < b.when ? 1 : -1);
+  const out = list.map(r => ({
+    'Booked (SGT)': fwhen(r.when), 'Student': r.name, 'Email': r.email,
+    'Referred By': r.refBy || '', 'Class': shortName(r.course), 'Class Date': r.cdate ? fdate(r.cdate) : '',
+    'List (S$)': r.list, 'Coupon': r.code || '', 'Discount (S$)': r.disc || '',
+    'Points Used': r.pts || '', 'Cash Paid (S$)': r.cash,
+    'Refunded (S$)': r.refunded || '', 'Free Seat': r.reason ? (FREE[r.reason] || r.reason) : '',
+    'Corp Invoiced (S$)': r.corp || '', 'Status': r.status, 'Stripe Ref': r.ref,
+  }));
+  const ws = XLSX.utils.json_to_sheet(out);
+  ws['!cols'] = [{ wch: 20 }, { wch: 24 }, { wch: 30 }, { wch: 24 }, { wch: 18 }, { wch: 12 }, { wch: 9 }, { wch: 12 }, { wch: 12 }, { wch: 11 }, { wch: 13 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 10 }, { wch: 30 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Payments');
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  XLSX.writeFile(wb, `impactus-payments-${stamp}.xlsx`);
+};
+
+init();
+</script>
+</body>
+</html>
