@@ -236,6 +236,18 @@
       <div class="msg" id="rostermsg"></div>
     </div>
 
+    <div class="card" id="certcard" style="display:none">
+      <h2 id="certtitle">Certificates</h2>
+      <p class="muted" style="margin-top:-6px;margin-bottom:10px">Everyone confirmed is ticked by default. The certificate prints the <strong>registered name</strong> unless you overwrite it — edit the box and it saves on its own. <strong>Issue</strong> creates the certificate in Certifier (dated the class date, no email yet); <strong>Email</strong> sends it. If a name changes after issuing, the row offers <strong>Reissue</strong>.</p>
+      <div id="certlist"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
+        <button class="btn" id="cert-issue">🏅 Issue selected</button>
+        <button class="btn" id="cert-email">✉️ Email issued</button>
+        <span id="cert-count" class="muted" style="font-size:12.5px"></span>
+      </div>
+      <div class="msg" id="certmsg"></div>
+    </div>
+
     <div class="card" id="cancelcard" style="display:none;border:1px solid #f3c9c9">
       <h2 id="canceltitle" style="color:var(--red)">Cancel class</h2>
       <p class="muted" style="margin-top:-6px">Choose what happens to <strong>every</strong> participant — the class can't be cancelled while anyone is still undecided. Each person's email spells out exactly what was done with their seat. Transfers keep their payment &amp; points; credit refunds go back as points instantly; cash refunds are sent back to the original payment method automatically via Stripe.</p>
@@ -338,7 +350,7 @@ function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).cl
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok' && id !== 'loginmsg') setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 
 let students = [], courses = [], bookings = [], families = [], blocks = [];
-let byStudent = {}, byCourse = {};
+let byStudent = {}, byCourse = {}, certByBooking = {};
 let editingCourse = null, rosterCourse = null;
 // The cohort currently "picked" — boxed in the Cohorts list, loaded in the edit form above it.
 let selectedCourse = null;
@@ -378,16 +390,18 @@ async function loadAll() {
   // Zoom/WhatsApp credentials are locked to admins now — read the non-secret course columns from
   // the table and the four secret ones from the admin-only view, then merge (below).
   const COURSE_COLS = 'id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id';
-  const [s, c, b, f, k, cs] = await Promise.all([
+  const [s, c, b, f, k, cs, ct] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select(COURSE_COLS).order('cohort_date'),
     sb.from('bookings').select('*'),
     sb.from('course_families').select('*').order('sort_order'),
     sb.from('calendar_blocks').select('*'),
     sb.from('course_secrets_admin').select('*'),   // zoom_link/password/meeting_id + whatsapp_url; empty for non-admins
+    sb.from('certificates').select('*'),           // per-booking certificate state (admin-only via RLS)
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || [];
   families = f.data || []; blocks = k.data || [];
+  certByBooking = Object.fromEntries((ct.data || []).map(x => [x.booking_id, x]));
   // Merge the secret columns back onto each course so every c.zoom_* / c.whatsapp_url read below
   // keeps working unchanged. They used to be readable by any signed-in user via the API.
   const secretsById = Object.fromEntries((cs.data || []).map(x => [x.id, x]));
@@ -809,6 +823,7 @@ window.openRoster = function (cid, noScroll) {
   });
   $('rostercard').style.display = '';
   $('rostertitle').textContent = `Roster — ${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''}`;
+  renderCerts(cid);
   if (!rows.length) {
     $('roster').innerHTML = '<p class="muted">No bookings yet.</p>';
     if (!noScroll) $('rostercard').scrollIntoView({ behavior: 'smooth' });
@@ -1003,6 +1018,103 @@ async function callFn(name, payload) {
   let out = {}; try { out = await res.json(); } catch (e) {}
   return { ok: res.ok, out };
 }
+
+// ---------- Certificates (per-cohort panel) ----------
+// One row per confirmed seat. NO certificates row in the DB = the defaults (ticked, registered
+// name). Ticks and name overwrites save straight to the `certificates` table (admin RLS); the
+// Certifier calls (issue / email / reissue / re-email) all go through the manage-certificates
+// edge function, which records issued_at / emailed_at / issued_name / last_error.
+function certPrintName(b, s) {
+  const cert = certByBooking[b.id];
+  return ((cert && cert.display_name) || '').trim() || (s.name || '').trim();
+}
+const certDate = (t) => t ? fdate(String(t).slice(0, 10)) : '';   // timestamptz → fdate-safe
+function renderCerts(cid) {
+  const c = byCourse[cid];
+  const show = c && !c.cancelled;
+  $('certcard').style.display = show ? '' : 'none';
+  if (!show) return;
+  $('certtitle').textContent = `Certificates — ${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''}`;
+  const rows = bookings.filter(b => b.course_id === cid && b.status === 'confirmed');
+  if (!rows.length) { $('certlist').innerHTML = '<p class="muted">No confirmed seats yet.</p>'; $('cert-count').textContent = ''; return; }
+  rows.sort((a, b2) => ((byStudent[a.student_id] || {}).name || '').localeCompare(((byStudent[b2.student_id] || {}).name || '')));
+  $('certlist').innerHTML = `<table><thead><tr><th>#</th><th></th><th>Student (registered)</th><th>Name on certificate</th><th>Status</th><th></th></tr></thead><tbody>` +
+    rows.map((b, i) => {
+      const s = byStudent[b.student_id] || { name: '?', email: '' };
+      const cert = certByBooking[b.id] || {};
+      const selected = cert.selected !== false;                     // default = ticked
+      const issued = !!cert.certifier_credential_id;
+      const drift = issued && certPrintName(b, s) !== (cert.issued_name || '');
+      const chips =
+        (issued ? `<span class="pill open" title="Certifier ${esc(cert.certifier_credential_id)}">🏅 Issued ${certDate(cert.issued_at)}</span>` : '<span class="pill pending">not issued</span>') +
+        (cert.emailed_at ? ` <span class="pill open">✉️ Emailed ${certDate(cert.emailed_at)}</span>` : (issued ? ' <span class="pill pending">not emailed</span>' : '')) +
+        (drift ? ' <span class="pill cancelled" title="The name no longer matches what was printed — reissue.">⚠ name changed</span>' : '') +
+        (cert.last_error ? `<br><span class="muted" style="color:#a33;font-size:12px">${esc(cert.last_error)}</span>` : '');
+      return `<tr>
+        <td>${i + 1}</td>
+        <td><input type="checkbox" style="width:auto" ${selected ? 'checked' : ''} ${issued ? 'disabled title="Already issued"' : ''} onchange="certSel('${b.id}', this.checked)"></td>
+        <td><strong>${esc(s.name)}</strong><br><span class="muted" style="font-size:12.5px">${esc(s.email)}</span></td>
+        <td><input value="${esc((cert.display_name || '').trim() || s.name || '')}" placeholder="${esc(s.name || '')}" style="min-width:180px" onchange="certName('${b.id}', this.value)"></td>
+        <td>${chips}</td>
+        <td>${drift ? `<button class="btn ghost sm" onclick="certRow('reissue','${b.id}')">🔁 Reissue</button>` : ''}
+            ${cert.emailed_at ? `<button class="btn ghost sm" onclick="certRow('reemail','${b.id}')">✉️ Re-email</button>` : ''}</td>
+      </tr>`;
+    }).join('') + '</tbody></table>';
+  const sel = rows.filter(b => (certByBooking[b.id] || {}).selected !== false);
+  const unissued = sel.filter(b => !(certByBooking[b.id] || {}).certifier_credential_id).length;
+  const unemailed = rows.filter(b => { const x = certByBooking[b.id] || {}; return x.certifier_credential_id && !x.emailed_at; }).length;
+  $('cert-count').textContent = `${sel.length} of ${rows.length} selected · ${unissued} to issue · ${unemailed} issued but not emailed.`;
+}
+async function certUpsert(bid, patch) {
+  const { data, error } = await sb.from('certificates')
+    .upsert({ booking_id: bid, ...patch }, { onConflict: 'booking_id' }).select().single();
+  if (error) return msg('certmsg', 'err', error.message);
+  certByBooking[bid] = data;
+  renderCerts(rosterCourse);
+}
+window.certSel = (bid, checked) => certUpsert(bid, { selected: checked });
+window.certName = (bid, value) => {
+  const b = bookings.find(x => x.id === bid); const s = byStudent[b?.student_id] || {};
+  const v = String(value || '').trim();
+  certUpsert(bid, { display_name: (!v || v === (s.name || '').trim()) ? null : v });   // registered name = no override
+};
+async function certReload() {
+  const { data } = await sb.from('certificates').select('*');
+  certByBooking = Object.fromEntries((data || []).map(x => [x.booking_id, x]));
+  renderCerts(rosterCourse);
+}
+async function certAction(action, bids, confirmText, btn) {
+  if (!confirm(confirmText)) return;
+  if (btn) btn.disabled = true;
+  msg('certmsg', 'ok', 'Talking to Certifier… (about 1s per certificate)');
+  const { ok, out } = await callFn('manage-certificates', { action, course_id: rosterCourse, ...(bids ? { booking_ids: bids } : {}) });
+  if (btn) btn.disabled = false;
+  await certReload();
+  if (!ok) return msg('certmsg', 'err', out.error || 'Failed');
+  const fails = (out.results || []).filter(r => !r.ok);
+  msg('certmsg', fails.length ? 'err' : 'ok',
+    `${out.done} done${fails.length ? `, ${fails.length} failed: ${fails.map(f => `${f.name || f.booking_id} (${f.error})`).join('; ')}` : '.'}`);
+}
+window.certRow = (action, bid) => {
+  const b = bookings.find(x => x.id === bid); const s = byStudent[b?.student_id] || {};
+  const what = action === 'reissue'
+    ? `Reissue the certificate for ${certPrintName(b, s)}? The old certificate is deleted in Certifier and a new one is issued with the current name. You'll need to email it again after.`
+    : `Email the certificate to ${s.name} (${s.email}) again?`;
+  certAction(action, [bid], what);
+};
+$('cert-issue').onclick = (e) => {
+  const rows = bookings.filter(b => b.course_id === rosterCourse && b.status === 'confirmed')
+    .filter(b => (certByBooking[b.id] || {}).selected !== false && !(certByBooking[b.id] || {}).certifier_credential_id);
+  if (!rows.length) return msg('certmsg', 'err', 'Everyone selected is already issued.');
+  const names = rows.map(b => certPrintName(b, byStudent[b.student_id] || {})).join(', ');
+  certAction('issue', null, `Issue ${rows.length} certificate(s) in Certifier (no email yet), dated ${fdate((byCourse[rosterCourse] || {}).cohort_date)}?\n\n${names}`, e.target);
+};
+$('cert-email').onclick = (e) => {
+  const n = bookings.filter(b => b.course_id === rosterCourse && b.status === 'confirmed')
+    .filter(b => { const x = certByBooking[b.id] || {}; return x.selected !== false && x.certifier_credential_id && !x.emailed_at; }).length;
+  if (!n) return msg('certmsg', 'err', 'No issued-but-unemailed certificates for this cohort.');
+  certAction('email', null, `Email ${n} certificate(s) to their recipients via Certifier?`, e.target);
+};
 
 // ---------- Cancel a class ----------
 // NOTHING is pre-decided here. The action <select> opens on "— choose —" and the red button
