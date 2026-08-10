@@ -238,6 +238,7 @@
 
     <div class="card" id="certcard" style="display:none">
       <h2 id="certtitle">Certificates</h2>
+      <p id="cert-template" class="muted" style="margin:-4px 0 8px;font-size:13px"></p>
       <p class="muted" style="margin-top:-6px;margin-bottom:10px">Everyone confirmed is ticked by default. The certificate prints the <strong>registered name</strong> unless you overwrite it — edit the box and it saves on its own. <strong>Issue</strong> creates the certificate in Certifier (dated the class date, no email yet); <strong>Email</strong> sends it. If a name changes after issuing, the row offers <strong>Reissue</strong>.</p>
       <div id="certlist"></div>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
@@ -1029,12 +1030,36 @@ function certPrintName(b, s) {
   return ((cert && cert.display_name) || '').trim() || (s.name || '').trim();
 }
 const certDate = (t) => t ? fdate(String(t).slice(0, 10)) : '';   // timestamptz → fdate-safe
+// WHICH certificate is about to print? The Certifier group hangs off the cohort's course
+// family and is the ONLY thing separating an Animation certificate from a Claude one. The
+// roster shows the cohort name, so a wrong mapping is invisible until a student opens the PDF.
+// Read the template's real name from Certifier and show it before Andrew commits a batch.
+// See PREPARE-CLASS.md Step 6.
+let certTemplate = null;                       // { course_id, name, id } for the cohort on screen
+async function loadCertTemplate(cid) {
+  certTemplate = null;
+  const el = $('cert-template');
+  if (el) { el.style.color = ''; el.textContent = 'Checking which certificate this course prints...'; }
+  const { ok, out } = await callFn('manage-certificates', { action: 'template', course_id: cid });
+  if (cid !== rosterCourse) return;            // cohort changed while we were waiting
+  if (!ok || !(out.group && out.group.name)) {
+    if (el) {
+      el.style.color = '#a33';
+      el.textContent = 'No Certifier template mapped for this course - Issue will refuse. ' + ((out && out.error) || '');
+    }
+    return;
+  }
+  certTemplate = { course_id: cid, name: out.group.name, id: out.group.id };
+  if (el) el.innerHTML = 'Prints: <strong>' + esc(out.group.name) + '</strong>'
+    + (out.family ? ' <span class="muted">(' + esc(out.family) + ')</span>' : '');
+}
 function renderCerts(cid) {
   const c = byCourse[cid];
   const show = c && !c.cancelled;
   $('certcard').style.display = show ? '' : 'none';
   if (!show) return;
   $('certtitle').textContent = `Certificates — ${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''}`;
+  loadCertTemplate(cid);
   const rows = bookings.filter(b => b.course_id === cid && b.status === 'confirmed');
   if (!rows.length) { $('certlist').innerHTML = '<p class="muted">No confirmed seats yet.</p>'; $('cert-count').textContent = ''; return; }
   rows.sort((a, b2) => ((byStudent[a.student_id] || {}).name || '').localeCompare(((byStudent[b2.student_id] || {}).name || '')));
@@ -1107,7 +1132,10 @@ $('cert-issue').onclick = (e) => {
     .filter(b => (certByBooking[b.id] || {}).selected !== false && !(certByBooking[b.id] || {}).certifier_credential_id);
   if (!rows.length) return msg('certmsg', 'err', 'Everyone selected is already issued.');
   const names = rows.map(b => certPrintName(b, byStudent[b.student_id] || {})).join(', ');
-  certAction('issue', null, `Issue ${rows.length} certificate(s) in Certifier (no email yet), dated ${fdate((byCourse[rosterCourse] || {}).cohort_date)}?\n\n${names}`, e.target);
+  if (!certTemplate || certTemplate.course_id !== rosterCourse) {
+    return msg('certmsg', 'err', 'Still checking which certificate this course prints - try again in a moment.');
+  }
+  certAction('issue', null, `Prints: "${certTemplate.name}"\n\nIssue ${rows.length} certificate(s) in Certifier (no email yet), dated ${fdate((byCourse[rosterCourse] || {}).cohort_date)}?\n\n${names}`, e.target);
 };
 $('cert-email').onclick = (e) => {
   const n = bookings.filter(b => b.course_id === rosterCourse && b.status === 'confirmed')
