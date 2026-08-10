@@ -287,10 +287,16 @@
 
     <div class="card">
       <h2>Email students</h2>
-      <p class="muted" style="margin-top:-6px;margin-bottom:12px">Send an announcement via Impactus Learning (noreply@impactuslearning.com). Use {first} for the student's first name. The class WhatsApp link is added as a footnote automatically.</p>
+      <p class="muted" style="margin-top:-6px;margin-bottom:12px">Send an announcement via Impactus Learning (noreply@impactuslearning.com). Use {first} for the student's first name. The class WhatsApp link is added as a footnote automatically. Pick a cohort, then <strong>load a template</strong> — {date}, {day}, {time}, {zoomlink}, {zoomid}, {classlink}, {venue} and {doors} fill themselves from that cohort.</p>
       <div class="formgrid">
         <div><label>Send to</label><select id="em-scope"></select></div>
         <div><label>Attach WhatsApp footnote from</label><select id="em-wa"><option value="">— none —</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-top:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px"><label>Template</label><select id="em-tpl"></select></div>
+        <button class="btn ghost sm" id="em-tpl-load">Load into form</button>
+        <button class="btn ghost sm" id="em-tpl-save" title="Save the current subject + message as a template for this cohort's course">Save current as…</button>
+        <button class="btn ghost sm" id="em-tpl-del" title="Delete the selected template">🗑</button>
       </div>
       <label style="margin-top:10px">Subject</label>
       <input id="em-subject" placeholder="e.g. See you at class this week!">
@@ -351,7 +357,7 @@ function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).cl
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok' && id !== 'loginmsg') setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 
 let students = [], courses = [], bookings = [], families = [], blocks = [];
-let byStudent = {}, byCourse = {}, certByBooking = {};
+let byStudent = {}, byCourse = {}, certByBooking = {}, emailTemplates = [];
 let editingCourse = null, rosterCourse = null;
 // The cohort currently "picked" — boxed in the Cohorts list, loaded in the edit form above it.
 let selectedCourse = null;
@@ -390,8 +396,8 @@ $('noauth-out').onclick = () => sb.auth.signOut();
 async function loadAll() {
   // Zoom/WhatsApp credentials are locked to admins now — read the non-secret course columns from
   // the table and the four secret ones from the admin-only view, then merge (below).
-  const COURSE_COLS = 'id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id';
-  const [s, c, b, f, k, cs, ct] = await Promise.all([
+  const COURSE_COLS = 'id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id,classroom_url,venue';
+  const [s, c, b, f, k, cs, ct, et] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select(COURSE_COLS).order('cohort_date'),
     sb.from('bookings').select('*'),
@@ -399,10 +405,12 @@ async function loadAll() {
     sb.from('calendar_blocks').select('*'),
     sb.from('course_secrets_admin').select('*'),   // zoom_link/password/meeting_id + whatsapp_url; empty for non-admins
     sb.from('certificates').select('*'),           // per-booking certificate state (admin-only via RLS)
+    sb.from('email_templates').select('*').order('sort_order'),  // per-family email presets
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || [];
   families = f.data || []; blocks = k.data || [];
   certByBooking = Object.fromEntries((ct.data || []).map(x => [x.booking_id, x]));
+  emailTemplates = et.data || [];
   // Merge the secret columns back onto each course so every c.zoom_* / c.whatsapp_url read below
   // keeps working unchanged. They used to be readable by any signed-in user via the API.
   const secretsById = Object.fromEntries((cs.data || []).map(x => [x.id, x]));
@@ -1299,8 +1307,87 @@ function renderEmailForm() {
   $('em-wa').innerHTML = '<option value="">— none —</option>' +
     courses.filter(c => c.whatsapp_url).sort((a, b) => a.cohort_date.localeCompare(b.cohort_date))
       .map(c => `<option value="${c.id}">${c.name} · ${fdate(c.cohort_date)}</option>`).join('');
-  $('em-scope').onchange = updateEmCount; updateEmCount();
+  $('em-scope').onchange = () => { updateEmCount(); renderEmTemplates(); };
+  updateEmCount(); renderEmTemplates();
 }
+
+// ---------- Email templates (per course family; Andrew, 2026-08-10) ----------
+// Placeholders {date}/{day}/{dshort}/{time}/{zoomlink}/{zoomid}/{classlink}/{venue}/{doors}
+// resolve from the SELECTED COHORT when a template is loaded — {first}/{name} stay
+// per-recipient and are merged server-side by send-email, so they pass through untouched.
+const EM_DEFAULT_VENUE = 'Paya Lebar Square #07-16, Singapore 409051';   // standing F2F venue (Aug 2026)
+function emScopeCourse() { const v = $('em-scope').value || ''; return v.startsWith('c:') ? byCourse[v.slice(2)] : null; }
+function renderEmTemplates() {
+  const c = emScopeCourse();
+  // family-specific templates for the selected cohort first, then generic (family_id null)
+  const list = emailTemplates.filter(t => (c && t.family_id === c.family_id) || !t.family_id);
+  $('em-tpl').innerHTML = list.length
+    ? list.map(t => `<option value="${t.id}">${esc(t.name)}${t.family_id ? '' : ' (generic)'}</option>`).join('')
+    : '<option value="">' + (c ? '— no templates for this course yet —' : '— pick a cohort above to see its templates —') + '</option>';
+}
+function emDoors(sessionTime) {
+  // "8:30am – 12:00pm" -> doors 30 min before the start -> "8:00am"
+  const m = String(sessionTime || '').match(/(\d{1,2}):(\d{2})\s*(am|pm)/i);
+  if (!m) return '';
+  let mins = (Number(m[1]) % 12) * 60 + Number(m[2]) + (m[3].toLowerCase() === 'pm' ? 720 : 0) - 30;
+  if (mins < 0) mins += 1440;
+  const h24 = Math.floor(mins / 60), mm = String(mins % 60).padStart(2, '0');
+  return `${((h24 + 11) % 12) + 1}:${mm}${h24 < 12 ? 'am' : 'pm'}`;
+}
+function emResolve(text, c) {
+  const d = c.cohort_date ? new Date(c.cohort_date + 'T00:00:00') : null;
+  const map = {
+    date: d ? fdate(c.cohort_date) : '',
+    dshort: d ? d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }) : '',
+    day: d ? d.toLocaleDateString('en-SG', { weekday: 'long' }) : '',
+    time: c.session_time || '',
+    zoomlink: c.zoom_link || '',
+    zoomid: String(c.zoom_meeting_id || '').replace(/^(\d{3})(\d{4})(\d+)$/, '$1 $2 $3'),
+    classlink: c.classroom_url || '',
+    venue: c.venue || EM_DEFAULT_VENUE,
+    doors: emDoors(c.session_time),
+  };
+  const missing = new Set();
+  const out = String(text || '').replace(/\{(date|dshort|day|time|zoomlink|zoomid|classlink|venue|doors)\}/g,
+    (_, k) => map[k] || (missing.add(k), `⚠${k}-MISSING⚠`));
+  return { out, missing: [...missing] };
+}
+$('em-tpl-load').onclick = () => {
+  const t = emailTemplates.find(x => x.id === $('em-tpl').value);
+  if (!t) return msg('em-msg', 'err', 'No template selected.');
+  const c = emScopeCourse();
+  if (!c) return msg('em-msg', 'err', 'Pick a specific cohort in "Send to" first — the placeholders fill from it.');
+  const su = emResolve(t.subject, c), bo = emResolve(t.body, c);
+  $('em-subject').value = su.out; $('em-body').value = bo.out;
+  const miss = [...new Set([...su.missing, ...bo.missing])];
+  msg('em-msg', miss.length ? 'err' : 'ok', miss.length
+    ? `Loaded, but this cohort has no value for: ${miss.join(', ')} — fix the ⚠ markers before sending. (classlink/venue live on the cohort record; zoom via the Create Zoom button.)`
+    : `Template loaded for ${c.name} · ${fdate(c.cohort_date)} — review, Send test to me, then send.`);
+};
+$('em-tpl-save').onclick = async () => {
+  if (!$('em-subject').value.trim() || !$('em-body').value.trim()) return msg('em-msg', 'err', 'Nothing to save — fill in a subject and message first.');
+  const name = prompt('Template name (e.g. "Pre-class welcome", "Day-before reminder"):');
+  if (!name || !name.trim()) return;
+  const c = emScopeCourse();
+  // Saved for the selected cohort's course family; with no cohort selected it saves as generic.
+  const { error } = await sb.from('email_templates').insert({
+    family_id: c ? c.family_id : null, name: name.trim(),
+    subject: $('em-subject').value, body: $('em-body').value,
+  });
+  if (error) return msg('em-msg', 'err', error.message);
+  const { data } = await sb.from('email_templates').select('*').order('sort_order');
+  emailTemplates = data || []; renderEmTemplates();
+  msg('em-msg', 'ok', `Saved "${name.trim()}"${c ? ' for ' + ((families.find(f => f.id === c.family_id) || {}).name || 'this course') : ' as a generic template'}. Tip: keep {placeholders} in the text so it fills itself next time.`);
+};
+$('em-tpl-del').onclick = async () => {
+  const t = emailTemplates.find(x => x.id === $('em-tpl').value);
+  if (!t) return msg('em-msg', 'err', 'No template selected.');
+  if (!confirm(`Delete the template "${t.name}"? This can't be undone.`)) return;
+  const { error } = await sb.from('email_templates').delete().eq('id', t.id);
+  if (error) return msg('em-msg', 'err', error.message);
+  emailTemplates = emailTemplates.filter(x => x.id !== t.id); renderEmTemplates();
+  msg('em-msg', 'ok', `Deleted "${t.name}".`);
+};
 function emRecipients() {
   const v = $('em-scope').value || 'all';
   const sids = new Set();
