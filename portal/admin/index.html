@@ -287,7 +287,7 @@
 
     <div class="card">
       <h2>Email students</h2>
-      <p class="muted" style="margin-top:-6px;margin-bottom:12px">Send an announcement via Impactus Learning (noreply@impactuslearning.com). Use {first} for the student's first name. The class WhatsApp link is added as a footnote automatically. Pick a cohort, then <strong>load a template</strong> — {date}, {day}, {time}, {zoomlink}, {zoomid}, {classlink}, {venue} and {doors} fill themselves from that cohort.</p>
+      <p class="muted" style="margin-top:-6px;margin-bottom:12px">Send an announcement via Impactus Learning (noreply@impactuslearning.com). Use {first} for the student's first name. The class WhatsApp link is added as a footnote automatically. Pick a cohort, then <strong>load a template</strong> — {date}, {day}, {time}, {zoomlink}, {zoomid}, {classlink}, {venue}, {doors} and {walink} fill themselves from that cohort. If the body carries {walink}, leave the footnote dropdown on “— none —” so the group link isn’t sent twice.</p>
       <div class="formgrid">
         <div><label>Send to</label><select id="em-scope"></select></div>
         <div><label>Attach WhatsApp footnote from</label><select id="em-wa"><option value="">— none —</option></select></div>
@@ -1350,9 +1350,10 @@ function emResolve(text, c) {
     classlink: c.classroom_url || '',
     venue: c.venue || EM_DEFAULT_VENUE,
     doors: emDoors(c.session_time),
+    walink: c.whatsapp_url || '',        // merged onto the course from course_secrets_admin
   };
   const missing = new Set();
-  const out = String(text || '').replace(/\{(date|dshort|day|time|zoomlink|zoomid|classlink|venue|doors)\}/g,
+  const out = String(text || '').replace(/\{(date|dshort|day|time|zoomlink|zoomid|classlink|venue|doors|walink)\}/g,
     (_, k) => map[k] || (missing.add(k), `⚠${k}-MISSING⚠`));
   return { out, missing: [...missing] };
 }
