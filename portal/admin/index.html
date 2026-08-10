@@ -396,7 +396,11 @@ $('noauth-out').onclick = () => sb.auth.signOut();
 async function loadAll() {
   // Zoom/WhatsApp credentials are locked to admins now — read the non-secret course columns from
   // the table and the four secret ones from the admin-only view, then merge (below).
-  const COURSE_COLS = 'id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id,classroom_url,venue';
+  // ⚠ courses has COLUMN-LEVEL grants — selecting a column that isn't granted fails the WHOLE
+  // query with "permission denied" and empties the dashboard (2026-08-10 incident). Admin-only
+  // columns (zoom_*, whatsapp_url, classroom_url, venue) come from course_secrets_admin below,
+  // never from this list.
+  const COURSE_COLS = 'id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id';
   const [s, c, b, f, k, cs, ct, et] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select(COURSE_COLS).order('cohort_date'),
