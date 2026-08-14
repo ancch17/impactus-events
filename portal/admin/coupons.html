@@ -129,6 +129,10 @@ function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).cl
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok') setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 6000); }
 
 let courses = [], families = [], coupons = [], couponAudit = [], byCourse = {};
+// Coupon ids that at least one booking row still points at, INCLUDING cancelled bookings.
+// This — not coupons.uses — is what decides whether a code can be deleted. See the note above
+// renderCoupons().
+let couponRefs = new Set();
 
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -146,13 +150,15 @@ $('signout').onclick = () => sb.auth.signOut();
 $('noauth-out').onclick = () => sb.auth.signOut();
 
 async function loadAll() {
-  const [c, f, g, ca] = await Promise.all([
+  const [c, f, g, ca, bk] = await Promise.all([
     sb.from('courses').select('id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id').order('cohort_date'),
     sb.from('course_families').select('*').order('sort_order'),
     sb.from('coupons').select('*').order('created_at', { ascending: false }),
     sb.from('coupon_audit').select('*').order('created_at', { ascending: false }),
+    sb.from('bookings').select('coupon_id').not('coupon_id', 'is', null),
   ]);
   courses = c.data || []; families = f.data || []; coupons = g.data || []; couponAudit = (ca && ca.data) || [];
+  couponRefs = new Set(((bk && bk.data) || []).map(b => b.coupon_id));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
   renderCouponForm(); renderCoupons(); renderCouponAudit();
 }
@@ -208,9 +214,16 @@ function renderCoupons() {
         : expired ? '<span class="pill cancelled">Expired</span>'
         : capped ? '<span class="pill cancelled">Used up</span>'
         : '<span class="pill open">Live</span>';
-      const deleteBtn = c.uses > 0
-        ? `<button class="btn sm ghost" disabled title="This code has been redeemed, so it can't be deleted — bookings still reference it. Turn it off instead." style="color:#999;cursor:not-allowed;opacity:.6">In use</button>`
-        : `<button class="btn sm ghost" style="color:#c0392b" onclick="deleteCoupon('${c.id}','${c.code}',${c.uses || 0})">Delete</button>`;
+      // Locked = a booking row still points at this coupon. NOT the same thing as uses > 0:
+      // cancelling a booking rolls `uses` back to 0 but leaves bookings.coupon_id set, and
+      // the foreign key still refuses the delete. See the note above deleteCoupon().
+      const locked = couponRefs.has(c.id);
+      const lockTitle = c.uses > 0
+        ? "This code has been redeemed, so it can't be deleted — bookings still reference it. Turn it off instead."
+        : "A cancelled booking still references this code, so it can't be deleted even though the count is back to 0. Turn it off instead.";
+      const deleteBtn = locked
+        ? `<button class="btn sm ghost" disabled title="${esc(lockTitle)}" style="color:#999;cursor:not-allowed;opacity:.6">In use</button>`
+        : `<button class="btn sm ghost" style="color:#c0392b" onclick="deleteCoupon('${c.id}','${c.code}')">Delete</button>`;
       const reuseBadge = c.reusable_per_student
         ? `<div style="margin-top:3px"><span class="pill" style="background:#e8ecff;color:#3b5bdb">↻ Reusable</span></div>` : '';
       const reuseBtn = `<button class="btn sm ghost" onclick="toggleReuse('${c.id}',${!!c.reusable_per_student})" title="${c.reusable_per_student ? 'Reusable — each student can use it on more than one course. Click to make it one use per student.' : 'One use per student. Click to let each student use it more than once, across different courses.'}">${c.reusable_per_student ? 'One use' : 'Allow reuse'}</button>`;
@@ -235,15 +248,23 @@ window.toggleReuse = async function (id, cur) {
   await loadAll();
 };
 
-// Deleting a code only ever applies to codes that have never been redeemed - once a booking
-// references a code, the database's foreign key won't allow the row to be removed, so the
-// Delete button is swapped for a disabled "In use" button in renderCoupons() instead. This
-// guard is just a defensive backstop in case the list is stale when the button is clicked.
-window.deleteCoupon = async function (id, code, uses) {
-  if (uses > 0) return alert(`Code ${code} has been used, so it can't be deleted. Use "Turn off" instead - it stops the code working without touching the bookings that already used it.`);
-  if (!confirm(`Delete code ${code}?\n\nIt has never been used. This removes it permanently.`)) return;
+// Deleting a code only ever applies to codes NO booking row points at. bookings.coupon_id has
+// a plain foreign key with no ON DELETE, so the database refuses the delete while any booking
+// references the code — and that includes CANCELLED bookings, whose cancellation rolled
+// coupons.uses back to 0. Gating on `uses > 0` therefore un-greys the button on a code Postgres
+// will never let go (hit on TEST27AUG, 14 Aug 2026); gate on couponRefs instead. renderCoupons()
+// swaps the button for a disabled "In use" chip; the checks below are backstops for a stale list.
+window.deleteCoupon = async function (id, code) {
+  if (couponRefs.has(id)) return alert(`Code ${code} is still attached to a booking, so it can't be deleted. Use "Turn off" instead - it stops the code working without touching the bookings that reference it.`);
+  if (!confirm(`Delete code ${code}?\n\nNo booking references it. This removes it permanently.`)) return;
   const { error } = await sb.from('coupons').delete().eq('id', id);
-  if (error) return alert(error.message);
+  if (error) {
+    if (error.code === '23503' || /foreign key/i.test(error.message)) {
+      await loadAll();
+      return alert(`Code ${code} is still attached to a booking, so the database won't delete it. The list has been refreshed. Use "Turn off" instead.`);
+    }
+    return alert(error.message);
+  }
   await loadAll();
   msg('c-msg', 'ok', `Code ${code} deleted.`);
 };
