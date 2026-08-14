@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- ═══ READ BEFORE EDITING ═══════════════════════════════════════════════
+     IMPACTUS CLASSROOM — admin manager (Aug 2026). Replaces Google Classroom.
+     Course library (family-level, inherited by every cohort) + per-class extras,
+     link items and FILE UPLOADS (Supabase Storage bucket `class-materials`).
+     Students see published items via get_my_classroom() in portal/app.html.
+     Rules and past incidents:  CRM Impactus\docs\admin-console.md
+     Non-negotiables + the gotcha list:  CRM Impactus\CLAUDE.md
+     Always FRESH-CLONE before editing - other sessions touch these files.
+════════════════════════════════════════════════════════════════════════ -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Classroom — Impactus Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --navy:#101a2d; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --red:#c93b3b; --line:#e6e9f0; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:1080px; margin:0 auto; padding:16px; }
+  header { background:var(--navy); color:#fff; position:sticky; top:0; z-index:5; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:12px; padding-bottom:12px; gap:10px; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; }
+  nav.tabs { display:flex; gap:4px; flex-wrap:wrap; }
+  .tab { color:#fff; opacity:.75; padding:6px 12px; border-radius:8px; font-size:13px; text-decoration:none; font-weight:600; }
+  .tab:hover { opacity:1; }
+  .tab.active { background:rgba(255,255,255,.12); opacity:1; color:var(--amber); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; scroll-margin-top:72px; }
+  h1 { font-size:20px; font-weight:800; }
+  h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
+  .muted { color:var(--mut); font-size:13px; }
+  .hidden { display:none !important; }
+  .btn { display:inline-block; padding:8px 15px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .btn.sm { padding:6px 11px; font-size:12.5px; }
+  .btn.danger { background:#fff; border:1px solid #f0caca; color:var(--red); }
+  .btn:disabled { opacity:.55; cursor:default; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--mut); margin:10px 0 4px; }
+  input[type=text], input[type=url], textarea, select { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-size:13.5px; font-family:inherit; background:#fff; }
+  textarea { min-height:64px; resize:vertical; }
+  .msg { font-size:13px; margin-top:10px; min-height:18px; }
+  .msg.ok { color:var(--green); } .msg.err { color:var(--red); }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); padding:8px 8px 6px 0; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:9px 8px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  .chip { display:inline-block; padding:6px 12px; border:1px solid var(--line); border-radius:999px; font-size:12.5px; font-weight:700; cursor:pointer; background:#fff; margin:0 6px 8px 0; font-family:inherit; }
+  .chip.on { background:var(--navy); color:#fff; border-color:var(--navy); }
+  .ok-dot { color:var(--green); font-weight:700; }
+  .no-dot { color:var(--red); font-weight:700; }
+  .mat { display:flex; gap:10px; align-items:flex-start; border:1px solid var(--line); border-radius:11px; padding:11px 13px; margin-top:8px; }
+  .mat.off { opacity:.55; background:#fafbfc; }
+  .mat-title { font-weight:700; font-size:13.5px; }
+  .mat-sub { color:var(--mut); font-size:12.5px; margin-top:2px; word-break:break-all; }
+  .mat-acts { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  .pillmini { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; background:#eef1f6; color:#556; margin-left:6px; vertical-align:1px; }
+  footer { text-align:center; padding:26px 0 34px; }
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
+  <nav class="tabs">
+    <a class="tab" href="./" target="_blank">Dashboard ↗</a>
+    <a class="tab active" href="classroom">Classroom</a>
+    <a class="tab" href="students" target="_blank">Students ↗</a>
+    <a class="tab" href="signups" target="_blank">Signups ↗</a>
+    <a class="tab" href="earnings" target="_blank">Earnings ↗</a>
+    <a class="tab" href="payments" target="_blank">Payments ↗</a>
+    <a class="tab" href="referrals" target="_blank">Referrals ↗</a>
+    <a class="tab" href="coupons" target="_blank">Discounts ↗</a>
+  </nav>
+  <button class="btn ghost sm hidden" id="signout" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff">Sign out</button>
+</div></header>
+
+<div class="wrap">
+
+  <div id="view-login" class="card hidden" style="max-width:460px;margin:40px auto">
+    <h1>Sign in required</h1>
+    <p class="muted" style="margin-top:6px">Please sign in from the <a href="./" target="_blank">admin dashboard</a> first, then refresh this page.</p>
+    <button class="btn ghost" style="margin-top:14px" onclick="location.reload()">Refresh</button>
+  </div>
+
+  <div id="view-noauth" class="card hidden" style="max-width:420px;margin:40px auto">
+    <h1>Not authorized</h1>
+    <button class="btn ghost" id="noauth-out" style="margin-top:14px">Sign out</button>
+  </div>
+
+  <div id="view-app" class="hidden">
+
+    <!-- ── Readiness board ─────────────────────────────────────────────── -->
+    <div class="card">
+      <h2>📋 Class readiness — every upcoming cohort at a glance</h2>
+      <p class="muted" style="margin-top:-4px;margin-bottom:8px">What students see in their portal Classroom: Zoom (or venue for F2F), the WhatsApp group, and the published materials below. Red ✗ = a booked student is missing something.</p>
+      <div id="board" class="muted">Loading…</div>
+    </div>
+
+    <!-- ── Course library ──────────────────────────────────────────────── -->
+    <div class="card" id="librarycard">
+      <h2>📚 Course library — set up once, every class of that course gets it</h2>
+      <p class="muted" style="margin-top:-4px;margin-bottom:10px">MUST-DO list, lecture slides, bonus files… Add a <b>link</b> or <b>upload a file</b>. Published items appear instantly in every booked student's portal; Hidden items stay staged until you publish.</p>
+      <div id="famchips"></div>
+      <div id="liblist" class="muted">Pick a course above.</div>
+      <div id="libform"></div>
+      <div class="msg" id="libmsg"></div>
+    </div>
+
+    <!-- ── Per-class extras ────────────────────────────────────────────── -->
+    <div class="card" id="extrascard">
+      <h2>🗓 Class extras — items for ONE specific class only</h2>
+      <p class="muted" style="margin-top:-4px;margin-bottom:10px">Session recordings, cohort-specific notes… These show ONLY to students of the selected class, on top of the course library above.</p>
+      <label>Class</label>
+      <select id="exsel"></select>
+      <div id="exlist" class="muted" style="margin-top:8px"></div>
+      <div id="exform"></div>
+      <div class="msg" id="exmsg"></div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="muted">Impactus Learning Pte Ltd · Admin console</footer>
+
+<script>
+const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+const ADMIN_EMAIL = 'andrew@impactuslearning.com';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+const dow = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { weekday: 'short' });
+const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; }
+function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+
+// Andrew-friendly short labels per family slug (course library chips + board).
+const FAM_LABEL = {
+  'claude': 'Claude L1 · Online', 'f2f-claude': 'Claude L1 · F2F', 'f2f-build': 'Claude L2 Build · F2F',
+  'animation': 'Animation L1 · Online', 'f2f-animation': 'Animation L1 · F2F', 'f2f-automation': 'Animation L2 Automation · F2F',
+  'test-class': 'Test Class',
+};
+const famLabel = (f) => FAM_LABEL[f.slug] || f.name;
+const CM_FILE_BASE = SUPABASE_URL + '/storage/v1/object/public/class-materials/';
+const matHref = (m) => m.kind === 'file' && m.file_path ? CM_FILE_BASE + encodeURI(m.file_path) : (m.url || '');
+
+let families = [], courses = [], bookings = [], materials = [];
+let curFam = null;        // selected family id (course library)
+let curCourse = null;     // selected course id (class extras)
+let editing = null;       // material row being edited, or null
+let busy = false;         // module flag — never guard on button.disabled alone (rule 7)
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  route(session);
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') route(s); });
+}
+function route(session) {
+  if (!session) { show('view-login'); return; }
+  if ((session.user.email || '').toLowerCase() !== ADMIN_EMAIL) { show('view-noauth'); return; }
+  $('signout').classList.remove('hidden');
+  show('view-app');
+  loadAll();
+}
+$('signout').onclick = () => sb.auth.signOut();
+$('noauth-out').onclick = () => sb.auth.signOut();
+
+async function loadAll() {
+  // ⚠ courses has COLUMN-LEVEL grants — never select('*') and never name an ungranted column
+  // (2026-08-10 incident). Secrets (zoom_*, whatsapp_url, classroom_url, venue) come from the
+  // admin-only course_secrets_admin view and are merged on below.
+  const COURSE_COLS = 'id,name,cohort_date,price_sgd,is_open,session_time,family_id,cancelled,is_draft,is_full';
+  const [c, f, b, m, cs] = await Promise.all([
+    sb.from('courses').select(COURSE_COLS).order('cohort_date'),
+    sb.from('course_families').select('*').order('sort_order'),
+    sb.from('bookings').select('id,course_id,status'),
+    sb.from('class_materials').select('*').order('sort_order').order('created_at'),
+    sb.from('course_secrets_admin').select('*'),
+  ]);
+  courses = c.data || []; families = f.data || []; bookings = b.data || []; materials = m.data || [];
+  const secretsById = Object.fromEntries(((cs.data) || []).map(x => [x.id, x]));
+  courses.forEach(cc => Object.assign(cc, secretsById[cc.id] || {}));
+  if (!curFam) { const first = families.find(x => x.status === 'active' && x.slug !== 'test-class'); curFam = first && first.id; }
+  renderBoard(); renderFamChips(); renderLibrary(); renderExtras();
+}
+
+const famById = (id) => families.find(f => f.id === id);
+const seatCount = (cid) => bookings.filter(b => b.course_id === cid && b.status === 'confirmed').length;
+const famMats = (fid) => materials.filter(m => !m.course_id && m.family_id === fid);
+const courseMats = (cid) => materials.filter(m => m.course_id === cid);
+const visibleCount = (c) => materials.filter(m => m.is_published && (m.course_id === c.id || (!m.course_id && m.family_id === c.family_id))).length;
+
+// ── Readiness board ────────────────────────────────────────────────────────
+function renderBoard() {
+  const tod = today();
+  const rows = courses.filter(c => !c.cancelled && !c.is_draft && c.cohort_date >= tod);
+  if (!rows.length) { $('board').textContent = 'No upcoming cohorts.'; return; }
+  const dot = (ok, warn) => ok ? '<span class="ok-dot">✓</span>' : '<span class="' + (warn ? 'no-dot' : 'muted') + '">✗</span>';
+  $('board').innerHTML = '<table><thead><tr><th>Date</th><th>Class</th><th>Seats</th><th>' +
+    'Zoom</th><th>WhatsApp</th><th>Materials</th><th></th></tr></thead><tbody>' +
+    rows.map(c => {
+      const f = famById(c.family_id) || {};
+      const seats = seatCount(c.id);
+      const f2f = (f.slug || '').startsWith('f2f-');
+      const nMat = visibleCount(c);
+      return '<tr><td style="white-space:nowrap">' + dow(c.cohort_date) + ' ' + fdate(c.cohort_date) +
+        '<div class="muted" style="font-size:11.5px">' + esc(c.session_time || '') + '</div></td>' +
+        '<td><b>' + esc(famLabel(f)) + '</b>' + (f2f ? '' : '') + '</td>' +
+        '<td>' + (seats || '<span class="muted">0</span>') + '</td>' +
+        '<td>' + dot(!!c.zoom_link, seats > 0) + '</td>' +
+        '<td>' + dot(!!c.whatsapp_url, seats > 0) + '</td>' +
+        '<td>' + (nMat ? nMat : '<span class="no-dot">0</span>') + '</td>' +
+        '<td style="text-align:right;white-space:nowrap">' +
+          '<button class="btn ghost sm" onclick="jumpLibrary(\'' + c.family_id + '\')">Library</button> ' +
+          '<button class="btn ghost sm" onclick="jumpExtras(\'' + c.id + '\')">Extras</button></td></tr>';
+    }).join('') + '</tbody></table>' +
+    '<p class="muted" style="margin-top:8px;font-size:12px">Zoom &amp; WhatsApp are set on the <a href="./" target="_blank">Dashboard</a> cohort card (Create Zoom / +WA). Students always see them in their portal Classroom once set — materials come from the library below.</p>';
+}
+window.jumpLibrary = (fid) => { curFam = fid; renderFamChips(); renderLibrary(); $('librarycard').scrollIntoView({ behavior: 'smooth' }); };
+window.jumpExtras = (cid) => { curCourse = cid; renderExtras(); $('extrascard').scrollIntoView({ behavior: 'smooth' }); };
+
+// ── Course library ─────────────────────────────────────────────────────────
+function renderFamChips() {
+  $('famchips').innerHTML = families
+    .filter(f => f.status === 'active' && f.slug !== 'test-class')
+    .map(f => '<button type="button" class="chip' + (f.id === curFam ? ' on' : '') + '" data-fam="' + f.id + '">' + esc(famLabel(f)) + '</button>').join('');
+  document.querySelectorAll('[data-fam]').forEach(b => b.onclick = () => { curFam = b.dataset.fam; editing = null; renderFamChips(); renderLibrary(); });
+}
+
+function matRow(m, scope) {
+  const href = matHref(m);
+  const ico = m.kind === 'file' ? '📎' : m.kind === 'text' ? '📝' : '🔗';
+  return '<div class="mat' + (m.is_published ? '' : ' off') + '">' +
+    '<div style="flex:1;min-width:0"><div class="mat-title">' + ico + ' ' + esc(m.title) +
+      (m.is_published ? '' : '<span class="pillmini">hidden from students</span>') + '</div>' +
+    (m.description ? '<div class="mat-sub" style="word-break:normal">' + esc(m.description) + '</div>' : '') +
+    (href ? '<div class="mat-sub"><a href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(m.kind === 'file' ? (m.file_name || m.file_path) : href) + '</a></div>' : '') +
+    '</div><div class="mat-acts">' +
+    '<button class="btn ghost sm" data-up="' + m.id + '" title="Move up">↑</button>' +
+    '<button class="btn ghost sm" data-dn="' + m.id + '" title="Move down">↓</button>' +
+    '<button class="btn ghost sm" data-tog="' + m.id + '">' + (m.is_published ? 'Published ✓' : 'Publish') + '</button>' +
+    '<button class="btn ghost sm" data-edit="' + m.id + '">✎ Edit</button>' +
+    '<button class="btn danger sm" data-del="' + m.id + '">🗑</button>' +
+    '</div></div>';
+}
+
+function formHTML(prefix, mode) {
+  const e = editing && editing._where === prefix ? editing : null;
+  return '<div style="border-top:1px dashed var(--line);margin-top:14px;padding-top:6px">' +
+    '<h2 style="margin-top:8px">' + (e ? '✎ Edit item' : '+ Add an item') + '</h2>' +
+    '<label>Title</label><input type="text" id="' + prefix + '-title" placeholder="e.g. MUST DO before CLASS" value="' + esc(e ? e.title : '') + '">' +
+    '<label>Description (optional — students see this under the title)</label><textarea id="' + prefix + '-desc">' + esc(e ? e.description || '' : '') + '</textarea>' +
+    '<label>Link URL — or upload a file below instead</label><input type="url" id="' + prefix + '-url" placeholder="https://…" value="' + esc(e && e.kind === 'link' ? e.url || '' : '') + '">' +
+    '<label>Upload a file (PDF, slides, worksheet…)</label><input type="file" id="' + prefix + '-file">' +
+    (e && e.kind === 'file' ? '<p class="muted" style="margin-top:4px">Currently: ' + esc(e.file_name || e.file_path) + ' — choosing a new file replaces it.</p>' : '') +
+    '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">' +
+    '<button class="btn" id="' + prefix + '-save">' + (e ? 'Save changes' : 'Add item') + '</button>' +
+    (e ? '<button class="btn ghost" id="' + prefix + '-cancel">Cancel</button>' : '') +
+    '</div></div>';
+}
+
+function renderLibrary() {
+  const f = famById(curFam);
+  if (!f) { $('liblist').textContent = 'Pick a course above.'; $('libform').innerHTML = ''; return; }
+  const rows = famMats(curFam);
+  $('liblist').innerHTML = (rows.length ? rows.map(m => matRow(m, 'lib')).join('')
+    : '<p class="muted">No items yet for ' + esc(famLabel(f)) + ' — add the MUST-DO list and lecture slides below.</p>');
+  $('libform').innerHTML = formHTML('lib');
+  wireList('lib');
+}
+
+// ── Class extras ───────────────────────────────────────────────────────────
+function renderExtras() {
+  const tod = today();
+  const opts = courses.filter(c => !c.cancelled && !c.is_draft && c.cohort_date >= tod);
+  $('exsel').innerHTML = '<option value="">— choose a class —</option>' + opts.map(c => {
+    const f = famById(c.family_id) || {};
+    return '<option value="' + c.id + '"' + (c.id === curCourse ? ' selected' : '') + '>' +
+      esc(dow(c.cohort_date) + ' ' + fdate(c.cohort_date) + ' · ' + famLabel(f) + (c.session_time ? ' · ' + c.session_time : '')) + '</option>';
+  }).join('');
+  $('exsel').onchange = () => { curCourse = $('exsel').value || null; editing = null; renderExtras(); };
+  if (!curCourse) { $('exlist').textContent = 'Course-library items already cover every class — extras are only for one-off additions like a session recording.'; $('exform').innerHTML = ''; return; }
+  const rows = courseMats(curCourse);
+  const c = courses.find(x => x.id === curCourse);
+  const inherited = c ? famMats(c.family_id).filter(m => m.is_published).length : 0;
+  $('exlist').innerHTML = (inherited ? '<p class="muted" style="margin-bottom:4px">This class already inherits <b>' + inherited + '</b> published item(s) from its course library.</p>' : '') +
+    (rows.length ? rows.map(m => matRow(m, 'ex')).join('') : '<p class="muted">No extras for this class yet.</p>');
+  $('exform').innerHTML = formHTML('ex');
+  wireList('ex');
+}
+
+// ── Shared list/form wiring ────────────────────────────────────────────────
+function wireList(prefix) {
+  const scopeRows = prefix === 'lib' ? famMats(curFam) : courseMats(curCourse);
+  document.querySelectorAll('#' + (prefix === 'lib' ? 'liblist' : 'exlist') + ' [data-edit]').forEach(b => b.onclick = () => {
+    editing = Object.assign({ _where: prefix }, materials.find(m => m.id === b.dataset.edit));
+    prefix === 'lib' ? renderLibrary() : renderExtras();
+  });
+  document.querySelectorAll('#' + (prefix === 'lib' ? 'liblist' : 'exlist') + ' [data-del]').forEach(b => b.onclick = () => delMat(b.dataset.del, prefix));
+  document.querySelectorAll('#' + (prefix === 'lib' ? 'liblist' : 'exlist') + ' [data-tog]').forEach(b => b.onclick = () => togMat(b.dataset.tog, prefix));
+  document.querySelectorAll('#' + (prefix === 'lib' ? 'liblist' : 'exlist') + ' [data-up]').forEach(b => b.onclick = () => moveMat(b.dataset.up, -1, scopeRows, prefix));
+  document.querySelectorAll('#' + (prefix === 'lib' ? 'liblist' : 'exlist') + ' [data-dn]').forEach(b => b.onclick = () => moveMat(b.dataset.dn, +1, scopeRows, prefix));
+  const save = $(prefix + '-save');
+  if (save) save.onclick = () => saveMat(prefix);
+  const cancel = $(prefix + '-cancel');
+  if (cancel) cancel.onclick = () => { editing = null; prefix === 'lib' ? renderLibrary() : renderExtras(); };
+}
+
+async function saveMat(prefix) {
+  if (busy) return; busy = true;
+  const mid = prefix === 'lib' ? 'libmsg' : 'exmsg';
+  try {
+    const title = $(prefix + '-title').value.trim();
+    if (!title) { msg(mid, 'err', 'Give the item a title.'); busy = false; return; }
+    if (prefix === 'lib' && !curFam) { busy = false; return; }
+    if (prefix === 'ex' && !curCourse) { msg(mid, 'err', 'Choose a class first.'); busy = false; return; }
+    const desc = $(prefix + '-desc').value.trim() || null;
+    const url = $(prefix + '-url').value.trim();
+    const fileInput = $(prefix + '-file');
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    const row = {
+      title, description: desc,
+      family_id: prefix === 'lib' ? curFam : null,
+      course_id: prefix === 'ex' ? curCourse : null,
+      updated_at: new Date().toISOString(),
+    };
+    if (file) {
+      msg(mid, 'ok', 'Uploading ' + file.name + '…');
+      const f = famById(prefix === 'lib' ? curFam : (courses.find(c => c.id === curCourse) || {}).family_id);
+      const dir = prefix === 'lib' ? ((f && f.slug) || 'course') : ('class-' + curCourse);
+      const path = dir + '/' + Date.now() + '-' + file.name.replace(/[^\w.\-]+/g, '_');
+      const { data: up, error: upErr } = await sb.storage.from('class-materials').upload(path, file);
+      if (upErr) throw new Error('Upload failed: ' + upErr.message);
+      row.kind = 'file'; row.file_path = up.path; row.file_name = file.name; row.url = null;
+    } else if (url) {
+      row.kind = 'link'; row.url = url; row.file_path = null; row.file_name = null;
+    } else if (editing && editing._where === prefix) {
+      row.kind = editing.kind; row.url = editing.kind === 'link' ? (url || editing.url) : null;   // kept as-is when nothing new given
+      if (editing.kind === 'file') { row.file_path = editing.file_path; row.file_name = editing.file_name; }
+      if (editing.kind === 'link' && !url) row.url = editing.url;
+    } else {
+      row.kind = 'text';   // title + description only — a note item
+    }
+    let error;
+    if (editing && editing._where === prefix) {
+      ({ error } = await sb.from('class_materials').update(row).eq('id', editing.id));
+    } else {
+      row.sort_order = (prefix === 'lib' ? famMats(curFam) : courseMats(curCourse)).reduce((mx, m) => Math.max(mx, m.sort_order), 0) + 10;
+      ({ error } = await sb.from('class_materials').insert(row));
+    }
+    if (error) throw new Error(error.message);
+    editing = null;
+    await loadAll();
+    msg(mid, 'ok', 'Saved ✓ — booked students see it in their portal Classroom now.');
+  } catch (e) {
+    msg(mid, 'err', e.message || 'Could not save.');
+  } finally { busy = false; }
+}
+
+async function togMat(id, prefix) {
+  if (busy) return; busy = true;
+  const m = materials.find(x => x.id === id);
+  const { error } = await sb.from('class_materials').update({ is_published: !m.is_published, updated_at: new Date().toISOString() }).eq('id', id);
+  busy = false;
+  if (!error) await loadAll();
+}
+
+async function moveMat(id, dir, scopeRows, prefix) {
+  if (busy) return; busy = true;
+  const i = scopeRows.findIndex(m => m.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= scopeRows.length) { busy = false; return; }
+  // Swap in memory, then renumber the whole scope 10,20,30… — simple and stable forever.
+  const rows = scopeRows.slice();
+  const tmp = rows[i]; rows[i] = rows[j]; rows[j] = tmp;
+  for (let k = 0; k < rows.length; k++) {
+    await sb.from('class_materials').update({ sort_order: (k + 1) * 10 }).eq('id', rows[k].id);
+  }
+  busy = false;
+  await loadAll();
+}
+
+async function delMat(id, prefix) {
+  const m = materials.find(x => x.id === id);
+  if (!m) return;
+  if (!confirm('Delete "' + m.title + '"? Students will no longer see it.')) return;
+  if (busy) return; busy = true;
+  const { error } = await sb.from('class_materials').delete().eq('id', id);
+  if (!error && m.kind === 'file' && m.file_path) {
+    try { await sb.storage.from('class-materials').remove([m.file_path]); } catch (e) { /* best effort */ }
+  }
+  busy = false;
+  const mid = prefix === 'lib' ? 'libmsg' : 'exmsg';
+  if (error) msg(mid, 'err', error.message); else { msg(mid, 'ok', 'Deleted.'); await loadAll(); }
+}
+
+init();
+</script>
+</body>
+</html>

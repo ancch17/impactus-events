@@ -330,6 +330,17 @@
     <div class="msg" id="holdmsg"></div>
   </div>
 
+  <!-- IMPACTUS CLASSROOM (Aug 2026) — replaces Google Classroom. Everything a booked student
+       needs: when/where, Join Zoom or the venue, the class WhatsApp group, and the materials
+       Andrew publishes from the admin Classroom tab. Hidden until a confirmed seat exists.
+       Data comes from ONE booking-scoped RPC (get_my_classroom) because zoom/whatsapp are
+       admin-locked columns — never query them from the browser directly. -->
+  <div class="card hidden" id="classroomcard">
+    <h2>🎓 My Classroom</h2>
+    <p class="muted" style="margin-top:-4px;margin-bottom:4px">Your booked classes — how to join, and everything to prepare.</p>
+    <div id="classroomlist"></div>
+  </div>
+
   <div class="card" id="upcomingcard">
     <div class="up-head">
       <h2 style="margin:0">Upcoming classes</h2>
@@ -670,7 +681,7 @@ async function showApp(session) {
     "I've been taking Impactus Learning's AI masterclasses — really worth a look: " + reflink), '_blank');
   $('dlqr').onclick = downloadShareCard;
   await loadHolds();                        // before loadCourses: the breakdown prices against holds
-  loadCourses(); loadHistory(); loadLedger();
+  loadCourses(); loadClassroom(); loadHistory(); loadLedger();
 }
 
 // ---------- Held seats ----------
@@ -1499,6 +1510,83 @@ $('paybtn').onclick = () => startCheckout(null);
 const isRemovable = (r) =>
   r.status === 'cancelled' && Number(r.cash_paid_sgd) === 0 && Number(r.points_redeemed) === 0
   && Number(r.refunded_sgd || 0) === 0;
+
+// ---------- 🎓 Impactus Classroom (replaces Google Classroom, Aug 2026) ----------
+// ONE RPC returns every confirmed booking's class hub. zoom_link / whatsapp_url are admin-locked
+// columns; the SECURITY DEFINER RPC releases them only for cohorts this student has a CONFIRMED
+// seat on. Materials are what Andrew publishes on the admin Classroom tab: course-level items
+// (inherited by every cohort of the course) plus per-class extras.
+const CM_FILE_BASE = SUPABASE_URL + '/storage/v1/object/public/class-materials/';
+const CM_VENUE_FALLBACK = 'Paya Lebar Square #07-16, Singapore 409051';
+
+async function loadClassroom() {
+  const card = $('classroomcard');
+  let rows = [];
+  try {
+    const { data, error } = await sb.rpc('get_my_classroom');
+    if (!error && Array.isArray(data)) rows = data;
+  } catch (e) { /* classroom is additive — the rest of the portal must still work */ }
+  if (!rows.length) { card.classList.add('hidden'); return; }
+  const tod = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+  const upcoming = rows.filter(r => r.cohort_date >= tod);
+  const past = rows.filter(r => r.cohort_date < tod).reverse();   // most recent first
+  card.classList.remove('hidden');
+  $('classroomlist').innerHTML =
+    (upcoming.length ? upcoming.map(r => classroomBlock(r, tod)).join('')
+      : '<p class="muted" style="margin-top:8px">No upcoming class booked — your past class materials are below.</p>') +
+    (past.length ? '<details style="margin-top:12px"><summary class="muted" style="cursor:pointer;font-size:13px">Past classes — slides &amp; materials stay available (' + past.length + ')</summary>'
+      + past.map(r => classroomBlock(r, null)).join('') + '</details>' : '');
+}
+
+function cmZoomId(id) {
+  const d = String(id || '').replace(/\D/g, '');
+  return d.length === 11 ? d.replace(/(\d{3})(\d{4})(\d{4})/, '$1 $2 $3') : d;
+}
+
+function classroomBlock(r, tod) {
+  const L = lvlOf(r.family_slug);
+  let chip = '';
+  if (tod) {
+    const days = Math.round((new Date(r.cohort_date) - new Date(tod)) / 86400000);
+    const label = days === 0 ? 'TODAY' : days === 1 ? 'Tomorrow' : 'in ' + days + ' days';
+    chip = '<span class="pill upcoming" style="margin-left:8px">' + label + '</span>';
+  }
+  // How to join: online = big Zoom button; F2F = venue + doors (Zoom stays a quiet fallback —
+  // for face-to-face classes the link exists to record, not to join).
+  let joinHtml = '';
+  if (r.is_f2f) {
+    joinHtml = '<div style="margin-top:10px;padding:11px 13px;background:#f6f7fa;border:1px solid var(--line);border-radius:11px">'
+      + '<div style="font-weight:700;font-size:13.5px">📍 ' + esc(r.venue || CM_VENUE_FALLBACK) + '</div>'
+      + '<div class="muted" style="font-size:12.5px;margin-top:3px">Face-to-face class · doors open 30 minutes before start.'
+      + (r.zoom_link ? ' <a href="' + esc(r.zoom_link) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">Zoom link</a> only if you\'re asked to join online.' : '')
+      + '</div></div>';
+  } else if (r.zoom_link) {
+    joinHtml = '<div style="margin-top:10px">'
+      + '<a class="btn" style="display:inline-block;width:auto;margin-top:0;text-decoration:none;text-align:center" href="' + esc(r.zoom_link) + '" target="_blank" rel="noopener">▶ Join Zoom class</a>'
+      + (r.zoom_meeting_id ? '<div class="muted" style="font-size:12.5px;margin-top:5px">Meeting ID ' + esc(cmZoomId(r.zoom_meeting_id)) + ' — the passcode is already in the link.</div>' : '')
+      + '</div>';
+  }
+  const waHtml = r.whatsapp_url
+    ? '<a class="btn" style="display:inline-block;width:auto;margin-top:10px;background:#25D366;color:#fff;text-decoration:none" href="' + esc(r.whatsapp_url) + '" target="_blank" rel="noopener">💬 Join class WhatsApp group</a>'
+    : '';
+  const mats = (r.materials || []).map(m => {
+    const ico = m.kind === 'file' ? '📎' : m.kind === 'text' ? '📝' : '🔗';
+    const href = m.kind === 'file' && m.file_path ? CM_FILE_BASE + encodeURI(m.file_path) : m.url;
+    const open = href ? '<a class="btn ghost" style="width:auto;margin-top:0;padding:7px 13px;font-size:12.5px;text-decoration:none;white-space:nowrap" href="' + esc(href) + '" target="_blank" rel="noopener">Open ↗</a>' : '';
+    const scopeChip = m.scope === 'class' ? '<span class="pill" style="background:#eef;color:#556">this class</span>' : '';
+    return '<div class="row" style="align-items:center"><div style="flex:1;min-width:0"><div class="hist-course">' + ico + ' ' + esc(m.title) + scopeChip + '</div>'
+      + (m.description ? '<div class="hist-sub">' + esc(m.description) + '</div>' : '') + '</div>'
+      + '<div style="text-align:right">' + open + '</div></div>';
+  }).join('');
+  return '<div style="border:1px solid var(--line);border-radius:13px;padding:14px 15px;margin-top:12px;border-left:5px solid ' + L.color + '">'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">'
+    + '<div><div class="hist-course" style="font-size:15px">' + esc(L.title || r.course_name) + chip + '</div>'
+    + '<div class="hist-sub">' + fdate(r.cohort_date) + (r.session_time ? ' · ' + esc(r.session_time) : '') + (r.is_f2f ? ' · In person' : ' · Online') + '</div></div></div>'
+    + joinHtml + waHtml
+    + (mats ? '<div style="margin-top:12px"><div class="muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Class materials</div>' + mats + '</div>'
+            : '<p class="muted" style="margin-top:10px;font-size:12.5px">Materials for this class will appear here.</p>')
+    + '</div>';
+}
 
 async function loadHistory() {
   const { data } = await sb.from('student_history').select('*').eq('email', myEmail).order('cohort_date', { ascending: false });
