@@ -288,7 +288,7 @@
 
     <div class="card">
       <h2>Email students</h2>
-      <p class="muted" style="margin-top:-6px;margin-bottom:12px">Send an announcement via Impactus Learning (noreply@impactuslearning.com). Use {first} for the student's first name. The class WhatsApp link is added as a footnote automatically. Pick a cohort, then <strong>load a template</strong> — {date}, {day}, {time}, {zoomlink}, {zoomid}, {classlink}, {venue}, {doors} and {walink} fill themselves from that cohort. If the body carries {walink}, leave the footnote dropdown on “— none —” so the group link isn’t sent twice.</p>
+      <p class="muted" style="margin-top:-6px;margin-bottom:12px">Send an announcement via Impactus Learning (noreply@impactuslearning.com). Use {first} for the student's first name. The class WhatsApp link is added as a footnote automatically. Picking a class up top sets both dropdowns below for you. Then <strong>load a template</strong> — {date}, {day}, {time}, {zoomlink}, {zoomid}, {classlink}, {venue}, {doors} and {walink} fill themselves from that cohort. If the body carries {walink}, leave the footnote dropdown on “— none —” so the group link isn’t sent twice.</p>
       <div class="formgrid">
         <div><label>Send to</label><select id="em-scope"></select></div>
         <div><label>Attach WhatsApp footnote from</label><select id="em-wa"><option value="">— none —</option></select></div>
@@ -1311,13 +1311,34 @@ $('cx-go').onclick = async () => {
 
 // ---------- Email students ----------
 function renderEmailForm() {
+  // Rebuilding the options wipes the selection, and loadAll() runs on every background refresh
+  // (Create Zoom, Close/Open, saving a cohort…). Same trap as renderForm() — hold both
+  // dropdowns and put them back, or "Send to" silently resets to "All students" mid-compose.
+  const keepScope = $('em-scope').value, keepWa = $('em-wa').value;
   const upcoming = courses.filter(c => c.cohort_date >= today() && !c.cancelled && !c.is_draft).sort((a, b) => a.cohort_date.localeCompare(b.cohort_date));
   $('em-scope').innerHTML = '<option value="all">All students</option><option value="upcoming">All students with an upcoming class</option>' +
     upcoming.map(c => `<option value="c:${c.id}">${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' (' + c.session_time + ')' : ''}</option>`).join('');
   $('em-wa').innerHTML = '<option value="">— none —</option>' +
     courses.filter(c => c.whatsapp_url).sort((a, b) => a.cohort_date.localeCompare(b.cohort_date))
       .map(c => `<option value="${c.id}">${c.name} · ${fdate(c.cohort_date)}</option>`).join('');
+  if (keepScope) $('em-scope').value = keepScope;
+  if (keepWa) $('em-wa').value = keepWa;
   $('em-scope').onchange = () => { updateEmCount(); renderEmTemplates(); };
+  updateEmCount(); renderEmTemplates();
+}
+
+// Picking a cohort up top drives this card too (Andrew, 2026-08-14) — selecting the same class
+// three times over was pure re-typing. Sets "Send to" AND the WhatsApp footnote to that cohort.
+// ⚠ The footnote only follows if that cohort actually has a group link saved; if it doesn't, the
+// dropdown is left where it was rather than being silently blanked. If the message body carries
+// {walink}, clear the footnote by hand or the group link goes out twice.
+function emFollowCohort(cid) {
+  const scope = $('em-scope');
+  if (!scope || !cid) return;
+  if (![...scope.options].some(o => o.value === 'c:' + cid)) return;   // past / draft / cancelled — not offered here
+  scope.value = 'c:' + cid;
+  const wa = $('em-wa');
+  if (wa && [...wa.options].some(o => o.value === cid)) wa.value = cid;
   updateEmCount(); renderEmTemplates();
 }
 
@@ -1478,7 +1499,7 @@ window.editCohort = function (cid, noScroll) {
   $('f-details').value = c.details || ''; setPortalState(c);
   $('f-whatsapp').value = c.whatsapp_url || '';
   $('f-cancel').classList.remove('hidden');
-  renderFormActions(cid); renderCohorts();
+  renderFormActions(cid); renderCohorts(); emFollowCohort(cid);
   if (!noScroll) $('formcard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 $('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-price','f-details','f-whatsapp'].forEach(i => $(i).value = ''); setSessionTime(null); setPortalState(null); $('f-cancel').classList.add('hidden'); renderFormActions(null); selectedCourse = rosterCourse; renderCohorts(); };
