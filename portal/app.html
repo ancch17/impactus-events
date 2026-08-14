@@ -1536,6 +1536,7 @@ async function loadClassroom() {
       : '<p class="muted" style="margin-top:8px">No upcoming class booked — your past class materials are below.</p>') +
     (past.length ? '<details style="margin-top:12px"><summary class="muted" style="cursor:pointer;font-size:13px">Past classes — slides &amp; materials stay available (' + past.length + ')</summary>'
       + past.map(r => classroomBlock(r, null)).join('') + '</details>' : '');
+  wireStarterUI();
 }
 
 function cmZoomId(id) {
@@ -1585,7 +1586,103 @@ function classroomBlock(r, tod) {
     + joinHtml + waHtml
     + (mats ? '<div style="margin-top:12px"><div class="muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Class materials</div>' + mats + '</div>'
             : '<p class="muted" style="margin-top:10px;font-size:12.5px">Materials for this class will appear here.</p>')
+    + cmStarterSection(r)
     + '</div>';
+}
+
+// ---------- 🚀 Starter prompts (portal-native JOB B — replaces the xlsx + PDF + GC flow) ----------
+// The student writes their goal here; Andrew clicks Generate on the admin Classroom tab.
+// Auto-published: the personalised prompt (and its Word sheet) appears the moment it's generated.
+// All writes go through the save_my_goal SECURITY DEFINER RPC — no direct table access.
+function cmStarterSection(r) {
+  const s = r.starter || null;
+  const cid = esc(r.course_id);
+  const head = '<div style="margin-top:14px;padding-top:11px;border-top:1px dashed var(--line)">'
+    + '<div class="muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700">🚀 Your starter prompt</div>';
+  // 1) No goal yet — the intake box ("What would you like to build?")
+  if (!s || !s.goal) {
+    return head
+      + '<div class="hist-sub" style="margin-top:6px">What would you like to build with Claude? Tell us in a sentence or two — Andrew prepares a personalised starter prompt just for you, and it appears right here.</div>'
+      + '<textarea data-goal-input="' + cid + '" maxlength="2000" rows="3" placeholder="e.g. I want to automate my monthly sales report" style="width:100%;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;font-size:13.5px;resize:vertical"></textarea>'
+      + '<div><button type="button" class="btn" data-goal-save="' + cid + '" style="width:auto;margin-top:8px;padding:9px 16px;font-size:13px">Save my goal</button>'
+      + '<span data-goal-msg="' + cid + '" class="muted" style="font-size:12.5px;margin-left:10px"></span></div>'
+      + '</div>';
+  }
+  const stale = s.generated_at && s.goal_updated_at && (new Date(s.goal_updated_at) > new Date(s.generated_at));
+  const goalLine = '<div style="margin-top:7px;font-size:13px"><span class="muted">Your goal:</span> <em>“' + esc(s.goal) + '”</em> '
+    + '<button type="button" data-goal-edit="' + cid + '" style="border:0;background:none;color:#98a0af;font-size:12px;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit">edit</button></div>'
+    + '<div data-goal-editwrap="' + cid + '" class="hidden" style="margin-top:6px">'
+    + '<textarea data-goal-input="' + cid + '" maxlength="2000" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;font-size:13.5px;resize:vertical">' + esc(s.goal) + '</textarea>'
+    + '<div><button type="button" class="btn" data-goal-save="' + cid + '" style="width:auto;margin-top:6px;padding:8px 14px;font-size:12.5px">Update goal</button>'
+    + '<span data-goal-msg="' + cid + '" class="muted" style="font-size:12.5px;margin-left:10px"></span></div></div>';
+  // 2) Goal saved but the prompt isn't generated yet (or the goal changed after generation)
+  if (!s.generated_at || stale) {
+    return head + goalLine
+      + '<div class="hist-sub" style="margin-top:7px">✍️ ' + (stale
+        ? 'You updated your goal — a refreshed starter prompt is on its way.'
+        : 'Your personalised starter prompt is being prepared — it will appear right here.') + '</div>'
+      + '</div>';
+  }
+  // 3) Generated — render the full sheet (setup → prompt boxes with Copy → how-to-start → Word)
+  const p = s.prompt_json || {};
+  const setup = (p.setup || []).length
+    ? '<div style="margin-top:10px;font-size:13px"><strong>Set this up first (2 minutes)</strong>'
+      + '<ol style="margin:5px 0 2px 18px;padding:0">' + p.setup.map(x => '<li style="margin-top:3px">' + esc(x) + '</li>').join('') + '</ol>'
+      + '<div class="muted" style="font-size:12px">You do these in the app — they’re not part of the prompt.</div></div>'
+    : '';
+  const many = (p.prompts || []).length > 1;
+  const boxes = (p.prompts || []).map((pr, i) =>
+    '<div style="margin-top:9px">'
+    + (many ? '<div style="font-weight:700;font-size:12.5px;color:#0E3A52;margin-bottom:4px">' + esc(pr.title || ('Prompt ' + (i + 1))) + '</div>' : '')
+    + '<div style="position:relative;background:#f6f7fa;border:1px solid var(--line);border-radius:10px;padding:11px 84px 11px 12px">'
+    + '<pre data-prompt-text style="margin:0;white-space:pre-wrap;font:inherit;font-size:13px;line-height:1.55">' + esc(pr.body || '') + '</pre>'
+    + '<button type="button" class="btn ghost" data-prompt-copy style="width:auto;position:absolute;top:8px;right:8px;margin:0;padding:5px 11px;font-size:11.5px">Copy</button>'
+    + '</div></div>').join('');
+  const how = p.how_to_start
+    ? '<div style="margin-top:11px;font-size:13px"><strong>How to start with Claude CoWork</strong><div style="margin-top:4px;white-space:pre-wrap;line-height:1.55">' + esc(p.how_to_start) + '</div></div>'
+    : '';
+  const docx = s.docx_path
+    ? '<a class="btn ghost" style="display:inline-block;width:auto;margin-top:11px;padding:8px 14px;font-size:12.5px;text-decoration:none" href="' + esc(CM_FILE_BASE + encodeURI(s.docx_path)) + '" target="_blank" rel="noopener">📄 Download as Word</a>'
+    : '';
+  return head + goalLine + setup
+    + '<div class="hist-sub" style="margin-top:10px">' + esc(p.prompt_intro || 'Copy and paste this into CoWork to begin:') + '</div>'
+    + boxes + how + docx + '</div>';
+}
+
+// Wiring is re-run after every loadClassroom render. goalBusy is a module flag, not
+// button.disabled (the 2026-07-28 double-submit lesson).
+let goalBusy = false;
+function wireStarterUI() {
+  document.querySelectorAll('[data-goal-edit]').forEach(b => b.onclick = () => {
+    const w = document.querySelector('[data-goal-editwrap="' + b.dataset.goalEdit + '"]');
+    if (w) w.classList.toggle('hidden');
+  });
+  document.querySelectorAll('[data-goal-save]').forEach(b => b.onclick = async () => {
+    if (goalBusy) return;
+    const cid = b.dataset.goalSave;
+    const wrap = b.closest('[data-goal-editwrap]') || b.parentElement.parentElement;
+    const inp = (wrap && wrap.querySelector('[data-goal-input="' + cid + '"]')) || document.querySelector('[data-goal-input="' + cid + '"]');
+    const m = (wrap && wrap.querySelector('[data-goal-msg="' + cid + '"]')) || document.querySelector('[data-goal-msg="' + cid + '"]');
+    const goal = ((inp && inp.value) || '').trim();
+    if (!goal) { if (m) m.textContent = 'Tell us your goal first.'; return; }
+    goalBusy = true;
+    const orig = b.textContent; b.textContent = 'Saving…';
+    try {
+      const { error } = await sb.rpc('save_my_goal', { p_course_id: cid, p_goal: goal });
+      if (error) throw new Error(error.message);
+      await loadClassroom();   // re-renders and re-wires; shows the "being prepared" state
+    } catch (e) {
+      if (m) m.textContent = 'Could not save — ' + (e.message || e);
+      b.textContent = orig;
+    } finally { goalBusy = false; }
+  });
+  document.querySelectorAll('[data-prompt-copy]').forEach(b => b.onclick = async () => {
+    const pre = b.parentElement.querySelector('[data-prompt-text]');
+    try {
+      await navigator.clipboard.writeText(pre ? pre.textContent : '');
+      b.textContent = 'Copied ✓'; setTimeout(() => { b.textContent = 'Copy'; }, 1600);
+    } catch (e) { b.textContent = 'Select & copy'; }
+  });
 }
 
 async function loadHistory() {

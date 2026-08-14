@@ -17,6 +17,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.js"></script><!-- Word-sheet builder (global `docx`) for starter prompts -->
 <style>
   :root { --navy:#101a2d; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --red:#c93b3b; --line:#e6e9f0; }
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -121,6 +122,16 @@
       <div class="msg" id="exmsg"></div>
     </div>
 
+    <!-- ── Starter prompts ─────────────────────────────────────────────── -->
+    <div class="card" id="startercard">
+      <h2>🚀 Starter prompts — personalised CoWork starting points, one per student</h2>
+      <p class="muted" style="margin-top:-4px;margin-bottom:10px">Students type their goal in their portal Classroom (<i>"What would you like to build?"</i>). Click <b>Generate</b> — the sheet is written to your JOB B rules, the Word file is built and uploaded automatically, and both appear in that student's Classroom <b>instantly</b>. You can also type a goal on a student's behalf (e.g. collected in class).</p>
+      <label>Class</label>
+      <select id="spsel"></select>
+      <div id="splist" class="muted" style="margin-top:8px"></div>
+      <div class="msg" id="spmsg"></div>
+    </div>
+
   </div>
 </div>
 
@@ -150,10 +161,13 @@ const famLabel = (f) => FAM_LABEL[f.slug] || f.name;
 const CM_FILE_BASE = SUPABASE_URL + '/storage/v1/object/public/class-materials/';
 const matHref = (m) => m.kind === 'file' && m.file_path ? CM_FILE_BASE + encodeURI(m.file_path) : (m.url || '');
 
-let families = [], courses = [], bookings = [], materials = [];
+let families = [], courses = [], bookings = [], materials = [], starters = [], students = [];
 let curFam = null;        // selected family id (course library)
 let curCourse = null;     // selected course id (class extras)
+let curSpCourse = null;   // selected course id (starter prompts)
 let editing = null;       // material row being edited, or null
+let spGoalEdit = null;    // student email whose goal the admin is typing, or null
+let spView = null;        // starter row id expanded in the View toggle, or null
 let busy = false;         // module flag — never guard on button.disabled alone (rule 7)
 
 async function init() {
@@ -176,18 +190,21 @@ async function loadAll() {
   // (2026-08-10 incident). Secrets (zoom_*, whatsapp_url, classroom_url, venue) come from the
   // admin-only course_secrets_admin view and are merged on below.
   const COURSE_COLS = 'id,name,cohort_date,price_sgd,is_open,session_time,family_id,cancelled,is_draft,is_full';
-  const [c, f, b, m, cs] = await Promise.all([
+  const [c, f, b, m, cs, sp, st] = await Promise.all([
     sb.from('courses').select(COURSE_COLS).order('cohort_date'),
     sb.from('course_families').select('*').order('sort_order'),
-    sb.from('bookings').select('id,course_id,status'),
+    sb.from('bookings').select('id,course_id,status,student_id'),
     sb.from('class_materials').select('*').order('sort_order').order('created_at'),
     sb.from('course_secrets_admin').select('*'),
+    sb.from('starter_prompts').select('*'),
+    sb.from('students').select('id,name,preferred_name,email'),
   ]);
   courses = c.data || []; families = f.data || []; bookings = b.data || []; materials = m.data || [];
+  starters = sp.data || []; students = st.data || [];
   const secretsById = Object.fromEntries(((cs.data) || []).map(x => [x.id, x]));
   courses.forEach(cc => Object.assign(cc, secretsById[cc.id] || {}));
   if (!curFam) { const first = families.find(x => x.status === 'active' && x.slug !== 'test-class'); curFam = first && first.id; }
-  renderBoard(); renderFamChips(); renderLibrary(); renderExtras();
+  renderBoard(); renderFamChips(); renderLibrary(); renderExtras(); renderStarter();
 }
 
 const famById = (id) => families.find(f => f.id === id);
@@ -384,6 +401,182 @@ async function moveMat(id, dir, scopeRows, prefix) {
   }
   busy = false;
   await loadAll();
+}
+
+// ── Starter prompts (portal-native JOB B) ──────────────────────────────────
+// Student goals come in via save_my_goal (student portal). Generate calls the
+// `starter-prompt` edge function (admin JWT + ANTHROPIC_API_KEY secret), which writes
+// prompt_json/prompt_md onto the row — auto-published. Then this page builds the branded
+// Word sheet (docx IIFE lib) and uploads it to the class-materials bucket.
+const stuById = (id) => students.find(s => s.id === id) || {};
+const spFor = (cid, email) => starters.find(x => x.course_id === cid && x.email === (email || '').toLowerCase());
+const spRoster = (cid) => bookings
+  .filter(b => b.course_id === cid && b.status === 'confirmed')
+  .map(b => stuById(b.student_id)).filter(s => s.email)
+  .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+function renderStarter() {
+  const tod = today();
+  const from = new Date(Date.now() - 30 * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+  const opts = courses.filter(c => !c.cancelled && !c.is_draft && c.cohort_date >= from);
+  $('spsel').innerHTML = '<option value="">— choose a class —</option>' + opts.map(c => {
+    const f = famById(c.family_id) || {};
+    const n = spRoster(c.id).filter(s => { const r = spFor(c.id, s.email); return r && r.goal; }).length;
+    return '<option value="' + c.id + '"' + (c.id === curSpCourse ? ' selected' : '') + '>' +
+      esc(dow(c.cohort_date) + ' ' + fdate(c.cohort_date) + ' · ' + famLabel(f) + (c.cohort_date < tod ? ' · past' : '') + (n ? ' · ' + n + ' goal' + (n > 1 ? 's' : '') : '')) + '</option>';
+  }).join('');
+  $('spsel').onchange = () => { curSpCourse = $('spsel').value || null; spGoalEdit = null; spView = null; renderStarter(); };
+  if (!curSpCourse) { $('splist').textContent = 'Choose a class to see its students and their goals.'; return; }
+  const roster = spRoster(curSpCourse);
+  if (!roster.length) { $('splist').innerHTML = '<p class="muted">No confirmed students on this class yet.</p>'; return; }
+  $('splist').innerHTML = roster.map(s => {
+    const r = spFor(curSpCourse, s.email);
+    const nm = s.preferred_name || s.name || s.email;
+    let stateHtml = '', acts = '';
+    if (!r || !r.goal) {
+      stateHtml = '<span class="muted">no goal yet</span>';
+      acts = '<button class="btn ghost sm" data-sp-goal="' + esc(s.email) + '">+ Add goal</button>';
+    } else {
+      const stale = r.generated_at && new Date(r.goal_updated_at) > new Date(r.generated_at);
+      stateHtml = '<div style="max-width:520px">“' + esc(r.goal) + '”</div>';
+      if (!r.generated_at) {
+        stateHtml += '<span class="pillmini" style="background:#fdf3d7;color:#8a6d1a">ready to generate</span>';
+        acts = '<button class="btn sm" data-sp-gen="' + r.id + '">⚡ Generate</button> '
+             + '<button class="btn ghost sm" data-sp-goal="' + esc(s.email) + '">✎ Goal</button>';
+      } else if (stale) {
+        stateHtml += '<span class="pillmini" style="background:#fde3e3;color:#a33">goal changed — regenerate</span>';
+        acts = '<button class="btn sm" data-sp-gen="' + r.id + '">⚡ Regenerate</button> '
+             + '<button class="btn ghost sm" data-sp-goal="' + esc(s.email) + '">✎ Goal</button>';
+      } else {
+        stateHtml += '<span class="pillmini" style="background:#e3f4ea;color:#1a7a48">✓ live in their Classroom · ' + esc(fdate(r.generated_at.slice(0, 10))) + '</span>';
+        acts = '<button class="btn ghost sm" data-sp-view="' + r.id + '">' + (spView === r.id ? 'Hide' : 'View') + '</button> '
+             + (r.docx_path ? '<a class="btn ghost sm" style="text-decoration:none" href="' + esc(CM_FILE_BASE + encodeURI(r.docx_path)) + '" target="_blank" rel="noopener">Word ↗</a> ' : '')
+             + '<button class="btn ghost sm" data-sp-gen="' + r.id + '">↻ Regenerate</button> '
+             + '<button class="btn ghost sm" data-sp-goal="' + esc(s.email) + '">✎ Goal</button>';
+      }
+    }
+    const goalForm = spGoalEdit === s.email
+      ? '<div style="margin-top:8px"><textarea id="sp-goal-input" rows="3" placeholder="Their verbatim goal — what they hope to build">' + esc(r ? r.goal || '' : '') + '</textarea>'
+        + '<div style="margin-top:6px"><button class="btn sm" data-sp-goalsave="' + esc(s.email) + '">Save goal</button> '
+        + '<button class="btn ghost sm" data-sp-goalcancel="1">Cancel</button></div></div>'
+      : '';
+    const view = (r && spView === r.id && r.prompt_md)
+      ? '<div style="margin-top:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 13px"><pre style="margin:0;white-space:pre-wrap;font:inherit;font-size:12.5px;line-height:1.5">' + esc(r.prompt_md) + '</pre></div>'
+      : '';
+    return '<div class="mat"><div style="flex:1;min-width:0">'
+      + '<div class="mat-title">' + esc(nm) + ' <span class="muted" style="font-weight:400;font-size:12px">' + esc(s.email) + '</span></div>'
+      + '<div class="mat-sub" style="word-break:normal;margin-top:3px">' + stateHtml + '</div>' + goalForm + view + '</div>'
+      + '<div class="mat-acts">' + acts + '</div></div>';
+  }).join('');
+  wireStarter();
+}
+
+function wireStarter() {
+  document.querySelectorAll('#splist [data-sp-goal]').forEach(b => b.onclick = () => { spGoalEdit = b.dataset.spGoal; renderStarter(); });
+  document.querySelectorAll('#splist [data-sp-goalcancel]').forEach(b => b.onclick = () => { spGoalEdit = null; renderStarter(); });
+  document.querySelectorAll('#splist [data-sp-goalsave]').forEach(b => b.onclick = () => saveSpGoal(b.dataset.spGoalsave));
+  document.querySelectorAll('#splist [data-sp-view]').forEach(b => b.onclick = () => { spView = spView === b.dataset.spView ? null : b.dataset.spView; renderStarter(); });
+  document.querySelectorAll('#splist [data-sp-gen]').forEach(b => b.onclick = () => genStarter(b.dataset.spGen, b));
+}
+
+async function saveSpGoal(email) {
+  if (busy) return; busy = true;
+  try {
+    const goal = ($('sp-goal-input').value || '').trim();
+    if (!goal) { msg('spmsg', 'err', 'Type the goal first.'); busy = false; return; }
+    const stu = students.find(s => s.email === email) || {};
+    const row = {
+      course_id: curSpCourse, email: (email || '').toLowerCase(),
+      name: stu.preferred_name || stu.name || null,
+      goal, goal_updated_at: new Date().toISOString(),
+    };
+    const { error } = await sb.from('starter_prompts').upsert(row, { onConflict: 'course_id,email' });
+    if (error) throw new Error(error.message);
+    spGoalEdit = null;
+    await loadAll();
+    msg('spmsg', 'ok', 'Goal saved — now click Generate when ready.');
+  } catch (e) { msg('spmsg', 'err', e.message || 'Could not save the goal.'); }
+  finally { busy = false; }
+}
+
+async function genStarter(spId, btn) {
+  if (busy) return; busy = true;
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⚡ Generating… ~15s';
+  msg('spmsg', 'ok', 'Writing the sheet with your JOB B rules…');
+  try {
+    const { data, error } = await sb.functions.invoke('starter-prompt', { body: { starter_id: spId } });
+    if (error) {
+      let m = error.message || 'Function failed';
+      try { const j = await error.context.json(); if (j && j.error) m = j.error; } catch (e2) { /* keep m */ }
+      throw new Error(m);
+    }
+    if (!data || !data.ok) throw new Error((data && data.error) || 'Generation failed — try again.');
+    msg('spmsg', 'ok', 'Prompt written ✓ — building the Word sheet…');
+    try {
+      const path = await buildStarterDocx(data.starter);
+      await sb.from('starter_prompts').update({ docx_path: path }).eq('id', spId);
+    } catch (eDocx) {
+      // The prompt itself is already live — the Word file is a bonus, never block on it.
+      msg('spmsg', 'err', 'Prompt is live in the student\'s Classroom, but the Word file failed: ' + (eDocx.message || eDocx));
+      await loadAll(); busy = false; return;
+    }
+    await loadAll();
+    msg('spmsg', 'ok', '✓ Done — the prompt and Word sheet are live in the student\'s Classroom now.');
+  } catch (e) {
+    msg('spmsg', 'err', e.message || 'Generation failed.');
+    btn.disabled = false; btn.textContent = orig;
+  } finally { busy = false; }
+}
+
+// Branded Word sheet per the JOB B Document spec: Arial, teal name + rule, grey principle
+// line, aubergine labels, verbatim goal in italics, shaded paste-ready prompt boxes.
+async function buildStarterDocx(st) {
+  const D = window.docx;
+  if (!D) throw new Error('Word library did not load (docx CDN).');
+  const TEAL = '0E3A52', AUB = '8A3A4A', CHAR = '222222', GREY = '8A8A8A', BOX = 'F1F2F6';
+  const run = (t, o) => new D.TextRun(Object.assign({ text: t, font: 'Arial', color: CHAR, size: 22 }, o || {}));
+  const P = (kids, o) => new D.Paragraph(Object.assign({ children: Array.isArray(kids) ? kids : [kids] }, o || {}));
+  const label = (t) => P(run(t, { bold: true, color: AUB, size: 19 }), { spacing: { before: 280, after: 90 } });
+  const kids = [];
+  kids.push(P(run(st.name || st.first_name || '', { bold: true, color: TEAL, size: 40 }),
+    { border: { bottom: { style: D.BorderStyle.SINGLE, size: 6, color: TEAL, space: 4 } }, spacing: { after: 150 } }));
+  kids.push(P(run('Work with CoWork like a tutor: tell it your goal, then ask what the best approach is, which tool fits, and to walk you through the setup. The starting point below is just where to begin the conversation.', { italics: true, color: GREY, size: 20 }), { spacing: { after: 220, line: 300 } }));
+  kids.push(label("WHAT YOU'D LIKE TO BUILD"));
+  kids.push(P(run('“' + (st.goal || '') + '”', { italics: true, size: 24 }), { indent: { left: 240 }, spacing: { after: 60, line: 340 } }));
+  kids.push(label('SET THIS UP FIRST (2 MINUTES)'));
+  (st.setup || []).forEach((s, i) => kids.push(P(run((i + 1) + '. ' + s, { size: 21 }), { spacing: { after: 60, line: 320 } })));
+  kids.push(P(run("You do these in the app — they're not part of the prompt.", { color: GREY, size: 18 }), { spacing: { after: 60 } }));
+  const many = (st.prompts || []).length > 1;
+  kids.push(label('YOUR STARTER PROMPT' + (many ? 'S' : '')));
+  kids.push(P(run(st.prompt_intro || 'Copy and paste this into CoWork to begin:', { color: GREY, size: 19 }), { spacing: { after: 110 } }));
+  (st.prompts || []).forEach((pr, pi) => {
+    if (many) kids.push(P(run(pr.title || ('Prompt ' + (pi + 1)), { bold: true, color: TEAL, size: 21 }), { spacing: { before: pi ? 220 : 60, after: 80 } }));
+    const lines = String(pr.body || '').split('\n');
+    lines.forEach((ln, li) => kids.push(P(run(ln || ' ', { size: 22 }),
+      { shading: { fill: BOX }, indent: { left: 200, right: 200 }, spacing: { line: 330, after: li === lines.length - 1 ? 180 : 0 } })));
+  });
+  if (st.how_to_start) {
+    kids.push(label('HOW TO START WITH CLAUDE COWORK'));
+    String(st.how_to_start).split('\n').filter(x => x.trim()).forEach(par =>
+      kids.push(P(run(par, { size: 24 }), { spacing: { line: 350, after: 120 } })));
+  }
+  const hf = (t) => [P(run(t, { color: GREY, size: 16 }), { alignment: D.AlignmentType.CENTER })];
+  const doc = new D.Document({ sections: [{
+    properties: { page: { margin: { top: 1296, bottom: 1296, left: 1440, right: 1440 } } },
+    headers: { default: new D.Header({ children: hf((st.course_name || 'Claude Masterclass') + '  •  ' + (st.cohort_date ? fdate(st.cohort_date) : '') + '  •  Impactus Learning') }) },
+    footers: { default: new D.Footer({ children: hf('Your CoWork starting point  •  Dr Andrew Chew') }) },
+    children: kids,
+  }] });
+  const blob = await D.Packer.toBlob(doc);
+  const clean = String(st.first_name || st.name || 'Student').replace(/[^A-Za-z0-9]/g, '') || 'Student';
+  const dm = st.cohort_date ? new Date(st.cohort_date + 'T00:00:00') : new Date();
+  const dd = dm.toLocaleDateString('en-SG', { day: '2-digit' }) + dm.toLocaleDateString('en-SG', { month: 'short' }) + dm.getFullYear();
+  const path = 'starter-prompts/' + st.id + '/' + clean + '-CoWork-Starting-Points-' + dd + '.docx';
+  const { error } = await sb.storage.from('class-materials')
+    .upload(path, blob, { upsert: true, contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  if (error) throw new Error('Word upload failed: ' + error.message);
+  return path;
 }
 
 async function delMat(id, prefix) {
