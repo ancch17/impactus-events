@@ -419,7 +419,11 @@ const spRoster = (cid) => bookings
 function renderStarter() {
   const tod = today();
   const from = new Date(Date.now() - 30 * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
-  const opts = courses.filter(c => !c.cancelled && !c.is_draft && c.cohort_date >= from);
+  // Only Master Claude families — course_families.starter_prompts_enabled. AI Animation /
+  // Animation Automation classes never appear here; the starter-prompt function rejects them
+  // anyway, so listing them only invited a dead-end click.
+  const opts = courses.filter(c => !c.cancelled && !c.is_draft && c.cohort_date >= from
+    && (famById(c.family_id) || {}).starter_prompts_enabled);
   $('spsel').innerHTML = '<option value="">— choose a class —</option>' + opts.map(c => {
     const f = famById(c.family_id) || {};
     const n = spRoster(c.id).filter(s => { const r = spFor(c.id, s.email); return r && r.goal; }).length;
