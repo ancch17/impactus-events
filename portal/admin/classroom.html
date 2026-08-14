@@ -125,7 +125,7 @@
     <!-- ── Starter prompts ─────────────────────────────────────────────── -->
     <div class="card" id="startercard">
       <h2>🚀 Starter prompts — personalised CoWork starting points, one per student</h2>
-      <p class="muted" style="margin-top:-4px;margin-bottom:10px">Students type their goal in their portal Classroom (<i>"What would you like to build?"</i>). Two ways to generate, both auto-published to the student instantly: <b>ask Claude</b> ("generate starter prompts" — runs on your Claude plan, and the daily 08:45 auto-run catches anything pending), or click <b>⚡ Generate</b> here (needs the ANTHROPIC_API_KEY secret). Word files are built on this page automatically either way. You can also type a goal on a student's behalf (e.g. collected in class).</p>
+      <p class="muted" style="margin-top:-4px;margin-bottom:10px">Students type their goal in their portal Classroom (<i>"What would you like to build?"</i>). Generation is <b>manual — you click ⚡ Generate</b> on each student here (nothing runs on a schedule). The sheet is written to your JOB B rules via the <code>starter-prompt</code> function (needs the <code>ANTHROPIC_API_KEY</code> secret in Supabase), the Word file is built on this page automatically, and both appear in that student's Classroom instantly. You can also type a goal on a student's behalf (e.g. collected in class).</p>
       <label>Class</label>
       <select id="spsel"></select>
       <div id="splist" class="muted" style="margin-top:8px"></div>
