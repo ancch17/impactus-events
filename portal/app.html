@@ -240,6 +240,41 @@
 .pickstrip b { display:block; font-size:15px; }
 .pickstrip span { display:block; font-size:13.5px; color:var(--mut); margin-top:4px; line-height:1.5; }
 </style>
+<style>
+/* ── Dashboard accordion (2026-08-14): five big buttons, sections roll out underneath.
+   One open at a time. The holds card stays permanently ABOVE the accordion — an expiring
+   31-minute hold involves money and must never sit behind a closed panel. */
+.acc { margin-top:14px; }
+.accbtn { display:flex; align-items:center; gap:14px; width:100%; text-align:left; border:0; cursor:pointer;
+  padding:17px 18px; border-radius:18px; font-family:inherit; color:var(--fg,#fff);
+  background:linear-gradient(135deg,var(--g1),var(--g2));
+  box-shadow:0 7px 20px -7px var(--sh,rgba(16,26,45,.35)), inset 0 1px 0 rgba(255,255,255,.22);
+  transition:transform .15s ease, box-shadow .2s ease; scroll-margin-top:12px; }
+.accbtn:hover { transform:translateY(-1px); box-shadow:0 11px 26px -8px var(--sh,rgba(16,26,45,.4)), inset 0 1px 0 rgba(255,255,255,.22); }
+.accbtn:active { transform:scale(.985); }
+.acc-ico { width:47px; height:47px; flex:none; display:flex; align-items:center; justify-content:center;
+  font-size:23px; background:var(--icobg,rgba(255,255,255,.24)); border-radius:14px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25); }
+.acc-txt { flex:1; min-width:0; }
+.acc-title { display:block; font-size:19px; font-weight:800; letter-spacing:.2px; line-height:1.15; }
+.acc-sub { display:block; font-size:12px; font-weight:600; opacity:.88; margin-top:3px; }
+.acc-badge { background:var(--badgebg,rgba(255,255,255,.94)); color:var(--badgefg,#101a2d); font-size:12.5px; font-weight:800;
+  padding:5px 11px; border-radius:99px; white-space:nowrap; flex:none; box-shadow:0 1px 4px rgba(16,26,45,.18); }
+.acc-chev { font-size:17px; opacity:.95; line-height:1; flex:none; transition:transform .3s ease; }
+.acc.open .acc-chev { transform:rotate(180deg); }
+.acc-panel { display:grid; grid-template-rows:0fr; transition:grid-template-rows .35s ease; }
+.acc.open .acc-panel { grid-template-rows:1fr; }
+.acc-inner { overflow:hidden; min-height:0; padding:0 3px 4px; }
+.acc-inner > .card { margin-top:10px; }
+@media (max-width:640px) {
+  .accbtn { padding:15px; gap:12px; border-radius:16px; }
+  .acc-ico { width:42px; height:42px; font-size:21px; border-radius:12px; }
+  .acc-title { font-size:17.5px; }
+  .acc-sub { font-size:11.5px; }
+  .acc-badge { font-size:11.5px; padding:4px 9px; }
+}
+@media (prefers-reduced-motion: reduce) { .acc-panel, .acc-chev, .accbtn { transition:none; } }
+</style>
 </head>
 <body>
 <header><div class="wrap">
@@ -335,12 +370,36 @@
        Andrew publishes from the admin Classroom tab. Hidden until a confirmed seat exists.
        Data comes from ONE booking-scoped RPC (get_my_classroom) because zoom/whatsapp are
        admin-locked columns — never query them from the browser directly. -->
-  <div class="card hidden" id="classroomcard">
-    <h2>🎓 My Classroom</h2>
-    <p class="muted" style="margin-top:-4px;margin-bottom:4px">Your booked classes — how to join, and everything to prepare.</p>
-    <div id="classroomlist"></div>
+  <!-- ── FIVE-BUTTON DASHBOARD (2026-08-14). Each big button rolls its section out
+       underneath (one open at a time). Deep links, resumed holds and payment returns
+       auto-open the right section — see openSection(). -->
+  <div class="acc" id="acc-classroom" style="--g1:#7c3aed;--g2:#5321a8;--sh:rgba(124,58,237,.42)">
+    <button type="button" class="accbtn" aria-expanded="false" aria-controls="panel-classroom">
+      <span class="acc-ico">🎓</span>
+      <span class="acc-txt"><span class="acc-title">My Classroom</span><span class="acc-sub">Join links, WhatsApp group &amp; class materials</span></span>
+      <span class="acc-badge hidden" id="badge-classroom"></span>
+      <span class="acc-chev" aria-hidden="true">▾</span>
+    </button>
+    <div class="acc-panel" id="panel-classroom" role="region" aria-label="My Classroom"><div class="acc-inner">
+      <div class="card hidden" id="classroomcard">
+        <p class="muted" style="margin-bottom:4px">Your booked classes — how to join, and everything to prepare.</p>
+        <div id="classroomlist"></div>
+      </div>
+      <div class="card" id="classroomempty">
+        <p class="muted">Nothing here yet — once you book a class, this is where you'll find how to join, the class WhatsApp group and all your materials.</p>
+        <button type="button" class="btn" id="cm2book" style="margin-top:12px">Book your first class</button>
+      </div>
+    </div></div>
   </div>
 
+  <div class="acc" id="acc-book" style="--g1:#f7b733;--g2:#e8940a;--sh:rgba(232,148,10,.45);--fg:#101a2d;--icobg:rgba(255,255,255,.5);--badgebg:#101a2d;--badgefg:#fff">
+    <button type="button" class="accbtn" aria-expanded="false" aria-controls="panel-book">
+      <span class="acc-ico">🗓️</span>
+      <span class="acc-txt"><span class="acc-title">Book a class</span><span class="acc-sub">Upcoming dates, seats &amp; payment</span></span>
+      <span class="acc-badge hidden" id="badge-book"></span>
+      <span class="acc-chev" aria-hidden="true">▾</span>
+    </button>
+    <div class="acc-panel" id="panel-book" role="region" aria-label="Book a class"><div class="acc-inner">
   <div class="card" id="upcomingcard">
     <div class="up-head">
       <h2 style="margin:0">Upcoming classes</h2>
@@ -367,8 +426,8 @@
   </div>
 
   <div class="card" id="bookcard">
-    <h2>Book a class</h2>
-    <div id="courselist" class="muted">Loading classes…</div>
+    <div class="pay-head" style="margin-top:0;padding-top:0;border-top:0"><h2 style="margin:0">Choose your class</h2><span class="muted" style="font-size:12.5px">Step 1 of 2</span></div>
+    <div id="courselist" class="muted" style="margin-top:10px">Loading classes…</div>
     <div id="bookform" class="hidden">
       <div class="pay-head">
         <h2 style="margin:0">Payment</h2>
@@ -413,21 +472,48 @@
     </div>
     <div class="msg" id="bookmsg"></div>
   </div>
-
-  <div class="card">
-    <h2>Your classes</h2>
-    <div id="history" class="muted">Loading…</div>
-    <div class="msg" id="histmsg"></div>
+    </div></div>
   </div>
 
-  <div class="card">
-    <h2>Your points</h2>
-    <p class="muted" style="margin-top:-4px;margin-bottom:10px">Every point you've earned and every point you've used, newest first.</p>
-    <div id="ptshistory" class="muted">Loading…</div>
+  <div class="acc" id="acc-classes" style="--g1:#2563eb;--g2:#1743c4;--sh:rgba(37,99,235,.42)">
+    <button type="button" class="accbtn" aria-expanded="false" aria-controls="panel-classes">
+      <span class="acc-ico">🎟️</span>
+      <span class="acc-txt"><span class="acc-title">My classes</span><span class="acc-sub">Everything you've booked, newest first</span></span>
+      <span class="acc-badge hidden" id="badge-classes"></span>
+      <span class="acc-chev" aria-hidden="true">▾</span>
+    </button>
+    <div class="acc-panel" id="panel-classes" role="region" aria-label="My classes"><div class="acc-inner">
+      <div class="card">
+        <div id="history" class="muted">Loading…</div>
+        <div class="msg" id="histmsg"></div>
+      </div>
+    </div></div>
   </div>
 
-  <div class="card">
-    <h2>Share the class</h2>
+  <div class="acc" id="acc-points" style="--g1:#17a45c;--g2:#0d7c43;--sh:rgba(23,164,92,.42)">
+    <button type="button" class="accbtn" aria-expanded="false" aria-controls="panel-points">
+      <span class="acc-ico">⭐</span>
+      <span class="acc-txt"><span class="acc-title">My points</span><span class="acc-sub">Rebate points earned &amp; used — 1 point = S$1</span></span>
+      <span class="acc-badge hidden" id="badge-points"></span>
+      <span class="acc-chev" aria-hidden="true">▾</span>
+    </button>
+    <div class="acc-panel" id="panel-points" role="region" aria-label="My points"><div class="acc-inner">
+      <div class="card">
+        <p class="muted" style="margin-bottom:10px">Every point you've earned and every point you've used, newest first.</p>
+        <div id="ptshistory" class="muted">Loading…</div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="acc" id="acc-referral" style="--g1:#ec4899;--g2:#c81e6f;--sh:rgba(236,72,153,.42)">
+    <button type="button" class="accbtn" aria-expanded="false" aria-controls="panel-referral">
+      <span class="acc-ico">🔗</span>
+      <span class="acc-txt"><span class="acc-title">My Referral Link</span><span class="acc-sub">Share the class with a friend</span></span>
+      <span class="acc-badge hidden" id="badge-referral"></span>
+      <span class="acc-chev" aria-hidden="true">▾</span>
+    </button>
+    <div class="acc-panel" id="panel-referral" role="region" aria-label="My referral link"><div class="acc-inner">
+      <div class="card">
     <p class="muted">Enjoyed it? Send it to someone who'd get something out of it. Your link and QR are below — no codes to remember, they just tap or scan.</p>
     <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:14px">
       <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
@@ -443,6 +529,8 @@
         <p class="muted" style="margin-top:8px">In class? Let your neighbour scan the QR with their phone camera. Or tap Download QR for a shareable image.</p>
       </div>
     </div>
+      </div>
+    </div></div>
   </div>
 </div>
 
@@ -603,23 +691,59 @@ async function init() {
     if (ev === 'SIGNED_IN' && s) await showApp(s);
     if (ev === 'SIGNED_OUT') { show('view-login'); $('signout').classList.add('hidden'); }
   });
-  if (params.get('payment') === 'done') {
+  // Returning from Stripe: open the booking section so the confirmation is visible,
+  // then scroll the message itself into view.
+  const payBack = (text) => {
     history.replaceState({}, '', location.pathname);
-    setTimeout(() => msg('bookmsg', 'ok', 'Payment received! Your booking is confirmed and points are updated. (Refresh if you don\'t see it yet.)'), 800);
-  }
-  if (params.get('payment') === 'cancelled') {
-    history.replaceState({}, '', location.pathname);
-    setTimeout(() => msg('bookmsg', 'ok', 'No payment was taken. Your seat is still held for a short while — pick it up under “Seats you\'re holding” above whenever you\'re ready.'), 800);
-  }
-  if (params.get('setup') === 'done') {
-    history.replaceState({}, '', location.pathname);
-    setTimeout(() => msg('bookmsg', 'ok', 'Card saved ✓ — you have NOT been charged. Your card is only charged if your seat is accepted; we\'ll email you either way.'), 800);
-  }
+    openSection('book');
+    setTimeout(() => { msg('bookmsg', 'ok', text); $('bookmsg').scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 800);
+  };
+  if (params.get('payment') === 'done') payBack('Payment received! Your booking is confirmed and points are updated. (Refresh if you don\'t see it yet.)');
+  if (params.get('payment') === 'cancelled') payBack('No payment was taken. Your seat is still held for a short while — pick it up under “Seats you\'re holding” at the top whenever you\'re ready.');
+  if (params.get('setup') === 'done') payBack('Card saved ✓ — you have NOT been charged. Your card is only charged if your seat is accepted; we\'ll email you either way.');
 }
 
 function show(id) { ['view-soon', 'view-login', 'view-app'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; }
 function msgHTML(id, cls, html) { const el = $(id); el.className = 'msg ' + cls; el.innerHTML = html; }
+
+// ── Dashboard accordion (2026-08-14). Five big buttons; ONE section open at a time; all
+// collapsed on arrival (Andrew's spec). Deep links / resumed holds / payment returns call
+// openSection('book') so nobody lands on a collapsed screen mid-booking. Holds stay OUTSIDE.
+const ACC_KEYS = ['classroom', 'book', 'classes', 'points', 'referral'];
+function accBox(k) { return $('acc-' + k); }
+function openSection(key, scrollBtn) {
+  let opened = false;
+  ACC_KEYS.forEach(k => {
+    const box = accBox(k); if (!box) return;
+    const on = k === key;
+    if (on && !box.classList.contains('open')) opened = true;
+    box.classList.toggle('open', on);
+    box.querySelector('.accbtn').setAttribute('aria-expanded', on ? 'true' : 'false');
+  });
+  // Wait for the roll-out animation, then bring the opened button to the top so the
+  // student isn't left staring at the gap where a closed section used to be.
+  if (scrollBtn && opened) setTimeout(() => accBox(key).scrollIntoView({ behavior: 'smooth', block: 'start' }), 380);
+  return opened;
+}
+function closeSection(key) {
+  const box = accBox(key); if (!box) return;
+  box.classList.remove('open');
+  box.querySelector('.accbtn').setAttribute('aria-expanded', 'false');
+}
+ACC_KEYS.forEach(k => {
+  const box = accBox(k); if (!box) return;
+  box.querySelector('.accbtn').addEventListener('click', () => {
+    box.classList.contains('open') ? closeSection(k) : openSection(k, true);
+  });
+});
+// Live badges on the buttons — set by each loader; null hides the pill.
+function setBadge(key, text) {
+  const b = $('badge-' + key); if (!b) return;
+  if (text == null || text === '') b.classList.add('hidden');
+  else { b.textContent = text; b.classList.remove('hidden'); }
+}
+$('cm2book').onclick = () => openSection('book', true);
 
 $('sendlink').onclick = async () => {
   const email = $('email').value.trim().toLowerCase();
@@ -663,6 +787,7 @@ async function showApp(session) {
   student = me && me[0];
   if (!student) { $('hello').textContent = 'Welcome!'; $('balline').textContent = 'Setting up your account…'; setTimeout(() => showApp(session), 1500); return; }
   balance = student.balance_points;
+  setBadge('points', balance > 0 ? balance + ' pts' : null);
   $('hello').textContent = 'Welcome back, ' + (student.preferred_name && student.preferred_name.trim() ? student.preferred_name.trim() : student.name.split(' ')[0]);
   $('balline').textContent = balance > 0 ? `You've earned S$${balance} toward your next class` : 'Book your first class to start earning rebates';
   // The share link lands on the company homepage — a new person can browse every course
@@ -1021,10 +1146,13 @@ async function loadCourses() {
   if (!allCohorts.length) {
     $('courselist').textContent = 'No classes open for booking right now — watch this space!';
     $('upcomingcard').classList.add('hidden');
+    setBadge('book', null);
     return;
   }
   courseGroups = {};
   allCohorts.forEach(c => { (courseGroups[c.family_slug] = courseGroups[c.family_slug] || []).push(c); });
+  const bookable = allCohorts.filter(c => !c.is_full).length;
+  setBadge('book', bookable ? bookable + (bookable === 1 ? ' date' : ' dates') : null);
 
   // Open on the month of the next class, not necessarily this month.
   const firstDate = allCohorts.map(c => c.cohort_date).sort()[0];
@@ -1248,6 +1376,9 @@ function pickCohort(id, scroll, allowFull) {
   // holds (allowFull): marking a class full must never dead-end someone mid-payment.
   if (!c || (c.is_full && !allowFull)) return;
   if (isBooked(c)) return;       // already theirs — the server would reject a second booking
+  // Deep links, agenda taps and resumed holds may arrive with the section closed —
+  // roll it open first, and give the animation time before scrolling to the form.
+  const justOpened = openSection('book');
   if (calFilter && lvlOf(c.family_slug).key !== calFilter) { calFilter = ''; $('calfilter').value = ''; renderCards(); }
   selectCourse(c);
   document.querySelectorAll('.date-chip').forEach(b => b.classList.toggle('on', b.dataset.chip === id));
@@ -1259,7 +1390,7 @@ function pickCohort(id, scroll, allowFull) {
   }
   // Land on the Payment section itself — jumping to the top of the card left the
   // student above every course card, still hunting for the bit that matters.
-  if (scroll) requestAnimationFrame(() => $('bookform').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  if (scroll) setTimeout(() => $('bookform').scrollIntoView({ behavior: 'smooth', block: 'start' }), justOpened ? 420 : 30);
 }
 
 // Re-clicking the already-selected date chip deselects it — clears the pick,
@@ -1526,11 +1657,13 @@ async function loadClassroom() {
     const { data, error } = await sb.rpc('get_my_classroom');
     if (!error && Array.isArray(data)) rows = data;
   } catch (e) { /* classroom is additive — the rest of the portal must still work */ }
-  if (!rows.length) { card.classList.add('hidden'); return; }
+  if (!rows.length) { card.classList.add('hidden'); $('classroomempty').classList.remove('hidden'); setBadge('classroom', null); return; }
   const tod = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
   const upcoming = rows.filter(r => r.cohort_date >= tod);
   const past = rows.filter(r => r.cohort_date < tod).reverse();   // most recent first
   card.classList.remove('hidden');
+  $('classroomempty').classList.add('hidden');
+  setBadge('classroom', upcoming.length ? upcoming.length + ' upcoming' : null);
   $('classroomlist').innerHTML =
     (upcoming.length ? upcoming.map(r => classroomBlock(r, tod)).join('')
       : '<p class="muted" style="margin-top:8px">No upcoming class booked — your past class materials are below.</p>') +
@@ -1693,6 +1826,7 @@ function wireStarterUI() {
 async function loadHistory() {
   const { data } = await sb.from('student_history').select('*').eq('email', myEmail).order('cohort_date', { ascending: false });
   const rows = (data || []).filter(r => r.status !== 'pending' && !r.student_hidden_at);
+  setBadge('classes', rows.filter(r => r.status === 'confirmed').length || null);
   if (!rows.length) { $('history').textContent = 'No transactions yet.'; return; }
   $('history').innerHTML = rows.map(r => {
     const paid = Number(r.cash_paid_sgd);
