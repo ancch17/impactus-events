@@ -125,7 +125,7 @@
     <!-- ── Starter prompts ─────────────────────────────────────────────── -->
     <div class="card" id="startercard">
       <h2>🚀 Starter prompts — personalised CoWork starting points, one per student</h2>
-      <p class="muted" style="margin-top:-4px;margin-bottom:10px">Students type their goal in their portal Classroom (<i>"What would you like to build?"</i>). Click <b>Generate</b> — the sheet is written to your JOB B rules, the Word file is built and uploaded automatically, and both appear in that student's Classroom <b>instantly</b>. You can also type a goal on a student's behalf (e.g. collected in class).</p>
+      <p class="muted" style="margin-top:-4px;margin-bottom:10px">Students type their goal in their portal Classroom (<i>"What would you like to build?"</i>). Two ways to generate, both auto-published to the student instantly: <b>ask Claude</b> ("generate starter prompts" — runs on your Claude plan, and the daily 08:45 auto-run catches anything pending), or click <b>⚡ Generate</b> here (needs the ANTHROPIC_API_KEY secret). Word files are built on this page automatically either way. You can also type a goal on a student's behalf (e.g. collected in class).</p>
       <label>Class</label>
       <select id="spsel"></select>
       <div id="splist" class="muted" style="margin-top:8px"></div>
@@ -205,6 +205,7 @@ async function loadAll() {
   courses.forEach(cc => Object.assign(cc, secretsById[cc.id] || {}));
   if (!curFam) { const first = families.find(x => x.status === 'active' && x.slug !== 'test-class'); curFam = first && first.id; }
   renderBoard(); renderFamChips(); renderLibrary(); renderExtras(); renderStarter();
+  healStarterDocx();   // build Word files for sheets generated outside this page (Claude / auto-run)
 }
 
 const famById = (id) => families.find(f => f.id === id);
@@ -527,6 +528,36 @@ async function genStarter(spId, btn) {
     msg('spmsg', 'err', e.message || 'Generation failed.');
     btn.disabled = false; btn.textContent = orig;
   } finally { busy = false; }
+}
+
+// Word files for sheets generated OUTSIDE this page (Claude session / daily auto-run — the
+// no-API-key path, Andrew's plan): any generated row missing its docx is built + uploaded
+// here on page load. Failures are silent; the next page load simply retries.
+let healBusy = false;
+async function healStarterDocx() {
+  if (healBusy || !window.docx) return;
+  const pending = starters.filter(r => r.generated_at && r.prompt_json && !r.docx_path);
+  if (!pending.length) return;
+  healBusy = true;
+  let done = 0;
+  try {
+    for (const r of pending) {
+      const c = courses.find(x => x.id === r.course_id) || {};
+      const st = Object.assign({
+        id: r.id, name: r.name, email: r.email, goal: r.goal,
+        first_name: (r.name || '').trim().split(/\s+/)[0] || 'Student',
+        course_name: c.name, cohort_date: c.cohort_date,
+      }, r.prompt_json);
+      try {
+        const path = await buildStarterDocx(st);
+        await sb.from('starter_prompts').update({ docx_path: path }).eq('id', r.id);
+        r.docx_path = path; done++;
+      } catch (e) { /* leave for the next page load */ }
+    }
+  } finally {
+    healBusy = false;
+    if (done) { renderStarter(); msg('spmsg', 'ok', done + ' Word sheet' + (done > 1 ? 's' : '') + ' built for Claude-generated prompt' + (done > 1 ? 's' : '') + ' ✓'); }
+  }
 }
 
 // Branded Word sheet per the JOB B Document spec: Arial, teal name + rule, grey principle
