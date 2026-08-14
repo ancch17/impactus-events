@@ -1595,6 +1595,11 @@ function classroomBlock(r, tod) {
 // Auto-published: the personalised prompt (and its Word sheet) appears the moment it's generated.
 // All writes go through the save_my_goal SECURITY DEFINER RPC — no direct table access.
 function cmStarterSection(r) {
+  // Starter prompts are ONLY for the Master Claude families (course_families.starter_prompts_enabled).
+  // AI Animation / Animation Automation classes never show this section — without this guard the
+  // goal intake box ("What would you like to build?") rendered for them too, even though
+  // save_my_goal rejects the write server-side.
+  if (!r.starter_enabled) return '';
   const s = r.starter || null;
   const cid = esc(r.course_id);
   const head = '<div style="margin-top:14px;padding-top:11px;border-top:1px dashed var(--line)">'
