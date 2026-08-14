@@ -277,15 +277,6 @@
       <div class="msg ok" id="cx-applied" style="display:none"></div>
     </div>
 
-    <!-- Cohorts list sits BELOW the edit form + roster: pick a class up top, work it, then
-         browse the rest. The class you picked is boxed in this list. -->
-    <div class="card">
-      <h2 style="display:flex;justify-content:space-between;align-items:center">Cohorts
-        <span><label style="display:inline;font-weight:400;margin:0"><input type="checkbox" id="showpast" style="width:auto;vertical-align:-2px"> show past</label></span>
-      </h2>
-      <div id="cohortlist" class="muted">Loading…</div>
-    </div>
-
     <div class="card">
       <h2>Email students</h2>
       <p class="muted" style="margin-top:-6px;margin-bottom:12px">Send an announcement via Impactus Learning (noreply@impactuslearning.com). Use {first} for the student's first name. The class WhatsApp link is added as a footnote automatically. Picking a class up top sets both dropdowns below for you. Then <strong>load a template</strong> — {date}, {day}, {time}, {zoomlink}, {zoomid}, {classlink}, {venue}, {doors} and {walink} fill themselves from that cohort. If the body carries {walink}, leave the footnote dropdown on “— none —” so the group link isn’t sent twice.</p>
@@ -309,6 +300,21 @@
         <button class="btn" id="em-send">Send to recipients</button>
       </div>
       <div class="msg" id="em-msg"></div>
+    </div>
+
+    <!-- Cohorts is the LAST card on the page (Andrew, 2026-08-14): pick a class up top from the
+         calendar, work it through the form / roster / Email students, and only then browse the
+         rest. The class you picked is still boxed in this list. It minimises — ▾/▸ sticks in
+         localStorage per browser — because the working cards above it are what he's here for. -->
+    <div class="card" id="cohortcard">
+      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <span style="display:flex;align-items:center;gap:8px;min-width:0">
+          <button class="btn ghost sm" id="coh-toggle" style="padding:2px 9px;line-height:1.3">▾</button>
+          Cohorts <span class="muted" id="coh-count" style="font-weight:400;font-size:12.5px"></span>
+        </span>
+        <span><label style="display:inline;font-weight:400;margin:0"><input type="checkbox" id="showpast" style="width:auto;vertical-align:-2px"> show past</label></span>
+      </h2>
+      <div id="cohortlist" class="muted">Loading…</div>
     </div>
 
   </div>
@@ -529,11 +535,24 @@ function renderFormActions(cid) {
   el.classList.remove('hidden');
 }
 
+// Minimise the Cohorts list (Andrew, 2026-08-14). The count in the heading is what makes a
+// collapsed card honest — you can see there are 21 classes in there without opening it.
+const COH_COLLAPSED = 'ilAdminCohortsCollapsed';
+function setCohortsCollapsed(v) {
+  $('cohortlist').classList.toggle('hidden', v);
+  $('coh-toggle').textContent = v ? '▸' : '▾';
+  $('coh-toggle').title = v ? 'Show the cohorts list' : 'Minimise the cohorts list';
+  try { localStorage.setItem(COH_COLLAPSED, v ? '1' : '0'); } catch (e) {}
+}
+$('coh-toggle').onclick = () => setCohortsCollapsed(!$('cohortlist').classList.contains('hidden'));
+(() => { let v = false; try { v = localStorage.getItem(COH_COLLAPSED) === '1'; } catch (e) {} setCohortsCollapsed(v); })();
+
 function renderCohorts() {
   const showPast = $('showpast').checked;
   let list = courses.slice().sort((a, b) => a.cohort_date < b.cohort_date ? -1 : 1);
   if (!showPast) list = list.filter(c => c.cohort_date >= today());
   else list = list.slice().reverse();
+  $('coh-count').textContent = list.length ? `· ${list.length} ${showPast ? 'in total' : 'upcoming'}` : '';
   if (!list.length) { $('cohortlist').textContent = 'No cohorts.'; return; }
   $('cohortlist').innerHTML = list.map(c => {
     const pill = c.cancelled ? '<span class="pill cancelled">CANCELLED</span>'
