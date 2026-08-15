@@ -1782,15 +1782,28 @@ function cmStarterSection(r) {
   const docx = s.docx_path
     ? '<a class="btn ghost" style="display:inline-block;width:auto;margin-top:11px;padding:8px 14px;font-size:12.5px;text-decoration:none" href="' + esc(CM_FILE_BASE + encodeURI(s.docx_path)) + '" target="_blank" rel="noopener">📄 Download as Word</a>'
     : '';
-  return head + goalLine + setup
+  // The full sheet is a big block, so it hides behind a striking reveal button and never
+  // stuffs up the Classroom card (Andrew, 2026-08-15: "this is a proud thing so the button
+  // should be striking"). Collapsed on every render — deliberate, the card stays compact.
+  return head + goalLine
+    + '<div style="margin-top:12px"><button type="button" data-sp-reveal="' + cid + '" aria-expanded="false" style="width:auto;margin:0;padding:12px 22px;font-size:14px;font-weight:800;font-family:inherit;letter-spacing:.2px;color:#fff;background:linear-gradient(135deg,#7c3aed,#d946ef);border:0;border-radius:999px;cursor:pointer;box-shadow:0 5px 18px rgba(124,58,237,.4)">✨ See your personalised starter prompt</button></div>'
+    + '<div data-sp-wrap="' + cid + '" class="hidden">' + setup
     + '<div class="hist-sub" style="margin-top:10px">' + esc(p.prompt_intro || 'Copy and paste this into CoWork to begin:') + '</div>'
-    + boxes + how + docx + '</div>';
+    + boxes + how + docx + '</div>'
+    + '</div>';
 }
 
 // Wiring is re-run after every loadClassroom render. goalBusy is a module flag, not
 // button.disabled (the 2026-07-28 double-submit lesson).
 let goalBusy = false;
 function wireStarterUI() {
+  document.querySelectorAll('[data-sp-reveal]').forEach(b => b.onclick = () => {
+    const w = document.querySelector('[data-sp-wrap="' + b.dataset.spReveal + '"]');
+    if (!w) return;
+    const open = !w.classList.toggle('hidden');
+    b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    b.textContent = open ? '▲ Hide your starter prompt' : '✨ See your personalised starter prompt';
+  });
   document.querySelectorAll('[data-goal-edit]').forEach(b => b.onclick = () => {
     const w = document.querySelector('[data-goal-editwrap="' + b.dataset.goalEdit + '"]');
     if (w) w.classList.toggle('hidden');
