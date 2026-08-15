@@ -1334,9 +1334,14 @@ function renderEmailForm() {
   // (Create Zoom, Close/Open, saving a cohort…). Same trap as renderForm() — hold both
   // dropdowns and put them back, or "Send to" silently resets to "All students" mid-compose.
   const keepScope = $('em-scope').value, keepWa = $('em-wa').value;
-  const upcoming = courses.filter(c => c.cohort_date >= today() && !c.cancelled && !c.is_draft).sort((a, b) => a.cohort_date.localeCompare(b.cohort_date));
+  // Recently-finished cohorts stay pickable for 30 days (Andrew, 2026-08-15). A post-class
+  // email — certificate issued + recording published — is written the day AFTER the class,
+  // and an upcoming-only list made its own cohort unselectable. Same 30-day lookback the
+  // Classroom extras picker uses (3b219ba). Cancelled / draft cohorts still stay out.
+  const emFrom = addDays(today(), -30);
+  const pickable = courses.filter(c => c.cohort_date >= emFrom && !c.cancelled && !c.is_draft).sort((a, b) => a.cohort_date.localeCompare(b.cohort_date));
   $('em-scope').innerHTML = '<option value="all">All students</option><option value="upcoming">All students with an upcoming class</option>' +
-    upcoming.map(c => `<option value="c:${c.id}">${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' (' + c.session_time + ')' : ''}</option>`).join('');
+    pickable.map(c => `<option value="c:${c.id}">${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' (' + c.session_time + ')' : ''}${c.cohort_date < today() ? ' · past' : ''}</option>`).join('');
   $('em-wa').innerHTML = '<option value="">— none —</option>' +
     courses.filter(c => c.whatsapp_url).sort((a, b) => a.cohort_date.localeCompare(b.cohort_date))
       .map(c => `<option value="${c.id}">${c.name} · ${fdate(c.cohort_date)}</option>`).join('');
