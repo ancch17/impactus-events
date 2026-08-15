@@ -296,11 +296,16 @@ function renderLibrary() {
 // ── Class extras ───────────────────────────────────────────────────────────
 function renderExtras() {
   const tod = today();
-  const opts = courses.filter(c => !c.cancelled && !c.is_draft && c.cohort_date >= tod);
+  // Recordings are added the day AFTER a class runs, so this picker must include recent PAST
+  // classes (2026-08-15: the staged 12 Aug recording entry was unreachable behind a >= today
+  // filter). Same 30-day lookback as the starter-prompts picker below; a class that already
+  // HAS extras stays listed forever so an old item can always be edited or unpublished.
+  const from = new Date(Date.now() - 30 * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+  const opts = courses.filter(c => !c.cancelled && !c.is_draft && (c.cohort_date >= from || courseMats(c.id).length));
   $('exsel').innerHTML = '<option value="">— choose a class —</option>' + opts.map(c => {
     const f = famById(c.family_id) || {};
     return '<option value="' + c.id + '"' + (c.id === curCourse ? ' selected' : '') + '>' +
-      esc(dow(c.cohort_date) + ' ' + fdate(c.cohort_date) + ' · ' + famLabel(f) + (c.session_time ? ' · ' + c.session_time : '')) + '</option>';
+      esc(dow(c.cohort_date) + ' ' + fdate(c.cohort_date) + ' · ' + famLabel(f) + (c.session_time ? ' · ' + c.session_time : '') + (c.cohort_date < tod ? ' · past' : '')) + '</option>';
   }).join('');
   $('exsel').onchange = () => { curCourse = $('exsel').value || null; editing = null; renderExtras(); };
   if (!curCourse) { $('exlist').textContent = 'Course-library items already cover every class — extras are only for one-off additions like a session recording.'; $('exform').innerHTML = ''; return; }
