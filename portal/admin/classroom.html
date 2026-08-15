@@ -101,6 +101,15 @@
       <div id="board" class="muted">Loading…</div>
     </div>
 
+    <!-- ── Past classes ────────────────────────────────────────────────── -->
+    <div class="card" id="pastcard">
+      <h2 style="display:flex;align-items:center;gap:8px;margin-bottom:0"><button class="btn ghost sm" id="past-toggle" title="Show / hide past classes">▸</button> 📼 Past classes <span class="muted" id="past-count" style="font-weight:400;font-size:12.5px"></span></h2>
+      <div id="pastwrap" class="hidden">
+        <p class="muted" style="margin:10px 0 8px">Classes that have already run — open one to add or manage its recording and other extras. Shows the last 30 days, plus any older class that still has extras.</p>
+        <div id="pastlist" class="muted">Loading…</div>
+      </div>
+    </div>
+
     <!-- ── Course library ──────────────────────────────────────────────── -->
     <div class="card" id="librarycard">
       <h2>📚 Course library — set up once, every class of that course gets it</h2>
@@ -204,7 +213,7 @@ async function loadAll() {
   const secretsById = Object.fromEntries(((cs.data) || []).map(x => [x.id, x]));
   courses.forEach(cc => Object.assign(cc, secretsById[cc.id] || {}));
   if (!curFam) { const first = families.find(x => x.status === 'active' && x.slug !== 'test-class'); curFam = first && first.id; }
-  renderBoard(); renderFamChips(); renderLibrary(); renderExtras(); renderStarter();
+  renderBoard(); renderPast(); renderFamChips(); renderLibrary(); renderExtras(); renderStarter();
   healStarterDocx();   // build Word files for sheets generated outside this page (Claude / auto-run)
 }
 
@@ -242,6 +251,51 @@ function renderBoard() {
 }
 window.jumpLibrary = (fid) => { curFam = fid; renderFamChips(); renderLibrary(); $('librarycard').scrollIntoView({ behavior: 'smooth' }); };
 window.jumpExtras = (cid) => { curCourse = cid; renderExtras(); $('extrascard').scrollIntoView({ behavior: 'smooth' }); };
+
+// ── Past classes (collapsible — Andrew, 2026-08-15: "make a section where i can
+// expand and see the past classes to manage the classroom contents") ─────────
+// Same window as the extras picker: last 30 days + any older class with extras.
+// Collapsed by default; the heading always carries the counts so a collapsed
+// card still says what's inside (house rule). State persists in localStorage.
+let pastOpen = false;
+try { pastOpen = localStorage.getItem('ilClassroomPastOpen') === '1'; } catch (e) { /* private mode */ }
+function renderPast() {
+  const tod = today();
+  const from = new Date(Date.now() - 30 * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+  const rows = courses
+    .filter(c => !c.cancelled && !c.is_draft && c.cohort_date < tod && (c.cohort_date >= from || courseMats(c.id).length))
+    .reverse();   // query order is date ASC → newest past class first
+  const unpub = rows.reduce((n, c) => n + courseMats(c.id).filter(m => !m.is_published).length, 0);
+  $('past-count').textContent = '· ' + rows.length + (rows.length === 1 ? ' class' : ' classes') +
+    (unpub ? ' · ⚠ ' + unpub + ' item' + (unpub > 1 ? 's' : '') + ' not published yet' : '');
+  $('past-toggle').textContent = pastOpen ? '▾' : '▸';
+  $('pastwrap').classList.toggle('hidden', !pastOpen);
+  if (!pastOpen) return;
+  if (!rows.length) { $('pastlist').textContent = 'No past classes in the last 30 days.'; return; }
+  $('pastlist').innerHTML = '<table><thead><tr><th>Date</th><th>Class</th><th>Seats</th><th>Extras</th><th></th></tr></thead><tbody>' +
+    rows.map(c => {
+      const f = famById(c.family_id) || {};
+      const mats = courseMats(c.id);
+      const live = mats.filter(m => m.is_published).length;
+      const hidden = mats.length - live;
+      const ex = mats.length
+        ? (live ? '<span class="ok-dot">' + live + ' live</span>' : '') +
+          (live && hidden ? ' · ' : '') +
+          (hidden ? '<span class="no-dot">' + hidden + ' hidden</span>' : '')
+        : '<span class="muted">none</span>';
+      return '<tr><td style="white-space:nowrap">' + dow(c.cohort_date) + ' ' + fdate(c.cohort_date) +
+        '<div class="muted" style="font-size:11.5px">' + esc(c.session_time || '') + '</div></td>' +
+        '<td><b>' + esc(famLabel(f)) + '</b></td>' +
+        '<td>' + (seatCount(c.id) || '<span class="muted">0</span>') + '</td>' +
+        '<td>' + ex + '</td>' +
+        '<td style="text-align:right;white-space:nowrap"><button class="btn ghost sm" onclick="jumpExtras(\'' + c.id + '\')">Manage</button></td></tr>';
+    }).join('') + '</tbody></table>';
+}
+$('past-toggle').onclick = () => {
+  pastOpen = !pastOpen;
+  try { localStorage.setItem('ilClassroomPastOpen', pastOpen ? '1' : '0'); } catch (e) { /* ignore */ }
+  renderPast();
+};
 
 // ── Course library ─────────────────────────────────────────────────────────
 function renderFamChips() {
