@@ -848,13 +848,19 @@ function renderFollowups() {
 // Cohorts that ran before the CRM took over certificates (2026-08-10) were certified in Certifier
 // directly and have no rows here, so they are left alone; so is any family with no Certifier
 // group (test-class) — Issue would refuse for those anyway. See docs/admin-console.md.
+// ⛔ Andrew's own test account NEVER gets a certificate, so it never pins either (Andrew,
+//    2026-08-16: "no reminder if Andrew Chew is not issued"). Bookings under these emails are
+//    invisible to this card — the counts and the "of N" denominator both skip them. The
+//    Certificates panel still lists him ticked; PREPARE-CLASS Step 6 says untick him there.
+const CERT_NAG_EXCLUDE_EMAILS = ['ancch17@gmail.com'];
 const CERT_TRACKED_SINCE = '2026-08-10';
 function renderCertNag() {
   const byFam = Object.fromEntries(families.map(f => [f.id, f]));
   const owed = courses.filter(c => isPast(c) && c.cohort_date >= CERT_TRACKED_SINCE)
     .filter(c => { const f = byFam[c.family_id]; return !(f && f.certifier_group_id === null); })
     .map(c => {
-      const rows = bookings.filter(b => b.course_id === c.id && b.status === 'confirmed');
+      const rows = bookings.filter(b => b.course_id === c.id && b.status === 'confirmed')
+        .filter(b => !CERT_NAG_EXCLUDE_EMAILS.includes(((byStudent[b.student_id] || {}).email || '').toLowerCase()));
       const sel = rows.filter(b => (certByBooking[b.id] || {}).selected !== false);
       const toIssue = sel.filter(b => !(certByBooking[b.id] || {}).certifier_credential_id).length;
       const toEmail = sel.filter(b => { const x = certByBooking[b.id] || {}; return x.certifier_credential_id && !x.emailed_at; }).length;
