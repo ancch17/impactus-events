@@ -30,7 +30,7 @@
 
   .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; }
   /* Header is sticky — keep scrollIntoView from parking a card title underneath it. */
-  #formcard, #rostercard, #cancelcard { scroll-margin-top:72px; }
+  #formcard, #rostercard, #certcard, #cancelcard { scroll-margin-top:72px; }
   h1 { font-size:20px; font-weight:800; }
   h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
   .muted { color:var(--mut); font-size:13px; }
@@ -164,6 +164,17 @@
   <div id="view-app" class="hidden">
 
     <div class="kpis" id="kpis"></div>
+
+    <!-- Pinned automatically, not by hand: any class that has RUN and still has ticked students
+         without a certificate (or certificates issued but never emailed) stays up here until it
+         is dealt with. It clears itself — issue + email in the Certificates panel, or untick the
+         students who shouldn't get one. -->
+    <div class="card" id="certnagcard" style="display:none;border-left:4px solid var(--red)">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">🏅 Certificates outstanding
+        <span class="muted" style="font-weight:400;font-size:12px">These classes have run, but not everyone ticked has a certificate issued &amp; emailed · clears on its own once done · untick anyone who shouldn't get one</span>
+      </h2>
+      <div id="certnags"></div>
+    </div>
 
     <div class="card" id="followupcard" style="display:none;border-left:4px solid var(--amber)">
       <h2 style="display:flex;justify-content:space-between;align-items:center">📌 Follow-ups
@@ -429,7 +440,7 @@ async function loadAll() {
   await closePastCohorts();
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
-  renderKPIs(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderEmailForm();
+  renderKPIs(); renderCertNag(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderEmailForm();
   renderFormActions(editingCourse);
   if (rosterCourse) openRoster(rosterCourse, true);
   refreshCancelTargets();
@@ -830,6 +841,46 @@ function renderFollowups() {
     }).join('') + '</tbody></table>';
 }
 
+// Dashboard card: classes that have RUN but still owe certificates. Auto-pinned — nothing to
+// tick to make it appear, and it disappears only when the work is done: every ticked confirmed
+// seat issued AND emailed. A no-show keeps nagging until Andrew unticks them in the Certificates
+// panel — that untick is the deliberate "no cert for this one" record, and it clears the pin.
+// Cohorts that ran before the CRM took over certificates (2026-08-10) were certified in Certifier
+// directly and have no rows here, so they are left alone; so is any family with no Certifier
+// group (test-class) — Issue would refuse for those anyway. See docs/admin-console.md.
+const CERT_TRACKED_SINCE = '2026-08-10';
+function renderCertNag() {
+  const byFam = Object.fromEntries(families.map(f => [f.id, f]));
+  const owed = courses.filter(c => isPast(c) && c.cohort_date >= CERT_TRACKED_SINCE)
+    .filter(c => { const f = byFam[c.family_id]; return !(f && f.certifier_group_id === null); })
+    .map(c => {
+      const rows = bookings.filter(b => b.course_id === c.id && b.status === 'confirmed');
+      const sel = rows.filter(b => (certByBooking[b.id] || {}).selected !== false);
+      const toIssue = sel.filter(b => !(certByBooking[b.id] || {}).certifier_credential_id).length;
+      const toEmail = sel.filter(b => { const x = certByBooking[b.id] || {}; return x.certifier_credential_id && !x.emailed_at; }).length;
+      return { c, seats: rows.length, toIssue, toEmail };
+    })
+    .filter(x => x.toIssue > 0 || x.toEmail > 0)
+    .sort((a, b) => a.c.cohort_date < b.c.cohort_date ? -1 : 1);
+  if (!owed.length) { $('certnagcard').style.display = 'none'; return; }
+  $('certnagcard').style.display = '';
+  $('certnags').innerHTML = owed.map(({ c, seats, toIssue, toEmail }) => {
+    const bits = [];
+    if (toIssue) bits.push(`<strong>${toIssue} of ${seats}</strong> not issued`);
+    if (toEmail) bits.push(`<strong>${toEmail}</strong> issued but not emailed`);
+    return `<div class="cohort-row">
+      <div><strong>${esc(shortName(c.name))}</strong> · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + esc(c.session_time) : ''}
+        <br><span class="muted" style="font-size:12.5px">${bits.join(' · ')}</span></div>
+      <div class="cohort-actions"><button class="btn sm" onclick="openCerts('${c.id}')">🏅 Open certificates</button></div>
+    </div>`;
+  }).join('');
+}
+// Straight to the Certificates panel of that cohort (openRoster renders it right below the roster).
+window.openCerts = function (cid) {
+  openRoster(cid, true);
+  $('certcard').scrollIntoView({ behavior: 'smooth' });
+};
+
 // ONE remark per student (students.remarks) — the Students tab edits the very same field,
 // so whatever is typed here shows there, and on every other roster this student appears in.
 window.saveRemark = async function (sid) {
@@ -1168,6 +1219,7 @@ async function certUpsert(bid, patch) {
   if (error) return msg('certmsg', 'err', error.message);
   certByBooking[bid] = data;
   renderCerts(rosterCourse);
+  renderCertNag();                    // an untick can clear (or a re-tick re-pin) the card up top
 }
 window.certSel = (bid, checked) => certUpsert(bid, { selected: checked });
 window.certName = (bid, value) => {
@@ -1179,6 +1231,7 @@ async function certReload() {
   const { data } = await sb.from('certificates').select('*');
   certByBooking = Object.fromEntries((data || []).map(x => [x.booking_id, x]));
   renderCerts(rosterCourse);
+  renderCertNag();                    // issuing / emailing may have just cleared the card up top
 }
 async function certAction(action, bids, confirmText, btn) {
   if (!confirm(confirmText)) return;
