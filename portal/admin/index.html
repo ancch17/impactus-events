@@ -586,15 +586,35 @@ function slotOf(t) {
   if (m[3].toLowerCase() === 'pm') h += 12;
   return h < 12 ? 0 : h < 18 ? 1 : 2;
 }
-const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude L1', 'AI Animation Masterclass': 'Animation L1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude L1', 'F2F AI Animation Masterclass': 'F2F Animation L1', 'F2F AI Animation Automation': 'F2F Animation L2', 'F2F Master Claude - Build': 'F2F Claude L2' };
+// Which calendar ROWS a session occupies. Most classes sit in one (3h online, 3.5h F2F), but a
+// full-day corporate class (9:00am – 5:00pm) starts in AM and finishes in PM, so it has to be
+// drawn in BOTH rows — that is what makes it read as a block covering the whole day rather than
+// a morning class. Returns [startSlot..endSlot].
+// The end time is nudged back one minute on purpose: a class ending exactly at 12:00pm is an
+// AM class, not an AM+PM one, so every existing cohort still resolves to the single slot it
+// always had. Falls back to slotOf() whenever a string carries only one time (or none).
+function slotsOf(t) {
+  const s = slotOf(t);
+  const all = (t || '').match(/\d{1,2}(?::\d{2})?\s*(?:am|pm)/gi);
+  if (!all || all.length < 2) return [s];
+  const m = all[all.length - 1].match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+  let h = parseInt(m[1], 10) % 12;
+  if (m[3].toLowerCase() === 'pm') h += 12;
+  const end = h * 60 + (parseInt(m[2], 10) || 0) - 1;
+  const e = end < 720 ? 0 : end < 1080 ? 1 : 2;
+  const out = [];
+  for (let i = s; i <= Math.max(s, e); i++) out.push(i);
+  return out;
+}
+const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude L1', 'AI Animation Masterclass': 'Animation L1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude L1', 'F2F AI Animation Masterclass': 'F2F Animation L1', 'F2F AI Animation Automation': 'F2F Animation L2', 'F2F Master Claude - Build': 'F2F Claude L2', 'Claude Corporate Full Day': 'Claude Corp FD' };
 const shortName = (n) => SHORTNAMES[n] || (n.length > 14 ? n.slice(0, 13) + '…' : n);
 // Calendar cells are narrow - a long label clips the attendee count at the end.
 // So the calendar (and its legend) use even shorter labels: Claude -> C, Animation -> A.
 // Used ONLY by renderCalendar() + renderLegend(); everywhere else still uses shortName().
-const CAL_SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'C L1', 'AI Animation Masterclass': 'A L1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F C L1', 'F2F AI Animation Masterclass': 'F2F A L1', 'F2F AI Animation Automation': 'F2F A L2', 'F2F Master Claude - Build': 'F2F C L2' };
+const CAL_SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'C L1', 'AI Animation Masterclass': 'A L1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F C L1', 'F2F AI Animation Masterclass': 'F2F A L1', 'F2F AI Animation Automation': 'F2F A L2', 'F2F Master Claude - Build': 'F2F C L2', 'Claude Corporate Full Day': 'C Corp FD' };
 const calName = (n) => CAL_SHORTNAMES[n] || (n.length > 10 ? n.slice(0, 9) + '…' : n);
 // Family = hue (Claude=magenta/violet, Animation=green/blue), tier = lightness (Masterclass lighter, Build/Automation darker), format = the hue split within a family.
-const COURSE_COLORS = { 'Master Claude: Agentic AI Masterclass': '#b83db8', 'F2F Master Claude - Agentic AI Masterclass': '#5e38a8', 'F2F Master Claude - Build': '#372163', 'AI Animation Masterclass': '#22872a', 'F2F AI Animation Masterclass': '#1b6da7', 'F2F AI Animation Automation': '#103f60' };
+const COURSE_COLORS = { 'Master Claude: Agentic AI Masterclass': '#b83db8', 'F2F Master Claude - Agentic AI Masterclass': '#5e38a8', 'F2F Master Claude - Build': '#372163', 'AI Animation Masterclass': '#22872a', 'F2F AI Animation Masterclass': '#1b6da7', 'F2F AI Animation Automation': '#103f60', 'Claude Corporate Full Day': '#6d28d9' };
 function courseColor(n) { if (COURSE_COLORS[n]) return COURSE_COLORS[n]; let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},52%,38%)`; }
 function renderLegend() {
   $('cal-legend').innerHTML = Object.keys(COURSE_COLORS).map(full => `
@@ -620,11 +640,13 @@ function renderCalendar() {
       if (i === 6) continue;
       const iso = isoOf(d);
       const out = d.getMonth() !== m;
+      // slotsOf(), not slotOf() — a full-day class lands in AM *and* PM, so it draws as one
+      // block covering both rows. Every 3h/3.5h class still resolves to a single slot.
       const slots = [[], [], []];
-      (byDate[iso] || []).forEach(c => slots[slotOf(c.session_time)].push(c));
+      (byDate[iso] || []).forEach(c => slotsOf(c.session_time).forEach(si => slots[si].push(c)));
       const bslots = [[], [], []];
       const dow = d.getDay();
-      blocks.filter(x => x.block_date === iso || (x.recur_weekly && x.block_date <= iso && new Date(x.block_date + 'T00:00:00').getDay() === dow)).forEach(x => bslots[slotOf(x.session_time)].push(x));
+      blocks.filter(x => x.block_date === iso || (x.recur_weekly && x.block_date <= iso && new Date(x.block_date + 'T00:00:00').getDay() === dow)).forEach(x => slotsOf(x.session_time).forEach(si => bslots[si].push(x)));
       const slotHtml = ['AM', 'PM', 'N'].map((lab, si) =>
         `<div class="cal-slot"><span class="sl">${lab}</span><div class="evs" onclick="event.stopPropagation();calendarSlot(event,'${iso}','${['am','pm','n'][si]}')">` +
         bslots[si].map(x =>
@@ -652,25 +674,36 @@ $('cal-next').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calM
 const SLOT_KEYS = ['am', 'pm', 'n'];
 const SLOT_TIMES_ONLINE = { am: '9:00am – 12:00pm', pm: '2:00pm – 5:00pm', n: '7:00pm – 10:00pm' };
 const SLOT_TIMES_F2F    = { am: '8:30am – 12:00pm', pm: '1:30pm – 5:00pm', n: '6:30pm – 10:00pm' };
-const HOUSE_TIMES = [...Object.values(SLOT_TIMES_ONLINE), ...Object.values(SLOT_TIMES_F2F)];
+// A corporate full day is ONE 9-to-5 block, not a three-slot day, so its family offers exactly
+// one time instead of AM/PM/Night. Because it crosses noon, slotsOf() draws it in both the AM
+// and PM calendar rows. Keep this table single-entry — the slot pickers read Object.keys(T).
+const SLOT_TIMES_FULLDAY = { fd: '9:00am – 5:00pm' };
+const HOUSE_TIMES = [...Object.values(SLOT_TIMES_ONLINE), ...Object.values(SLOT_TIMES_F2F), ...Object.values(SLOT_TIMES_FULLDAY)];
 // F2F families are the ones whose slug starts f2f- (f2f-claude, f2f-build, f2f-animation…).
 // Anything else — including a blank course on a fresh form — is online.
 const isF2FFamily = (famId) => /^f2f-/.test((families.find(f => f.id === famId) || {}).slug || '');
-const slotTimesFor = (famId) => isF2FFamily(famId) ? SLOT_TIMES_F2F : SLOT_TIMES_ONLINE;
+// Full-day families are listed explicitly rather than sniffed from the slug: a corporate class
+// is not automatically full-day, and a future half-day corporate offer must not inherit 9–5.
+const FULLDAY_SLUGS = ['corp-claude-fd'];
+const isFullDayFamily = (famId) => FULLDAY_SLUGS.includes((families.find(f => f.id === famId) || {}).slug || '');
+const slotTimesFor = (famId) => isFullDayFamily(famId) ? SLOT_TIMES_FULLDAY : isF2FFamily(famId) ? SLOT_TIMES_F2F : SLOT_TIMES_ONLINE;
+// A slot table may hold three entries (online/F2F) or one (full day) — never index it with .am.
+const firstTime = (T) => T[Object.keys(T)[0]];
 // The cohort form's time is a fixed three-way choice, and WHICH three depends on the course.
 // Older cohorts may carry a legacy string ("7:00pm-10:00pm SGT"); keep it selectable so
 // editing one doesn't silently retime it.
 function setSessionTime(v) {
   const sel = $('f-time');
   const T = slotTimesFor($('f-family').value);
-  const LBL = { am: 'AM', pm: 'PM', n: 'Night' };
-  sel.innerHTML = SLOT_KEYS.map(k => `<option value="${T[k]}">${LBL[k]} · ${T[k]}</option>`).join('');
-  if (v && !SLOT_KEYS.some(k => T[k] === v)) {
+  const KEYS = Object.keys(T);                    // three for online/F2F, one for a full day
+  const LBL = { am: 'AM', pm: 'PM', n: 'Night', fd: 'Full day' };
+  sel.innerHTML = KEYS.map(k => `<option value="${T[k]}">${LBL[k]} · ${T[k]}</option>`).join('');
+  if (v && !KEYS.some(k => T[k] === v)) {
     const o = document.createElement('option');
     o.value = v; o.textContent = v + ' (existing)'; o.dataset.legacy = '1';
     sel.appendChild(o);
   }
-  sel.value = v || T.am;
+  sel.value = v || firstTime(T);
 }
 
 // Calendar clicks drive the cohort form below, so it always shows what you just clicked.
@@ -686,7 +719,7 @@ window.calendarSlot = function (ev, iso, slot) {
   if (editingCourse) $('f-cancel').onclick();          // drop out of edit mode first
   $('f-date').value = iso;
   const T = slotTimesFor($('f-family').value);   // no course picked yet -> online times; the
-  setSessionTime(T[slot] || T.am);               // f-family onchange re-times it if F2F is chosen
+  setSessionTime(T[slot] || firstTime(T));       // f-family onchange re-times it if F2F is chosen
   $('formtitle').textContent = 'Add a new cohort — ' + fdate(iso);
   $('formmsg').className = 'msg'; $('formmsg').textContent = '';
   $('f-family').focus();
@@ -696,9 +729,11 @@ window.calendarSlot = function (ev, iso, slot) {
 // (online 3h, F2F 3.5h), so the labels are rebuilt whenever either changes.
 function renderPlanSlots() {
   const T = slotTimesFor($('plan-family').value);
-  const LBL = { am: 'Morning', pm: 'Afternoon', n: 'Night' };
-  const cur = $('plan-slot').value || 'am';
-  $('plan-slot').innerHTML = SLOT_KEYS.map(k => `<option value="${k}">${LBL[k]} · ${T[k]}</option>`).join('');
+  const KEYS = Object.keys(T);                    // a full-day course offers one slot, not three
+  const LBL = { am: 'Morning', pm: 'Afternoon', n: 'Night', fd: 'Full day' };
+  const want = $('plan-slot').value || 'am';
+  const cur = KEYS.includes(want) ? want : KEYS[0];
+  $('plan-slot').innerHTML = KEYS.map(k => `<option value="${k}">${LBL[k]} · ${T[k]}</option>`).join('');
   $('plan-slot').value = cur;
   $('plan-time').value = T[cur];
 }
@@ -1488,7 +1523,9 @@ function renderForm() {
     // Online and F2F run different-length slots, so switching course keeps the SLOT (AM stays AM)
     // and swaps the times to that course's house set. A legacy free-typed time is left alone.
     const prev = $('f-time').value;
-    setSessionTime(HOUSE_TIMES.includes(prev) ? slotTimesFor($('f-family').value)[SLOT_KEYS[slotOf(prev)]] : prev);
+    const T = slotTimesFor($('f-family').value);
+    // Switching TO a full-day course has no AM/PM/Night to keep, so fall back to its one time.
+    setSessionTime(HOUSE_TIMES.includes(prev) ? (T[SLOT_KEYS[slotOf(prev)]] || firstTime(T)) : prev);
   };
 }
 // The portal dropdown is a view over the two DB flags. is_full only ever applied while the
