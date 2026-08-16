@@ -1117,6 +1117,10 @@ const LEVELS = {};
 // books it by accident. Registered here in LEVELS only, NOT in LEVEL_ORDER, so it never gets a
 // chip in the student course key. Do not delete this entry or the family.
 LEVELS['test-class'] = { key: 'test', short: 'Test Class', title: 'Test Class', color: '#64748b', f2f: false };
+// Corporate in-house runs (Andrew, 2026-08-16): registered here so the calendar/cards read
+// "Corporate Class", never the bare fallback "Class". Not in LEVEL_ORDER on purpose — no chip
+// in the course key. Booking these needs a company code — see the quote_only handling below.
+LEVELS['corp-claude-fd'] = { key: 'corpfd', short: 'Corporate Class', title: 'Claude Corporate Full Day', color: '#6d28d9', f2f: false };
 const lvlOf = (slug) => LEVELS[slug] || { key: 'x', short: 'Class', title: '', color: '#64748b', f2f: false };
 
 let allCohorts = [], attendedMap = {}, calMonth = null, calFilter = '';
@@ -1134,6 +1138,12 @@ function slotOf(t) {
 }
 const inFilter = (c) => !calFilter || lvlOf(c.family_slug).key === calFilter;
 const earnOn = (price) => Math.round(Number(price) * 0.10);
+// "As quoted" corporate pricing (2026-08-16): the family has no default price, so
+// open_cohorts flags the cohort with quote_only. No S$ figure is ever shown, no points
+// earn, and booking REQUIRES a company code — create-checkout enforces the same rule
+// server-side, so this page is the explanation, not the lock.
+const isQuoted = (c) => !!(c && c.quote_only);
+const priceTag = (c) => isQuoted(c) ? 'As quoted' : fmt$(c.price_sgd);
 
 async function loadCourses() {
   // open_cohorts = bookable cohorts already joined to their course family (active families only)
@@ -1259,7 +1269,7 @@ function renderCalendar() {
             return `<span class="scal-ev full" title="${tip} · Closed">${L.f2f ? '<span class="evf2f">F2F</span>' : ''}${L.short} · Closed</span>`;
           }
           return `<button type="button" class="scal-ev" style="background:${L.color}" data-pick="${c.id}"
-            title="${tip} · ${fmt$(c.price_sgd)}">
+            title="${tip} · ${priceTag(c)}">
             ${L.f2f ? '<span class="evf2f">F2F</span>' : ''}${L.short}</button>`;
         }).join('') + '</div></div>').join('');
       html += `<td class="${out ? 'out' : ''}${iso < tod ? ' past' : ''}${iso === tod ? ' today' : ''}${any ? ' has' : ''}"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
@@ -1295,7 +1305,7 @@ function renderAgenda() {
       <span class="ag-bar" style="background:${L.color}"></span>
       <span class="ag-when"><strong>${fdate(c.cohort_date)}</strong><span class="hist-sub">${esc(c.session_time || '')}</span></span>
       <span class="ag-what">${what}</span>
-      <span class="ag-price">${fmt$(c.price_sgd)}</span></button>`;
+      <span class="ag-price">${priceTag(c)}</span></button>`;
   }).join('');
   wirePicks();
 }
@@ -1324,8 +1334,13 @@ function renderCards() {
       : `<button type="button" class="date-chip" data-chip="${c.id}" data-slug="${slug}">
           <strong>${fdate(c.cohort_date)}</strong>${c.session_time ? `<span>${esc(c.session_time)}</span>` : ''}</button>`).join('');
     // A fully closed course keeps its card so students still see it ran — but no price, no button.
+    // "As quoted" corporate classes show no figure and no earn chip — the seat is priced on
+    // the company's quote and unlocked with a company code, so "Earn 0 pts" would be noise.
     const priceBlock = allFull
       ? '<span class="closed-tag">Closed</span>'
+      : isQuoted(next)
+      ? `<div class="price-big">As quoted</div>
+         <div class="earn-chip">Company code required</div>`
       : `<div class="price-big">${fmt$(next.price_sgd)}</div>
          <div class="earn-chip">Earn ${earn} pt${earn === 1 ? '' : 's'}</div>`;
     return `<div class="ccard" data-card="${slug}" style="--accent:${allFull ? '#b9c0cc' : L.color}">
@@ -1445,6 +1460,8 @@ let deepLinkDone = false;  // the ?course=… deep link is honoured once per pag
 function selectCourse(c) {
   selCourse = c; coupon = null;
   $('bookform').classList.remove('hidden');
+  // On a corporate class the code isn't a nice-to-have — say so right in the box.
+  $('couponcode').placeholder = isQuoted(c) ? 'Company code (required)' : 'Discount code (optional)';
   $('couponcode').value = ''; $('couponbtn').textContent = 'Apply'; $('couponbtn').disabled = false;
   $('couponmsg').className = 'msg'; $('couponmsg').textContent = '';
   renderPaySummary(c);
@@ -1519,10 +1536,11 @@ $('couponcode').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault()
 function updateBreakdown() {
   const price = Number(selCourse.price_sgd);
   const { pts, discount, pay } = quote();
-  $('bd-price').textContent = fmt$(price);
+  $('bd-price').textContent = isQuoted(selCourse) ? 'As quoted' : fmt$(price);
   // Points-first can leave a code with nothing left to discount. The server won't
   // consume it in that case — tell the student instead of silently dropping the row.
-  if (coupon && discount === 0) msg('couponmsg', 'ok', 'Your points already cover this class — code ' + coupon.code + ' stays unused for another time.');
+  // NOT on an "as quoted" class: there the code discounts S$0 by design and IS consumed.
+  if (coupon && discount === 0 && !isQuoted(selCourse)) msg('couponmsg', 'ok', 'Your points already cover this class — code ' + coupon.code + ' stays unused for another time.');
   const dr = $('bd-disc-row');
   if (discount > 0) { dr.classList.remove('hidden'); $('bd-disc-label').textContent = coupon.label || 'Discount'; $('bd-disc').textContent = '− ' + fmt$(discount); }
   else dr.classList.add('hidden');
@@ -1532,7 +1550,7 @@ function updateBreakdown() {
     $('bd-pts-label').textContent = `Your points applied (${pts} pts)`;
     $('bd-pts').textContent = '− ' + fmt$(pts);
   } else pr.classList.add('hidden');
-  $('bd-total').textContent = fmt$(pay);
+  $('bd-total').textContent = isQuoted(selCourse) ? (coupon ? 'Covered by your company code' : 'As quoted') : fmt$(pay);
 
   // If another held seat is sitting on some of this student's points, say so here rather
   // than letting them wonder why fewer points came off than their balance suggests.
@@ -1553,6 +1571,17 @@ function updateBreakdown() {
   document.querySelectorAll('.pm').forEach(b => { b.disabled = false; });
   $('bookmsg').className = 'msg';
   if (blocked) msg('bookmsg', 'ok', 'Card / PayNow / GrabPay checkout goes live shortly. For now you can book any class fully covered by points or a code.');
+
+  // Corporate "as quoted" classes: no price on show and no self-serve free seat — the
+  // company code is the ticket in. The button only goes live once a code is applied;
+  // create-checkout enforces the identical gate server-side, so this is UX, not the lock.
+  if (isQuoted(selCourse)) {
+    $('paymethods').classList.add('hidden');
+    $('paybtn').classList.remove('hidden');
+    $('paybtn').disabled = !coupon;
+    $('paybtn').textContent = coupon ? 'Book now — covered by your company code' : 'Enter your company code to book';
+    if (!coupon) msg('bookmsg', 'ok', 'This corporate class is booked with a company code — enter the code from your organiser above.');
+  }
 
   // Last line of defence. Nothing above should be able to open the payment step on a class
   // the student already holds, but if the form is somehow still on screen, don't offer a
@@ -1580,6 +1609,11 @@ async function startCheckout(method) {
   if (!selCourse) return;
   if (isBooked(selCourse)) {
     msg('bookmsg', 'ok', 'You already have a seat on this date — it’s in “Your classes” below.');
+    return;
+  }
+  // Mirror of the server's corporate gate — never send a code-less request it will refuse.
+  if (isQuoted(selCourse) && !coupon) {
+    msg('bookmsg', 'err', 'This corporate class needs a company code — enter the code from your organiser above.');
     return;
   }
   const payNow = quote().pay;
