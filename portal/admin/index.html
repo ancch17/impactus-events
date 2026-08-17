@@ -918,7 +918,8 @@ function renderSpNag() {
   starters.forEach(r => {
     if (!r.goal) return;
     const em = (r.email || '').toLowerCase();
-    if (CERT_NAG_EXCLUDE_EMAILS.includes(em)) return;                        // test account
+    // NOTE: unlike the certificate card, ancch17 is NOT excluded here — Andrew tests the
+    // student flow with it and wants his test entries to raise the alert (2026-08-17).
     if (r.generated_at && !(new Date(r.goal_updated_at) > new Date(r.generated_at))) return;
     const c = byCourse[r.course_id];
     if (!c || c.cancelled || c.is_draft || c.cohort_date < from) return;
