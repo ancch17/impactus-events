@@ -94,6 +94,16 @@
 
   <div id="view-app" class="hidden">
 
+    <!-- ── 🚀 Starter prompts waiting — pinned banner (Andrew's spec, 2026-08-17):
+         goals typed (or changed) with nothing generated yet. ⚡ selects that class in the
+         panel at the bottom and pulses that student's row. Clears as sheets are generated. -->
+    <div class="card" id="spwaitcard" style="display:none;border-left:4px solid #7c3aed">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">🚀 Starter prompts waiting
+        <span class="muted" style="font-weight:400;font-size:12px">Students have typed goals with nothing generated yet &middot; ⚡ takes you to their Generate button &middot; each student is emailed automatically once generated</span>
+      </h2>
+      <div id="spwaits"></div>
+    </div>
+
     <!-- ── Readiness board ─────────────────────────────────────────────── -->
     <div class="card">
       <h2>📋 Class readiness — every upcoming cohort at a glance</h2>
@@ -197,17 +207,7 @@ function route(session) {
     const spq = q.get('sp');
     if (spq && courses.some(c => c.id === spq)) {
       window.__spJumped = true;
-      curSpCourse = spq; renderStarter();
-      // ?em=<email> narrows the jump to ONE student's row and pulses it violet.
-      const em = (q.get('em') || '').toLowerCase();
-      const row = em ? document.querySelector('#splist [data-sp-row="' + (window.CSS && CSS.escape ? CSS.escape(em) : em) + '"]') : null;
-      if (row) {
-        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        row.style.outline = '3px solid #7c3aed'; row.style.outlineOffset = '3px'; row.style.borderRadius = '10px';
-        setTimeout(() => { row.style.outline = ''; }, 6000);
-      } else {
-        $('startercard').scrollIntoView({ behavior: 'smooth' });
-      }
+      jumpStarter(spq, (q.get('em') || '').toLowerCase());
     }
   });
 }
@@ -233,7 +233,7 @@ async function loadAll() {
   const secretsById = Object.fromEntries(((cs.data) || []).map(x => [x.id, x]));
   courses.forEach(cc => Object.assign(cc, secretsById[cc.id] || {}));
   if (!curFam) { const first = families.find(x => x.status === 'active' && x.slug !== 'test-class'); curFam = first && first.id; }
-  renderBoard(); renderPast(); renderFamChips(); renderLibrary(); renderExtras(); renderStarter();
+  renderBoard(); renderPast(); renderFamChips(); renderLibrary(); renderExtras(); renderStarter(); renderSpWait();
   healStarterDocx().then(() => healStarterNotify());   // Word files first, then ✉️ ready-emails (covers outside-generated sheets and earlier send failures)
 }
 
@@ -533,6 +533,11 @@ function renderStarter() {
              + '<button class="btn ghost sm" data-sp-goal="' + esc(s.email) + '">✎ Goal</button>';
       } else {
         stateHtml += '<span class="pillmini" style="background:#e3f4ea;color:#1a7a48">✓ live in their Classroom · ' + esc(fdate(r.generated_at.slice(0, 10))) + '</span>';
+        // ✉️ Has the ready-email gone out for THIS generation? (Sent automatically on this page.)
+        const mailed = r.notified_at && new Date(r.notified_at) >= new Date(r.generated_at);
+        stateHtml += mailed
+          ? ' <span class="pillmini" style="background:#e3f4ea;color:#1a7a48">✉️ emailed ' + esc(fdate(r.notified_at.slice(0, 10))) + '</span>'
+          : ' <span class="pillmini" style="background:#fdf3d7;color:#8a6d1a">✉️ email on its way — sends automatically from this page</span>';
         acts = '<button class="btn ghost sm" data-sp-view="' + r.id + '">' + (spView === r.id ? 'Hide' : 'View') + '</button> '
              + (r.docx_path ? '<a class="btn ghost sm" style="text-decoration:none" href="' + esc(CM_FILE_BASE + encodeURI(r.docx_path)) + '" target="_blank" rel="noopener">Word ↗</a> ' : '')
              + '<button class="btn ghost sm" data-sp-gen="' + r.id + '">↻ Regenerate</button> '
@@ -553,6 +558,52 @@ function renderStarter() {
       + '<div class="mat-acts">' + acts + '</div></div>';
   }).join('');
   wireStarter();
+}
+
+// ⚡ From the top banner (or the dashboard deep-link): select the class in the 🚀 panel,
+// scroll to that student's row and pulse it violet so the Generate button is unmissable.
+window.jumpStarter = (cid, em) => {
+  curSpCourse = cid; spGoalEdit = null; spView = null; renderStarter();
+  const sel = em ? '#splist [data-sp-row="' + (window.CSS && CSS.escape ? CSS.escape(em) : em) + '"]' : '';
+  const row = sel ? document.querySelector(sel) : null;
+  (row || $('startercard')).scrollIntoView({ behavior: 'smooth', block: row ? 'center' : 'start' });
+  if (row) {
+    row.style.outline = '3px solid #7c3aed'; row.style.outlineOffset = '3px'; row.style.borderRadius = '10px';
+    setTimeout(() => { row.style.outline = ''; }, 6000);
+  }
+};
+
+// 🚀 The pinned banner at the top of this page — same rules as the dashboard card.
+const SP_TEST_EXCLUDE = ['ancch17@gmail.com'];   // Andrew's test account never nags (same rule as the dashboard / cert card)
+function spPendingRows() {
+  const from = new Date(Date.now() - 30 * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+  const out = [];
+  starters.forEach(r => {
+    if (!r.goal) return;
+    const em = (r.email || '').toLowerCase();
+    if (SP_TEST_EXCLUDE.includes(em)) return;
+    if (r.generated_at && !(new Date(r.goal_updated_at) > new Date(r.generated_at))) return;
+    const c = courses.find(x => x.id === r.course_id);
+    if (!c || c.cancelled || c.is_draft || c.cohort_date < from) return;
+    if (!(famById(c.family_id) || {}).starter_prompts_enabled) return;
+    if (!spRoster(c.id).some(s => (s.email || '').toLowerCase() === em)) return;   // confirmed seats only
+    out.push({ r, c, em, regen: !!r.generated_at });
+  });
+  out.sort((a, b) => a.c.cohort_date !== b.c.cohort_date
+    ? (a.c.cohort_date < b.c.cohort_date ? -1 : 1)
+    : ((a.r.name || a.em).localeCompare(b.r.name || b.em)));
+  return out;
+}
+function renderSpWait() {
+  const rows = spPendingRows();
+  if (!rows.length) { $('spwaitcard').style.display = 'none'; return; }
+  $('spwaitcard').style.display = '';
+  $('spwaits').innerHTML = rows.map(({ r, c, em, regen }) => '<div class="mat">'
+    + '<div style="flex:1;min-width:0"><div class="mat-title">' + esc(r.name || r.email) + '</div>'
+    + '<div class="mat-sub" style="word-break:normal">' + esc(dow(c.cohort_date) + ' ' + fdate(c.cohort_date)) + ' · ' + esc(c.name || '')
+    + ' — ' + (regen ? 'goal changed since generated — regenerate' : 'starter prompt entered — not generated yet') + '</div></div>'
+    + '<div class="mat-acts"><button class="btn sm" onclick="jumpStarter(\'' + c.id + '\', \'' + esc(em) + '\')">⚡ Generate</button></div>'
+    + '</div>').join('');
 }
 
 function wireStarter() {
@@ -673,6 +724,7 @@ async function notifyStarterReady(spId) {
     const ts = new Date().toISOString();
     await sb.from('starter_prompts').update({ notified_at: ts }).eq('id', r.id);
     r.notified_at = ts;
+    if (!spGoalEdit) renderStarter();   // flip the ✉️ pill to "emailed" live
     msg('spmsg', 'ok', '\u2709\ufe0f ' + (r.name || r.email) + ' has been emailed \u2014 prompt + Word sheet are in their Classroom.');
   } catch (e) {
     msg('spmsg', 'err', 'Sheet is live, but the email did not send (' + (e.message || e) + '). It retries automatically next time this page loads.');
