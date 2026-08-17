@@ -151,6 +151,17 @@
       <div class="msg" id="spmsg"></div>
     </div>
 
+    <!-- ── 🗂 Generated starter prompts — chronological history (Andrew, 2026-08-17):
+         newest generation on top, total always in the heading (visible collapsed), View
+         opens that student in the 🚀 panel above with their full prompt showing. -->
+    <div class="card" id="spdonecard">
+      <h2 style="display:flex;align-items:center;gap:8px;margin-bottom:0"><button class="btn ghost sm" id="spdone-toggle" title="Show / hide generated starter prompts">▸</button> 🗂 Generated starter prompts <span class="muted" id="spdone-count" style="font-weight:400;font-size:12.5px"></span></h2>
+      <div id="spdonewrap" class="hidden">
+        <p class="muted" style="margin:10px 0 8px">Every starter prompt ever generated, newest first — who, which class, when, and whether the ready-email has gone out. <b>View</b> jumps to that student in the 🚀 panel above with their full prompt open.</p>
+        <div id="spdonelist" class="muted">Loading…</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -233,7 +244,7 @@ async function loadAll() {
   const secretsById = Object.fromEntries(((cs.data) || []).map(x => [x.id, x]));
   courses.forEach(cc => Object.assign(cc, secretsById[cc.id] || {}));
   if (!curFam) { const first = families.find(x => x.status === 'active' && x.slug !== 'test-class'); curFam = first && first.id; }
-  renderBoard(); renderPast(); renderFamChips(); renderLibrary(); renderExtras(); renderStarter(); renderSpWait();
+  renderBoard(); renderPast(); renderFamChips(); renderLibrary(); renderExtras(); renderStarter(); renderSpWait(); renderSpDone();
   healStarterDocx().then(() => healStarterNotify());   // Word files first, then ✉️ ready-emails (covers outside-generated sheets and earlier send failures)
 }
 
@@ -562,8 +573,8 @@ function renderStarter() {
 
 // ⚡ From the top banner (or the dashboard deep-link): select the class in the 🚀 panel,
 // scroll to that student's row and pulse it violet so the Generate button is unmissable.
-window.jumpStarter = (cid, em) => {
-  curSpCourse = cid; spGoalEdit = null; spView = null; renderStarter();
+window.jumpStarter = (cid, em, view) => {
+  curSpCourse = cid; spGoalEdit = null; spView = view || null; renderStarter();
   const sel = em ? '#splist [data-sp-row="' + (window.CSS && CSS.escape ? CSS.escape(em) : em) + '"]' : '';
   const row = sel ? document.querySelector(sel) : null;
   (row || $('startercard')).scrollIntoView({ behavior: 'smooth', block: row ? 'center' : 'start' });
@@ -605,6 +616,44 @@ function renderSpWait() {
     + '<div class="mat-acts"><button class="btn sm" onclick="jumpStarter(\'' + c.id + '\', \'' + esc(em) + '\')">⚡ Generate</button></div>'
     + '</div>').join('');
 }
+
+// 🗂 Generated starter prompts — the chronological history card (newest on top). The total
+// lives in the heading so it reads even while collapsed; state persists like Past classes.
+let spDoneOpen = false;
+try { spDoneOpen = localStorage.getItem('ilClassroomSpDoneOpen') === '1'; } catch (e) { /* private mode */ }
+function renderSpDone() {
+  const done = starters.filter(r => r.generated_at)
+    .slice().sort((a, b) => a.generated_at < b.generated_at ? 1 : -1);
+  $('spdone-count').textContent = '· ' + done.length + ' generated in total';
+  $('spdone-toggle').textContent = spDoneOpen ? '▾' : '▸';
+  $('spdonewrap').classList.toggle('hidden', !spDoneOpen);
+  if (!spDoneOpen) return;
+  if (!done.length) { $('spdonelist').innerHTML = '<p class="muted">Nothing generated yet.</p>'; return; }
+  $('spdonelist').innerHTML = done.map(r => {
+    const c = courses.find(x => x.id === r.course_id) || {};
+    const g = new Date(r.generated_at);
+    const gwhen = fdate(r.generated_at.slice(0, 10)) + ', '
+      + g.toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Singapore' }).toLowerCase();
+    const cwhen = c.cohort_date ? dow(c.cohort_date) + ' ' + fdate(c.cohort_date) + ' · ' : '';
+    const mailed = r.notified_at && new Date(r.notified_at) >= new Date(r.generated_at);
+    const stale = r.goal_updated_at && new Date(r.goal_updated_at) > new Date(r.generated_at);
+    return '<div class="mat"><div style="flex:1;min-width:0">'
+      + '<div class="mat-title">' + esc(r.name || r.email) + ' <span class="muted" style="font-weight:400;font-size:12px">' + esc(r.email) + '</span></div>'
+      + '<div class="mat-sub" style="word-break:normal">Generated ' + esc(gwhen) + ' — ' + esc(cwhen + (c.name || '')) 
+      + (mailed ? ' · <span style="color:#1a7a48">✉️ emailed</span>' : ' · <span style="color:#8a6d1a">✉️ email pending</span>')
+      + (stale ? ' · <b style="color:#a33">goal changed since — regenerate</b>' : '') + '</div>'
+      + '</div><div class="mat-acts"><button class="btn ghost sm" data-spdone-view="' + r.id + '">View ↑</button></div></div>';
+  }).join('');
+  document.querySelectorAll('#spdonelist [data-spdone-view]').forEach(b => b.onclick = () => {
+    const r = starters.find(x => x.id === b.dataset.spdoneView);
+    if (r) jumpStarter(r.course_id, (r.email || '').toLowerCase(), r.id);
+  });
+}
+$('spdone-toggle').onclick = () => {
+  spDoneOpen = !spDoneOpen;
+  try { localStorage.setItem('ilClassroomSpDoneOpen', spDoneOpen ? '1' : '0'); } catch (e) { /* ignore */ }
+  renderSpDone();
+};
 
 function wireStarter() {
   document.querySelectorAll('#splist [data-sp-goal]').forEach(b => b.onclick = () => { spGoalEdit = b.dataset.spGoal; renderStarter(); });
@@ -725,6 +774,7 @@ async function notifyStarterReady(spId) {
     await sb.from('starter_prompts').update({ notified_at: ts }).eq('id', r.id);
     r.notified_at = ts;
     if (!spGoalEdit) renderStarter();   // flip the ✉️ pill to "emailed" live
+    renderSpDone();                     // and the history row's email state
     msg('spmsg', 'ok', '\u2709\ufe0f ' + (r.name || r.email) + ' has been emailed \u2014 prompt + Word sheet are in their Classroom.');
   } catch (e) {
     msg('spmsg', 'err', 'Sheet is live, but the email did not send (' + (e.message || e) + '). It retries automatically next time this page loads.');
