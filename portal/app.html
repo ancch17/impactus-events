@@ -701,6 +701,11 @@ async function init() {
   if (params.get('payment') === 'done') payBack('Payment received! Your booking is confirmed and points are updated. (Refresh if you don\'t see it yet.)');
   if (params.get('payment') === 'cancelled') payBack('No payment was taken. Your seat is still held for a short while — pick it up under “Seats you\'re holding” at the top whenever you\'re ready.');
   if (params.get('setup') === 'done') payBack('Card saved ✓ — you have NOT been charged. Your card is only charged if your seat is accepted; we\'ll email you either way.');
+  // ✉️ From the "starter prompt ready" email: land straight in My Classroom.
+  if (params.get('go') === 'classroom') {
+    history.replaceState({}, '', location.pathname);
+    setTimeout(() => openSection('classroom', true), 350);
+  }
 }
 
 function show(id) { ['view-soon', 'view-login', 'view-app'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
@@ -763,7 +768,7 @@ $('sendlink').onclick = async () => {
   const { error } = await sb.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: PORTAL_URL + (deepLink ? '?' + dlQuery(deepLink) : ''),
+      emailRedirectTo: PORTAL_URL + (deepLink ? '?' + dlQuery(deepLink) : (params.get('go') === 'classroom' ? '?go=classroom' : '')),
       data: {
         full_name: $('fullname').value.trim(),
         mobile: fullMobile,

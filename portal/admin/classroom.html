@@ -185,7 +185,7 @@ async function init() {
   sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') route(s); });
 }
 function route(session) {
-  if (!session) { show('view-login'); return; }
+  if (!session) { location.replace('./'); return; }   // sign-in lives on the Dashboard — land there (Andrew, 2026-08-17)
   if ((session.user.email || '').toLowerCase() !== ADMIN_EMAIL) { show('view-noauth'); return; }
   $('signout').classList.remove('hidden');
   show('view-app');
@@ -193,11 +193,21 @@ function route(session) {
     // Deep link from the dashboard's 🚀 Starter-prompts card: classroom?sp=<course_id>
     // One-shot — auth refreshes re-run this callback, and the jump should not repeat.
     if (window.__spJumped) return;
-    const spq = new URLSearchParams(location.search).get('sp');
+    const q = new URLSearchParams(location.search);
+    const spq = q.get('sp');
     if (spq && courses.some(c => c.id === spq)) {
       window.__spJumped = true;
       curSpCourse = spq; renderStarter();
-      $('startercard').scrollIntoView({ behavior: 'smooth' });
+      // ?em=<email> narrows the jump to ONE student's row and pulses it violet.
+      const em = (q.get('em') || '').toLowerCase();
+      const row = em ? document.querySelector('#splist [data-sp-row="' + (window.CSS && CSS.escape ? CSS.escape(em) : em) + '"]') : null;
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.style.outline = '3px solid #7c3aed'; row.style.outlineOffset = '3px'; row.style.borderRadius = '10px';
+        setTimeout(() => { row.style.outline = ''; }, 6000);
+      } else {
+        $('startercard').scrollIntoView({ behavior: 'smooth' });
+      }
     }
   });
 }
@@ -224,7 +234,7 @@ async function loadAll() {
   courses.forEach(cc => Object.assign(cc, secretsById[cc.id] || {}));
   if (!curFam) { const first = families.find(x => x.status === 'active' && x.slug !== 'test-class'); curFam = first && first.id; }
   renderBoard(); renderPast(); renderFamChips(); renderLibrary(); renderExtras(); renderStarter();
-  healStarterDocx();   // build Word files for sheets generated outside this page (Claude / auto-run)
+  healStarterDocx().then(() => healStarterNotify());   // Word files first, then ✉️ ready-emails (covers outside-generated sheets and earlier send failures)
 }
 
 const famById = (id) => families.find(f => f.id === id);
@@ -537,7 +547,7 @@ function renderStarter() {
     const view = (r && spView === r.id && r.prompt_md)
       ? '<div style="margin-top:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 13px"><pre style="margin:0;white-space:pre-wrap;font:inherit;font-size:12.5px;line-height:1.5">' + esc(r.prompt_md) + '</pre></div>'
       : '';
-    return '<div class="mat"><div style="flex:1;min-width:0">'
+    return '<div class="mat" data-sp-row="' + esc((s.email || '').toLowerCase()) + '"><div style="flex:1;min-width:0">'
       + '<div class="mat-title">' + esc(nm) + ' <span class="muted" style="font-weight:400;font-size:12px">' + esc(s.email) + '</span></div>'
       + '<div class="mat-sub" style="word-break:normal;margin-top:3px">' + stateHtml + '</div>' + goalForm + view + '</div>'
       + '<div class="mat-acts">' + acts + '</div></div>';
@@ -631,6 +641,56 @@ async function healStarterDocx() {
     healBusy = false;
     if (done) { renderStarter(); msg('spmsg', 'ok', done + ' Word sheet' + (done > 1 ? 's' : '') + ' built for Claude-generated prompt' + (done > 1 ? 's' : '') + ' ✓'); }
   }
+}
+
+// ✉️ Auto-email the student the moment their sheet is generated (Andrew's workflow,
+// 2026-08-17): a branded email with a button into their portal Classroom to view/download.
+// Exactly-once per generation — starter_prompts.notified_at gates it; a regenerate moves
+// generated_at past notified_at, so the fresh sheet emails again. If the send fails, the
+// sheet stays live and the sweep below retries on the next page load.
+async function notifyStarterReady(spId) {
+  const r = starters.find(x => x.id === spId);
+  if (!r || !r.goal || !r.generated_at) return;
+  if (r.notified_at && new Date(r.notified_at) >= new Date(r.generated_at)) return;
+  try {
+    const c = courses.find(x => x.id === r.course_id) || {};
+    const stu = students.find(s => s.email === (r.email || '').toLowerCase()) || {};
+    const first = (stu.preferred_name || '').trim() || undefined;
+    const body = 'Hi {first},\n\n'
+      + 'Your personalised starter prompt is ready \ud83d\ude80\n\n'
+      + 'It is written around what you told us you would like to build \u2014 a short setup checklist, how to start with Claude CoWork, and your paste-ready starter prompt. View it on screen, or download the Word copy, in your Impactus Classroom.\n\n'
+      + 'If anything does not quite fit, just reply to this email.';
+    const { data, error } = await sb.functions.invoke('send-email', { body: {
+      subject: 'Your starter prompt is ready \u2014 ' + (c.name || 'your class'),
+      body,
+      recipients: [{ email: r.email, name: r.name || '', first }],
+      cta: { label: 'Open my Impactus Classroom', url: 'https://events.impactuslearning.com/portal/app?go=classroom' },
+    } });
+    if (error || !data || !data.sent) {
+      let m = (error && error.message) || (data && data.results && data.results[0] && data.results[0].error) || 'send failed';
+      throw new Error(m);
+    }
+    const ts = new Date().toISOString();
+    await sb.from('starter_prompts').update({ notified_at: ts }).eq('id', r.id);
+    r.notified_at = ts;
+    msg('spmsg', 'ok', '\u2709\ufe0f ' + (r.name || r.email) + ' has been emailed \u2014 prompt + Word sheet are in their Classroom.');
+  } catch (e) {
+    msg('spmsg', 'err', 'Sheet is live, but the email did not send (' + (e.message || e) + '). It retries automatically next time this page loads.');
+  }
+}
+
+// Sweep: email every generated-but-unnotified row, one at a time. Runs after healStarterDocx
+// on every page load, so sheets generated by \u26a1 here, by a Claude session, or whose email
+// failed earlier all end up notified without anyone thinking about it.
+let notifyBusy = false;
+async function healStarterNotify() {
+  if (notifyBusy) return;
+  notifyBusy = true;
+  try {
+    const due = starters.filter(x => x.goal && x.generated_at
+      && (!x.notified_at || new Date(x.notified_at) < new Date(x.generated_at)));
+    for (const r of due) await notifyStarterReady(r.id);
+  } finally { notifyBusy = false; }
 }
 
 // Branded Word sheet per the JOB B Document spec: Arial, teal name + rule, grey principle

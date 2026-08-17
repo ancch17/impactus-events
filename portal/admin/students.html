@@ -207,7 +207,7 @@ async function init() {
   sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') route(s); });
 }
 function route(session) {
-  if (!session) { show('view-login'); return; }
+  if (!session) { location.replace('./'); return; }   // sign-in lives on the Dashboard — land there (Andrew, 2026-08-17)
   if ((session.user.email || '').toLowerCase() !== ADMIN_EMAIL) { show('view-noauth'); return; }
   $('signout').classList.remove('hidden');
   show('view-app');

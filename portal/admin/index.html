@@ -181,7 +181,7 @@
          yet stays up here. Generate on the Classroom page and it clears itself. -->
     <div class="card" id="spnagcard" style="display:none;border-left:4px solid #7c3aed">
       <h2 style="display:flex;justify-content:space-between;align-items:center">🚀 Starter prompts waiting
-        <span class="muted" style="font-weight:400;font-size:12px">Goals typed in the portal with nothing generated yet (or changed after generating) &middot; generate on the Classroom page and this clears itself</span>
+        <span class="muted" style="font-weight:400;font-size:12px">One row per student goal &middot; ⚡ jumps straight to that student's Generate button &middot; the student is emailed automatically once generated &middot; clears itself</span>
       </h2>
       <div id="spnags"></div>
     </div>
@@ -914,7 +914,7 @@ function renderSpNag() {
     if (!em) return;
     (confirmedEm[b.course_id] = confirmedEm[b.course_id] || new Set()).add(em);
   });
-  const per = {};           // course_id -> { gen: [names], regen: [names] }
+  const rows = [];          // one row per student entry (Andrew's spec, 2026-08-17)
   starters.forEach(r => {
     if (!r.goal) return;
     const em = (r.email || '').toLowerCase();
@@ -925,23 +925,18 @@ function renderSpNag() {
     const fam = byFam[c.family_id];
     if (!fam || !fam.starter_prompts_enabled) return;
     if (!(confirmedEm[c.id] || { has: () => false }).has(em)) return;        // roster = confirmed only
-    const slot = per[c.id] = per[c.id] || { gen: [], regen: [] };
-    (r.generated_at ? slot.regen : slot.gen).push((r.name || r.email).split(' ')[0]);
+    rows.push({ r, c, em, regen: !!r.generated_at });
   });
-  const rows = Object.keys(per).map(cid => ({ c: byCourse[cid], x: per[cid] }))
-    .sort((a, b) => a.c.cohort_date < b.c.cohort_date ? -1 : 1);
+  rows.sort((a, b) => a.c.cohort_date !== b.c.cohort_date
+    ? (a.c.cohort_date < b.c.cohort_date ? -1 : 1)
+    : ((a.r.name || a.em).localeCompare(b.r.name || b.em)));
   if (!rows.length) { $('spnagcard').style.display = 'none'; return; }
   $('spnagcard').style.display = '';
-  $('spnags').innerHTML = rows.map(({ c, x }) => {
-    const bits = [];
-    if (x.gen.length) bits.push(`<strong>${x.gen.length}</strong> to generate (${esc(x.gen.join(', '))})`);
-    if (x.regen.length) bits.push(`<strong>${x.regen.length}</strong> changed since generated (${esc(x.regen.join(', '))})`);
-    return `<div class="cohort-row">
-      <div><strong>${esc(shortName(c.name))}</strong> &middot; ${fdate(c.cohort_date)}${c.session_time ? ' &middot; ' + esc(c.session_time) : ''}
-        <br><span class="muted" style="font-size:12.5px">${bits.join(' &middot; ')}</span></div>
-      <div class="cohort-actions"><a class="btn sm" style="text-decoration:none" href="classroom?sp=${c.id}" target="_blank">⚡ Open starter prompts ↗</a></div>
-    </div>`;
-  }).join('');
+  $('spnags').innerHTML = rows.map(({ r, c, em, regen }) => `<div class="cohort-row">
+      <div><strong>${esc(r.name || r.email)}</strong> &middot; ${esc(shortName(c.name))} &middot; ${fdate(c.cohort_date)}${c.session_time ? ' &middot; ' + esc(c.session_time) : ''}
+        <br><span class="muted" style="font-size:12.5px">${regen ? 'goal changed since generated — regenerate' : 'starter prompt entered — not generated yet'}</span></div>
+      <div class="cohort-actions"><a class="btn sm" style="text-decoration:none" href="classroom?sp=${c.id}&em=${encodeURIComponent(em)}" target="_blank">⚡ Generate ↗</a></div>
+    </div>`).join('');
 }
 
 // ONE remark per student (students.remarks) — the Students tab edits the very same field,
