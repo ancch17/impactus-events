@@ -176,6 +176,16 @@
       <div id="certnags"></div>
     </div>
 
+    <!-- Pinned automatically, not by hand: any current class where a student has typed a
+         starter-prompt goal (or changed it) and no sheet has been generated (or regenerated)
+         yet stays up here. Generate on the Classroom page and it clears itself. -->
+    <div class="card" id="spnagcard" style="display:none;border-left:4px solid #7c3aed">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">🚀 Starter prompts waiting
+        <span class="muted" style="font-weight:400;font-size:12px">Goals typed in the portal with nothing generated yet (or changed after generating) &middot; generate on the Classroom page and this clears itself</span>
+      </h2>
+      <div id="spnags"></div>
+    </div>
+
     <div class="card" id="followupcard" style="display:none;border-left:4px solid var(--amber)">
       <h2 style="display:flex;justify-content:space-between;align-items:center">📌 Follow-ups
         <span class="muted" style="font-weight:400;font-size:12px">Whatever you've pinned 📌 · same list on the Students tab · Done unpins it, the remark itself stays</span>
@@ -374,7 +384,7 @@ const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d
 function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok' && id !== 'loginmsg') setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 6000); }
 
-let students = [], courses = [], bookings = [], families = [], blocks = [];
+let students = [], courses = [], bookings = [], families = [], blocks = [], starters = [];
 let byStudent = {}, byCourse = {}, certByBooking = {}, emailTemplates = [];
 let editingCourse = null, rosterCourse = null;
 // The cohort currently "picked" — boxed in the Cohorts list, loaded in the edit form above it.
@@ -419,7 +429,7 @@ async function loadAll() {
   // columns (zoom_*, whatsapp_url, classroom_url, venue) come from course_secrets_admin below,
   // never from this list.
   const COURSE_COLS = 'id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id';
-  const [s, c, b, f, k, cs, ct, et] = await Promise.all([
+  const [s, c, b, f, k, cs, ct, et, spr] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select(COURSE_COLS).order('cohort_date'),
     sb.from('bookings').select('*'),
@@ -428,11 +438,13 @@ async function loadAll() {
     sb.from('course_secrets_admin').select('*'),   // zoom_link/password/meeting_id + whatsapp_url; empty for non-admins
     sb.from('certificates').select('*'),           // per-booking certificate state (admin-only via RLS)
     sb.from('email_templates').select('*').order('sort_order'),  // per-family email presets
+    sb.from('starter_prompts').select('id,course_id,email,name,goal,goal_updated_at,generated_at'),  // 🚀 nag card
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || [];
   families = f.data || []; blocks = k.data || [];
   certByBooking = Object.fromEntries((ct.data || []).map(x => [x.booking_id, x]));
   emailTemplates = et.data || [];
+  starters = spr.data || [];
   // Merge the secret columns back onto each course so every c.zoom_* / c.whatsapp_url read below
   // keeps working unchanged. They used to be readable by any signed-in user via the API.
   const secretsById = Object.fromEntries((cs.data || []).map(x => [x.id, x]));
@@ -440,7 +452,7 @@ async function loadAll() {
   await closePastCohorts();
   byStudent = Object.fromEntries(students.map(x => [x.id, x]));
   byCourse = Object.fromEntries(courses.map(x => [x.id, x]));
-  renderKPIs(); renderCertNag(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderEmailForm();
+  renderKPIs(); renderCertNag(); renderSpNag(); renderFollowups(); renderCalendar(); renderLegend(); renderCohorts(); renderForm(); renderEmailForm();
   renderFormActions(editingCourse);
   if (rosterCourse) openRoster(rosterCourse, true);
   refreshCancelTargets();
@@ -886,6 +898,51 @@ window.openCerts = function (cid) {
   openRoster(cid, true);
   $('certcard').scrollIntoView({ behavior: 'smooth' });
 };
+
+// 🚀 Starter prompts waiting — a goal typed (or changed) with nothing generated yet.
+// Mirrors the Classroom page's own per-row states exactly: "ready to generate" is a row with a
+// goal and no generated_at; "goal changed — regenerate" is goal_updated_at newer than
+// generated_at. Same 30-day lookback as that page's class picker, confirmed seats only (the
+// panel's roster shows only confirmed students), and the ancch17 test account is excluded via
+// CERT_NAG_EXCLUDE_EMAILS just like the certificate card.
+function renderSpNag() {
+  const byFam = Object.fromEntries(families.map(f => [f.id, f]));
+  const from = new Date(Date.now() - 30 * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+  const confirmedEm = {};   // course_id -> Set of lowercase emails holding a confirmed seat
+  bookings.filter(b => b.status === 'confirmed').forEach(b => {
+    const em = ((byStudent[b.student_id] || {}).email || '').toLowerCase();
+    if (!em) return;
+    (confirmedEm[b.course_id] = confirmedEm[b.course_id] || new Set()).add(em);
+  });
+  const per = {};           // course_id -> { gen: [names], regen: [names] }
+  starters.forEach(r => {
+    if (!r.goal) return;
+    const em = (r.email || '').toLowerCase();
+    if (CERT_NAG_EXCLUDE_EMAILS.includes(em)) return;                        // test account
+    if (r.generated_at && !(new Date(r.goal_updated_at) > new Date(r.generated_at))) return;
+    const c = byCourse[r.course_id];
+    if (!c || c.cancelled || c.is_draft || c.cohort_date < from) return;
+    const fam = byFam[c.family_id];
+    if (!fam || !fam.starter_prompts_enabled) return;
+    if (!(confirmedEm[c.id] || { has: () => false }).has(em)) return;        // roster = confirmed only
+    const slot = per[c.id] = per[c.id] || { gen: [], regen: [] };
+    (r.generated_at ? slot.regen : slot.gen).push((r.name || r.email).split(' ')[0]);
+  });
+  const rows = Object.keys(per).map(cid => ({ c: byCourse[cid], x: per[cid] }))
+    .sort((a, b) => a.c.cohort_date < b.c.cohort_date ? -1 : 1);
+  if (!rows.length) { $('spnagcard').style.display = 'none'; return; }
+  $('spnagcard').style.display = '';
+  $('spnags').innerHTML = rows.map(({ c, x }) => {
+    const bits = [];
+    if (x.gen.length) bits.push(`<strong>${x.gen.length}</strong> to generate (${esc(x.gen.join(', '))})`);
+    if (x.regen.length) bits.push(`<strong>${x.regen.length}</strong> changed since generated (${esc(x.regen.join(', '))})`);
+    return `<div class="cohort-row">
+      <div><strong>${esc(shortName(c.name))}</strong> &middot; ${fdate(c.cohort_date)}${c.session_time ? ' &middot; ' + esc(c.session_time) : ''}
+        <br><span class="muted" style="font-size:12.5px">${bits.join(' &middot; ')}</span></div>
+      <div class="cohort-actions"><a class="btn sm" style="text-decoration:none" href="classroom?sp=${c.id}" target="_blank">⚡ Open starter prompts ↗</a></div>
+    </div>`;
+  }).join('');
+}
 
 // ONE remark per student (students.remarks) — the Students tab edits the very same field,
 // so whatever is typed here shows there, and on every other roster this student appears in.
@@ -1464,7 +1521,7 @@ function emFollowCohort(cid) {
 // Placeholders {date}/{day}/{dshort}/{time}/{zoomlink}/{zoomid}/{classlink}/{venue}/{doors}
 // resolve from the SELECTED COHORT when a template is loaded — {first}/{name} stay
 // per-recipient and are merged server-side by send-email, so they pass through untouched.
-const EM_DEFAULT_VENUE = 'Paya Lebar Square #07-16, Singapore 409051';   // standing F2F venue (Aug 2026)
+const EM_DEFAULT_VENUE = 'Paya Lebar Square #07-16, Office Lobby 1, Singapore 409051';   // standing F2F venue (Aug 2026)
 function emScopeCourse() { const v = $('em-scope').value || ''; return v.startsWith('c:') ? byCourse[v.slice(2)] : null; }
 function renderEmTemplates() {
   const c = emScopeCourse();

@@ -189,7 +189,17 @@ function route(session) {
   if ((session.user.email || '').toLowerCase() !== ADMIN_EMAIL) { show('view-noauth'); return; }
   $('signout').classList.remove('hidden');
   show('view-app');
-  loadAll();
+  loadAll().then(() => {
+    // Deep link from the dashboard's 🚀 Starter-prompts card: classroom?sp=<course_id>
+    // One-shot — auth refreshes re-run this callback, and the jump should not repeat.
+    if (window.__spJumped) return;
+    const spq = new URLSearchParams(location.search).get('sp');
+    if (spq && courses.some(c => c.id === spq)) {
+      window.__spJumped = true;
+      curSpCourse = spq; renderStarter();
+      $('startercard').scrollIntoView({ behavior: 'smooth' });
+    }
+  });
 }
 $('signout').onclick = () => sb.auth.signOut();
 $('noauth-out').onclick = () => sb.auth.signOut();
