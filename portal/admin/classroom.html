@@ -574,7 +574,7 @@ window.jumpStarter = (cid, em) => {
 };
 
 // 🚀 The pinned banner at the top of this page — same rules as the dashboard card.
-const SP_TEST_EXCLUDE = ['ancch17@gmail.com'];   // Andrew's test account never nags (same rule as the dashboard / cert card)
+const SP_TEST_EXCLUDE = [];   // deliberately EMPTY — ancch17 test entries DO alert here (Andrew, 2026-08-17); certs keep their own exclusion
 function spPendingRows() {
   const from = new Date(Date.now() - 30 * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
   const out = [];
