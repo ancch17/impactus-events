@@ -677,7 +677,7 @@ function renderPick() {
   }
   const f2f = deepLink.course.indexOf('f2f-') === 0;
   el.innerHTML = when
-    ? '<b>You picked ' + when + '</b><span>' + (f2f ? 'Face-to-face, Paya Lebar Square' : 'Online')
+    ? '<b>You picked ' + when + '</b><span>' + (f2f ? 'Face-to-face, Paya Lebar Square (Office Lobby 1)' : 'Online')
       + ' — sign in below and we\'ll take you straight to it. Nothing is held until you book.</span>'
     : '<b>Your class is waiting</b><span>Sign in below and we\'ll take you straight to it.</span>';
   el.classList.remove('hidden');
@@ -1682,7 +1682,7 @@ const isRemovable = (r) =>
 // seat on. Materials are what Andrew publishes on the admin Classroom tab: course-level items
 // (inherited by every cohort of the course) plus per-class extras.
 const CM_FILE_BASE = SUPABASE_URL + '/storage/v1/object/public/class-materials/';
-const CM_VENUE_FALLBACK = 'Paya Lebar Square #07-16, Singapore 409051';
+const CM_VENUE_FALLBACK = 'Paya Lebar Square #07-16, Office Lobby 1, Singapore 409051';
 
 async function loadClassroom() {
   const card = $('classroomcard');
