@@ -84,7 +84,7 @@
 
     <div class="card">
       <h2>Discounts &amp; free passes</h2>
-      <p class="muted" style="margin-top:-6px;margin-bottom:12px">A code students type at checkout. Points come off the class fee first; a % code then discounts the nett balance (S$-off and free passes still come off the full fee, and a code left with nothing to discount is not consumed). Rebate is always earned on cash actually paid — a free pass earns nothing. Tick <strong>Reusable</strong> to let a student use the same code on more than one course; otherwise every code is one use per student.</p>
+      <p class="muted" style="margin-top:-6px;margin-bottom:12px">A code students type at checkout. Points come off the class fee first; a % code then discounts the nett balance (S$-off and free passes still come off the full fee, and a code left with nothing to discount is not consumed). Rebate is always earned on cash actually paid — a free pass earns nothing. Tick <strong>Reusable</strong> to let a student use the same code on more than one course; otherwise every code is one use per student. Corporate “as quoted” classes (Claude Corporate Full Day and any corporate course added later) only accept their own company code — a code scoped to that course or family — unless it is marked <strong>🏢 Corporate</strong>, which lets an any-course code open those classes too.</p>
       <div class="formgrid">
         <div><label>Code</label><input id="c-code" placeholder="e.g. LAUNCH20" style="text-transform:uppercase"></div>
         <div><label>Type</label><select id="c-kind">
@@ -102,6 +102,10 @@
       <label style="display:flex;align-items:center;gap:9px;margin-top:14px;cursor:pointer;font-size:13.5px;color:var(--ink);font-weight:600">
         <input type="checkbox" id="c-reuse" style="width:auto;margin:0;flex:none">
         Reusable — let each student use this code more than once (on different courses)
+      </label>
+      <label id="c-corp-label" style="display:flex;align-items:center;gap:9px;margin-top:10px;cursor:pointer;font-size:13.5px;color:var(--ink);font-weight:600">
+        <input type="checkbox" id="c-corp" style="width:auto;margin:0;flex:none">
+        <span>🏢 Corporate — also valid on corporate “as quoted” classes (Claude Corporate Full Day and any future corporate course), which otherwise accept only their own company code<span id="c-corp-hint" class="muted hidden" style="font-weight:500"> · not needed: the scope you picked already decides where this code works</span></span>
       </label>
       <div style="margin-top:14px"><button class="btn" id="c-save">Create code</button></div>
       <div class="msg" id="c-msg"></div>
@@ -177,6 +181,20 @@ $('c-kind').onchange = () => {
   $('c-value').disabled = k === 'free';
   if (k === 'free') $('c-value').value = '';
 };
+// 🏢 Corporate only means something for an ANY-COURSE code: a code scoped to one course or
+// family already passes (its own corporate class) or fails (anything else) on that scope
+// alone — see the corporate gate in create-checkout / preview_coupon. So once a scope is
+// picked the box is cleared and greyed, with the reason beside it, rather than saving a flag
+// that would never be read.
+function syncCorpBox() {
+  const scoped = !!($('c-family').value || $('c-course').value);
+  if (scoped) $('c-corp').checked = false;
+  $('c-corp').disabled = scoped;
+  $('c-corp-label').style.opacity = scoped ? '.55' : '';
+  $('c-corp-hint').classList.toggle('hidden', !scoped);
+}
+$('c-family').onchange = syncCorpBox;
+$('c-course').onchange = syncCorpBox;
 $('c-save').onclick = async () => {
   const code = $('c-code').value.trim().toUpperCase();
   const kind = $('c-kind').value;
@@ -190,12 +208,16 @@ $('c-save').onclick = async () => {
     max_uses: $('c-max').value ? Number($('c-max').value) : null,
     expires_at: $('c-exp').value || null, note: $('c-note').value.trim() || null, active: true,
     reusable_per_student: $('c-reuse').checked,
+    // Only an any-course code can carry the flag (syncCorpBox keeps the box clear otherwise);
+    // the && is the backstop for a stale form.
+    corporate_ok: $('c-corp').checked && !$('c-family').value && !$('c-course').value,
   };
   const { error } = await sb.from('coupons').insert(rec);
   if (error) return msg('c-msg', 'err', /duplicate|unique/i.test(error.message) ? 'That code already exists — pick another.' : error.message);
-  msg('c-msg', 'ok', `Code ${code} created and live.${rec.reusable_per_student ? ' Reusable — each student can use it on more than one course.' : ''}`);
+  msg('c-msg', 'ok', `Code ${code} created and live.${rec.reusable_per_student ? ' Reusable — each student can use it on more than one course.' : ''}${rec.corporate_ok ? ' 🏢 Also opens corporate “as quoted” classes.' : ''}`);
   ['c-code', 'c-value', 'c-max', 'c-exp', 'c-note'].forEach(i => $(i).value = '');
   $('c-reuse').checked = false;
+  $('c-corp').checked = false;
   await loadAll();
 };
 function renderCoupons() {
@@ -206,7 +228,10 @@ function renderCoupons() {
   $('couponlist').innerHTML = `<table><thead><tr><th>Code</th><th>Discount</th><th>Scope</th><th>Used</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>` +
     coupons.map(c => {
       const disc = c.kind === 'percent' ? `${c.value}% off` : c.kind === 'fixed' ? `S$${c.value} off` : 'Free pass';
-      const scope = c.course_id ? crsLabel(c.course_id) : (c.family_id ? famName(c.family_id) : 'Any course');
+      // An any-course code stops at the corporate gate unless it carries 🏢 Corporate — say
+      // which, so "Any course" never over-promises (the 24 Aug Full Day is open, and a plain
+      // promo code is still refused there).
+      const scope = c.course_id ? crsLabel(c.course_id) : (c.family_id ? famName(c.family_id) : (c.corporate_ok ? 'Any course, incl. corporate' : 'Any public course'));
       const used = `${c.uses}${c.max_uses != null ? ' / ' + c.max_uses : ''}`;
       const expired = c.expires_at && c.expires_at < today;
       const capped = c.max_uses != null && c.uses >= c.max_uses;
@@ -227,9 +252,18 @@ function renderCoupons() {
       const reuseBadge = c.reusable_per_student
         ? `<div style="margin-top:3px"><span class="pill" style="background:#e8ecff;color:#3b5bdb">↻ Reusable</span></div>` : '';
       const reuseBtn = `<button class="btn sm ghost" onclick="toggleReuse('${c.id}',${!!c.reusable_per_student})" title="${c.reusable_per_student ? 'Reusable — each student can use it on more than one course. Click to make it one use per student.' : 'One use per student. Click to let each student use it more than once, across different courses.'}">${c.reusable_per_student ? 'One use' : 'Allow reuse'}</button>`;
-      return `<tr><td><strong>${c.code}</strong>${c.note ? `<div class="muted" style="font-size:11px">${c.note}</div>` : ''}${reuseBadge}</td>` +
+      // 🏢 Corporate: badge + toggle, for ANY-COURSE codes only. A scoped code's scope already
+      // decides whether it opens a corporate class (BIZPRO24 does, ALAN22AUG doesn't), so the
+      // button would be a no-op there and is left out rather than shown greyed.
+      const unscoped = !c.course_id && !c.family_id;
+      const corpBadge = unscoped && c.corporate_ok
+        ? `<div style="margin-top:3px"><span class="pill" style="background:#efe9fb;color:#6d28d9;white-space:nowrap">🏢 Corporate</span></div>` : '';
+      const corpBtn = unscoped
+        ? ` <button class="btn sm ghost" onclick="toggleCorp('${c.id}',${!!c.corporate_ok})" title="${c.corporate_ok ? 'Also opens corporate “as quoted” classes (Claude Corporate Full Day and any future corporate course). Click to limit it to public classes again.' : 'Public classes only — a corporate “as quoted” class refuses it. Click to let it open corporate classes too, now and for any corporate course added later.'}">${c.corporate_ok ? 'Public only' : 'Allow corporate'}</button>`
+        : '';
+      return `<tr><td><strong>${c.code}</strong>${c.note ? `<div class="muted" style="font-size:11px">${c.note}</div>` : ''}${reuseBadge}${corpBadge}</td>` +
         `<td>${disc}</td><td>${scope}</td><td>${used}</td><td>${c.expires_at ? fdate(c.expires_at) : '—'}</td><td>${status}</td>` +
-        `<td style="white-space:nowrap">${reuseBtn} <button class="btn sm ghost" onclick="toggleCoupon('${c.id}',${c.active})">${c.active ? 'Turn off' : 'Turn on'}</button>` +
+        `<td style="white-space:nowrap">${reuseBtn}${corpBtn} <button class="btn sm ghost" onclick="toggleCoupon('${c.id}',${c.active})">${c.active ? 'Turn off' : 'Turn on'}</button>` +
         ` ${deleteBtn}</td></tr>`;
     }).join('') + '</tbody></table>';
 }
@@ -244,6 +278,16 @@ window.toggleCoupon = async function (id, cur) {
 // docs\checkout-and-payments.md.
 window.toggleReuse = async function (id, cur) {
   const { error } = await sb.from('coupons').update({ reusable_per_student: !cur }).eq('id', id);
+  if (error) return alert(error.message);
+  await loadAll();
+};
+// Flip an any-course code between "public classes only" and "also opens corporate classes"
+// (coupons.corporate_ok, 2026-08-21 — FEIFREE was the first). Scope, cap, expiry and the
+// reuse rule are untouched; create-checkout and preview_coupon both read the flag at the
+// corporate gate, so the portal's Apply and the server agree. See CRM Impactus
+// docs\checkout-and-payments.md.
+window.toggleCorp = async function (id, cur) {
+  const { error } = await sb.from('coupons').update({ corporate_ok: !cur }).eq('id', id);
   if (error) return alert(error.message);
   await loadAll();
 };
