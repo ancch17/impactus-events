@@ -290,6 +290,7 @@ function seatsOf(id) {
         id: b.id, b, name: c.name, date: c.cohort_date, past: c.cohort_date < today(),
         paid: cash, reason, corp, value: cash + corp,
         credited: ledger.some(l => l.booking_id === b.id && l.points > 0),
+        declined: !!b.points_declined_at,
       };
     });
 }
@@ -299,8 +300,11 @@ const corpOf = (id) => seatsOf(id).reduce((s, c) => s + c.corp, 0);
 function totalPaidOf(id) { return cashOf(id) + corpOf(id); }  // "amount paid" = money received either way
 const freeSeatsOf = (id) => seatsOf(id).filter(c => c.reason && c.reason !== 'corp');
 const unvalidatedOf = (id) => seatsOf(id).filter(c => c.paid === 0 && !c.reason);
-// Corp seats owe the student the normal 10% cash-back, even though the company paid.
-const corpUncredited = (id) => seatsOf(id).filter(c => c.reason === 'corp' && c.corp > 0 && !c.credited);
+// Corp seats on PUBLIC cohorts owe the student the normal 10% cash-back, even though the company
+// paid. Private corporate sessions are quoted NET and earn nothing (Andrew's 2026-08-15 policy) —
+// the Decline button records that per seat (bookings.points_declined_at), so declined seats stop
+// being offered here. Undo lives on the 🚫 chip on the student's class line.
+const corpUncredited = (id) => seatsOf(id).filter(c => c.reason === 'corp' && c.corp > 0 && !c.credited && !c.declined);
 
 function amountOk(total) {
   const band = $('stu-amount').value;
@@ -417,12 +421,13 @@ function renderAudit() {
       <td><strong>${esc(st.name || st.email || '—')}</strong><div class="muted" style="font-size:11px">${esc(st.corp_name || '')}</div></td>
       <td>${esc(shortName(c.name))} · ${fdate(c.date)}</td>
       <td><span class="bdg corp">🏢 ${money(c.corp)} invoiced</span></td>
-      <td><button class="btn sm" onclick="creditCorp('${c.id}')">Credit ${Math.round(c.corp * 0.1)} pts</button></td>
+      <td style="white-space:nowrap"><button class="btn sm" onclick="creditCorp('${c.id}')">Credit ${Math.round(c.corp * 0.1)} pts</button>
+        <button class="btn ghost sm" onclick="declinePts('${c.id}')" title="No points for this seat — the corporate rate was quoted net (private sessions earn no cash-back). The reminder goes away; undo from the 🚫 chip on their row below.">🚫 Decline</button></td>
     </tr>`).join('');
   $('auditlist').innerHTML =
     (bad.length ? `<p class="muted" style="margin-bottom:6px"><strong>${bad.length} seat(s) at S$0 with no reason.</strong> Pick one — 🏢 corp inv also credits the student their 10%.</p>
       <table><tbody>${rows}</tbody></table>` : '') +
-    (owed.length ? `<p class="muted" style="margin:${bad.length ? '14px' : '0'} 0 6px"><strong>${owed.length} corp seat(s) with no cash-back credited yet.</strong> The company paid, so the student still earns their 10%.</p>
+    (owed.length ? `<p class="muted" style="margin:${bad.length ? '14px' : '0'} 0 6px"><strong>${owed.length} corp seat(s) with no cash-back credited yet.</strong> On a public cohort the student still earns their 10% — Credit it. A private corporate session was quoted net and earns nothing — Decline it.</p>
       <table><tbody>${owedRows}</tbody></table>` : '');
 }
 function reasonPicker(bid) {
@@ -463,6 +468,28 @@ window.creditCorp = async function (bid) {
   if (error) return msg('stu-msg', 'err', error.message);
   ledger.push(data);
   msg('stu-msg', 'ok', `${pts} pts credited to ${st.name || st.email}.`);
+  render();
+};
+// The company paid a NET corporate rate, so no cash-back is owed (Andrew's 2026-08-15 policy for
+// private sessions). Declining stamps bookings.points_declined_at so the audit card stops offering
+// the credit for that seat. Nothing touches points_ledger — nothing shows on the student's side.
+window.declinePts = async function (bid) {
+  const b = bookings.find(x => x.id === bid); if (!b) return;
+  const st = studentOf(b.student_id);
+  if (!confirm(`No points for ${st.name || st.email} on this seat?\n\nUse this when the corporate rate was quoted net — private sessions earn no cash-back. The reminder goes away; a 🚫 no pts chip on their row lets you undo.`)) return;
+  const when = new Date().toISOString();
+  const { error } = await sb.from('bookings').update({ points_declined_at: when }).eq('id', bid);
+  if (error) return msg('stu-msg', 'err', error.message);
+  b.points_declined_at = when;
+  msg('stu-msg', 'ok', `Declined — no cash-back on ${st.name || st.email}'s seat.`);
+  render();
+};
+window.undoDecline = async function (bid) {
+  const b = bookings.find(x => x.id === bid); if (!b) return;
+  const { error } = await sb.from('bookings').update({ points_declined_at: null }).eq('id', bid);
+  if (error) return msg('stu-msg', 'err', error.message);
+  b.points_declined_at = null;
+  msg('stu-msg', 'ok', 'Undone — the credit is offered again in the card at the top.');
   render();
 };
 
@@ -610,7 +637,10 @@ function render() {
       const seatBadge = (c) => {
         if (!c.reason) return c.paid > 0 ? '' : ` <span class="bdg warn">S$0 · reason?</span>`;
         const f = FREE[c.reason];
-        return ` <span class="bdg ${c.reason}">${f.icon} ${f.label}${c.corp ? ' ' + money(c.corp) : ''}</span>`;
+        const declined = c.declined && !c.credited
+          ? ` <span class="bdg" title="No cash-back on this seat — corporate rate quoted net (you declined the credit).">🚫 no pts</span><button class="btn ghost sm" onclick="undoDecline('${c.id}')" style="padding:0 5px;font-size:10px" title="Undo — offer the 10% credit again in the card at the top">↩</button>`
+          : '';
+        return ` <span class="bdg ${c.reason}">${f.icon} ${f.label}${c.corp ? ' ' + money(c.corp) : ''}</span>${declined}`;
       };
       const clsHtml = cls.length ? cls.map(c =>
         `<div class="cls-line${c.past ? '' : ' up'}">${shortName(c.name)} · ${fdate(c.date)} (${money(c.paid)})${seatBadge(c)}${c.past ? '' : ' (upcoming)'}</div>`).join('')
@@ -914,6 +944,7 @@ $('stu-xlsx').onclick = () => {
       'Mobile': s.mobile || '',
       'Classes Attended': cls.map(c => shortName(c.name) + ' · ' + fdate(c.date) + ' (' + money(c.paid)
         + (c.reason ? ', ' + FREE[c.reason].label + (c.corp ? ' ' + money(c.corp) : '') : '')
+        + (c.declined && !c.credited ? ', no pts (declined)' : '')
         + (c.paid === 0 && !c.reason ? ', REASON MISSING' : '')
         + (c.past ? '' : ', upcoming') + ')').join('; '),
       '# Classes': cls.length,
