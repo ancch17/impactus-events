@@ -30,7 +30,7 @@
 
   .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; }
   /* Header is sticky — keep scrollIntoView from parking a card title underneath it. */
-  #formcard, #rostercard, #certcard, #cancelcard { scroll-margin-top:72px; }
+  #formcard, #rostercard, #certcard, #cancelcard, #emailcard { scroll-margin-top:72px; }
   h1 { font-size:20px; font-weight:800; }
   h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
   .muted { color:var(--mut); font-size:13px; }
@@ -266,6 +266,8 @@
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
         <button class="btn" id="cert-issue">🏅 Issue selected</button>
         <button class="btn" id="cert-email">✉️ Email issued</button>
+        <button class="btn ghost" id="cert-tell">✉️ Tell the class</button>
+        <span id="cert-tell-state" class="muted" style="font-size:12.5px"></span>
         <span id="cert-count" class="muted" style="font-size:12.5px"></span>
       </div>
       <div class="msg" id="certmsg"></div>
@@ -298,7 +300,7 @@
       <div class="msg ok" id="cx-applied" style="display:none"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="emailcard">
       <h2>Email students</h2>
       <p class="muted" style="margin-top:-6px;margin-bottom:12px">Send an announcement via Impactus Learning (noreply@impactuslearning.com). Use {first} for the student's first name. The class WhatsApp link is added as a footnote automatically. Picking a class up top sets both dropdowns below for you. Then <strong>load a template</strong> — {date}, {day}, {time}, {zoomlink}, {zoomid}, {classlink}, {venue}, {doors} and {walink} fill themselves from that cohort. If the body carries {walink}, leave the footnote dropdown on “— none —” so the group link isn’t sent twice.</p>
       <div class="formgrid">
@@ -386,6 +388,11 @@ function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.
 
 let students = [], courses = [], bookings = [], families = [], blocks = [], starters = [];
 let byStudent = {}, byCourse = {}, certByBooking = {}, emailTemplates = [];
+let emailLog = [];        // class_email_log — which post-class emails have already gone out
+// Set when the email card was opened BY one of the ✉️ buttons, so a successful "Send to
+// recipients" knows what it just announced and can log it. Cleared after every send attempt
+// and whenever the cohort is changed by hand — a logged row must describe a real send.
+let pendingMail = null;
 let editingCourse = null, rosterCourse = null;
 // The cohort currently "picked" — boxed in the Cohorts list, loaded in the edit form above it.
 let selectedCourse = null;
@@ -408,7 +415,7 @@ function route(session) {
   if ((session.user.email || '').toLowerCase() !== ADMIN_EMAIL) { show('view-noauth'); return; }
   $('signout').classList.remove('hidden');
   show('view-app');
-  loadAll();
+  loadAll().then(emFromMailLink);   // ?mail=<material id> from the Classroom tab's ✉️ button
 }
 
 $('sendlink').onclick = async () => {
@@ -429,7 +436,7 @@ async function loadAll() {
   // columns (zoom_*, whatsapp_url, classroom_url, venue) come from course_secrets_admin below,
   // never from this list.
   const COURSE_COLS = 'id,name,cohort_date,price_sgd,luma_event_id,is_open,details,session_time,family_id,cancelled,cancelled_at,is_draft,is_full,gcal_event_id';
-  const [s, c, b, f, k, cs, ct, et, spr] = await Promise.all([
+  const [s, c, b, f, k, cs, ct, et, spr, cel] = await Promise.all([
     sb.from('students').select('*'),
     sb.from('courses').select(COURSE_COLS).order('cohort_date'),
     sb.from('bookings').select('*'),
@@ -439,12 +446,14 @@ async function loadAll() {
     sb.from('certificates').select('*'),           // per-booking certificate state (admin-only via RLS)
     sb.from('email_templates').select('*').order('sort_order'),  // per-family email presets
     sb.from('starter_prompts').select('id,course_id,email,name,goal,goal_updated_at,generated_at'),  // 🚀 nag card
+    sb.from('class_email_log').select('*').order('sent_at'),   // ✉️ post-class sends already made
   ]);
   students = s.data || []; courses = c.data || []; bookings = b.data || [];
   families = f.data || []; blocks = k.data || [];
   certByBooking = Object.fromEntries((ct.data || []).map(x => [x.booking_id, x]));
   emailTemplates = et.data || [];
   starters = spr.data || [];
+  emailLog = cel.data || [];
   // Merge the secret columns back onto each course so every c.zoom_* / c.whatsapp_url read below
   // keeps working unchanged. They used to be readable by any signed-in user via the API.
   const secretsById = Object.fromEntries((cs.data || []).map(x => [x.id, x]));
@@ -1243,7 +1252,7 @@ function renderCerts(cid) {
   $('certtitle').textContent = `Certificates — ${c.name} · ${fdate(c.cohort_date)}${c.session_time ? ' · ' + c.session_time : ''}`;
   loadCertTemplate(cid);
   const rows = bookings.filter(b => b.course_id === cid && b.status === 'confirmed');
-  if (!rows.length) { $('certlist').innerHTML = '<p class="muted">No confirmed seats yet.</p>'; $('cert-count').textContent = ''; return; }
+  if (!rows.length) { $('certlist').innerHTML = '<p class="muted">No confirmed seats yet.</p>'; $('cert-count').textContent = ''; renderCertTell(cid); return; }
   rows.sort((a, b2) => ((byStudent[a.student_id] || {}).name || '').localeCompare(((byStudent[b2.student_id] || {}).name || '')));
   $('certlist').innerHTML = `<table><thead><tr><th>#</th><th></th><th>Student (registered)</th><th>Name on certificate</th><th>Status</th><th></th></tr></thead><tbody>` +
     rows.map((b, i) => {
@@ -1271,6 +1280,7 @@ function renderCerts(cid) {
   const unissued = sel.filter(b => !(certByBooking[b.id] || {}).certifier_credential_id).length;
   const unemailed = rows.filter(b => { const x = certByBooking[b.id] || {}; return x.certifier_credential_id && !x.emailed_at; }).length;
   $('cert-count').textContent = `${sel.length} of ${rows.length} selected · ${unissued} to issue · ${unemailed} issued but not emailed.`;
+  renderCertTell(cid);
 }
 async function certUpsert(bid, patch) {
   const { data, error } = await sb.from('certificates')
@@ -1476,6 +1486,73 @@ $('cx-go').onclick = async () => {
 };
 
 // ---------- Email students ----------
+// ── The two post-class ✉️ buttons ──────────────────────────────────────────
+// Andrew's ask (2026-08-23): an email button beside each class recording, and the same for
+// certificates — click it, land in the email card with the right message already loaded, and
+// afterwards see that it has been sent. He asked for the two messages to stay SEPARATE
+// ("split the message, do not lump them together"), so there are two generic templates:
+// "Post-class — class recording" and "Post-class — your certificate". Neither mentions the other.
+const MAIL_TPL = { recording: 'Post-class — class recording', certificate: 'Post-class — your certificate' };
+
+const mailLogFor = (kind, cid, mid) => {
+  const rows = emailLog.filter(x => x.kind === kind && x.course_id === cid && (mid ? x.material_id === mid : true));
+  return rows.length ? rows[rows.length - 1] : null;   // loaded ordered by sent_at
+};
+
+// Fill the email card for one cohort and one template, then scroll to it. Everything happens on
+// THIS page on purpose — the card is wiped by navigation, so it can only be filled where it lives.
+function emPreload(kind, cid, material) {
+  pendingMail = null;                       // never leave an earlier click's mark armed
+  const prev = $('em-scope').value;
+  const c = byCourse[cid];
+  if (!c) return msg('em-msg', 'err', 'That class is no longer in the dashboard list.');
+  $('em-scope').value = 'c:' + cid;
+  if ($('em-scope').value !== 'c:' + cid) {
+    // "Send to" only lists the last 30 days. Assigning a value with no matching <option> blanks
+    // the select, and a blank scope falls back to ALL STUDENTS in emRecipients() — so put the
+    // previous selection back and refuse, rather than quietly aiming at the whole database.
+    $('em-scope').value = prev;
+    $('emailcard').scrollIntoView({ behavior: 'smooth' });
+    return msg('em-msg', 'err', `${c.name} · ${fdate(c.cohort_date)} is outside the 30-day window in "Send to", so it cannot be emailed from here.`);
+  }
+  updateEmCount(); renderEmTemplates();
+  const t = emailTemplates.find(x => x.name === MAIL_TPL[kind]);
+  if (!t) { $('emailcard').scrollIntoView({ behavior: 'smooth' }); return msg('em-msg', 'err', `The "${MAIL_TPL[kind]}" template is missing — pick one by hand.`); }
+  $('em-tpl').value = t.id;
+  $('em-tpl-load').click();                 // one code path for resolving placeholders, not two
+  pendingMail = { kind, course_id: cid, material_id: material ? material.id : null, url_at_send: material ? (material.url || null) : null };
+  $('emailcard').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Deep link from the Classroom tab's ✉️ Email class button: ./?mail=<class_materials.id>
+async function emFromMailLink() {
+  if (window.__mailJumped) return;          // auth refresh re-runs route(); the jump must not repeat
+  const mid = new URLSearchParams(location.search).get('mail');
+  if (!mid) return;
+  window.__mailJumped = true;
+  const { data, error } = await sb.from('class_materials')
+    .select('id,course_id,title,url,file_path,is_published').eq('id', mid).maybeSingle();
+  if (error || !data) return msg('em-msg', 'err', 'That Classroom item no longer exists.');
+  if (!data.course_id) return msg('em-msg', 'err', 'That item belongs to a course library, not to one class — there is no class to email.');
+  emPreload('recording', data.course_id, data);
+}
+
+// Certificates panel — same idea, no navigation needed, both cards live on this page.
+function renderCertTell(cid) {
+  const rows = bookings.filter(b => b.course_id === cid && b.status === 'confirmed');
+  const emailed = rows.filter(b => (certByBooking[b.id] || {}).emailed_at).length;
+  const sent = mailLogFor('certificate', cid);
+  const btn = $('cert-tell');
+  btn.disabled = !emailed;
+  btn.textContent = sent ? '✉️ Tell the class again' : '✉️ Tell the class';
+  btn.title = emailed
+    ? 'Open the email card with the certificate message ready'
+    : 'Nothing to announce yet — issue and email the certificates first';
+  $('cert-tell-state').textContent = sent ? `✉️ class told ${fdate(sent.sent_at.slice(0, 10))}` : '';
+  $('cert-tell-state').style.color = sent ? 'var(--green)' : '';
+}
+$('cert-tell').onclick = () => { if (rosterCourse) emPreload('certificate', rosterCourse, null); };
+
 function renderEmailForm() {
   // Rebuilding the options wipes the selection, and loadAll() runs on every background refresh
   // (Create Zoom, Close/Open, saving a cohort…). Same trap as renderForm() — hold both
@@ -1494,7 +1571,7 @@ function renderEmailForm() {
       .map(c => `<option value="${c.id}">${c.name} · ${fdate(c.cohort_date)}</option>`).join('');
   if (keepScope) $('em-scope').value = keepScope;
   if (keepWa) $('em-wa').value = keepWa;
-  $('em-scope').onchange = () => { updateEmCount(); renderEmTemplates(); };
+  $('em-scope').onchange = () => { pendingMail = null; updateEmCount(); renderEmTemplates(); };
   updateEmCount(); renderEmTemplates();
 }
 
@@ -1556,6 +1633,7 @@ function emResolve(text, c) {
   return { out, missing: [...missing] };
 }
 $('em-tpl-load').onclick = () => {
+  pendingMail = null;   // emPreload() re-sets this straight after its own programmatic click
   const t = emailTemplates.find(x => x.id === $('em-tpl').value);
   if (!t) return msg('em-msg', 'err', 'No template selected.');
   const c = emScopeCourse();
@@ -1615,8 +1693,17 @@ $('em-send').onclick = async () => {
   $('em-send').disabled = true; msg('em-msg', 'ok', `Sending to ${recips.length}… (about ${Math.ceil(recips.length * 0.6)}s)`);
   const { ok, out } = await callFn('send-email', { subject: $('em-subject').value, body: $('em-body').value, recipients: recips, whatsapp_url: emWaUrl() });
   $('em-send').disabled = false;
-  if (!ok) return msg('em-msg', 'err', out.error || 'Send failed');
+  if (!ok) { pendingMail = null; return msg('em-msg', 'err', out.error || 'Send failed'); }
   msg('em-msg', 'ok', `Sent to ${out.sent}${out.failed ? ', failed: ' + out.failed : ''}.`);
+  // Only a real send to recipients marks the button — "Send test to me" deliberately does not.
+  if (pendingMail) {
+    const row = { ...pendingMail, recipients: out.sent || recips.length };
+    pendingMail = null;
+    const { data, error } = await sb.from('class_email_log').insert(row).select().single();
+    if (error) return msg('em-msg', 'err', `Sent to ${out.sent}, but the "already emailed" mark did not save: ${error.message}`);
+    emailLog.push(data);
+    if (rosterCourse) renderCertTell(rosterCourse);
+  }
 };
 
 // ---------- Cohort form ----------
