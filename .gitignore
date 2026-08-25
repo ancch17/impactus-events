@@ -1,0 +1,13 @@
+# Local secrets — never committed
+.github-token
+*.token
+.env
+.env.local
+
+# Added by the 2026-08-25 security audit (finding 10). This repo is PUBLIC and is the
+# one pushed to most often; the sibling repo impactus-learning already had these rules.
+.github_token
+github-token.txt
+*.pem
+*.key
+secrets/
