@@ -643,6 +643,7 @@ if (refIncoming) {
    portal, signed in, with nothing preselected. Never to an error. */
 const DL_KEYS = ['course', 'date', 'time'];
 const DL_STASH = 'ilDeepLink';
+const GA_STASH = 'ilGaCheckout';   // stash the checkout value across the Stripe round-trip, analytics-only
 const DL_TTL = 3600e3;   // an hour: a sign-in link left overnight is a different intent
 
 function dlRead() {
@@ -706,7 +707,28 @@ async function init() {
     openSection('book');
     setTimeout(() => { msg('bookmsg', 'ok', text); $('bookmsg').scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 800);
   };
-  if (params.get('payment') === 'done') payBack('Payment received! Your booking is confirmed and points are updated. (Refresh if you don\'t see it yet.)');
+  if (params.get('payment') === 'done') {
+    // GA4 Key Events: purchase (standard ecommerce event) + close_convert_lead (paid variant).
+    // The webhook already confirmed the booking and updated points server-side by the time
+    // Stripe redirects here — this is analytics only, reading a value stashed before the
+    // redirect (Edit above). If the stash is missing (new tab, cleared storage), still fire
+    // the events with no value rather than silently lose the conversion.
+    try {
+      if (typeof gtag === 'function') {
+        let stash = null;
+        try { stash = JSON.parse(localStorage.getItem(GA_STASH) || 'null'); } catch (e) {}
+        try { localStorage.removeItem(GA_STASH); } catch (e) {}
+        const p = { currency: 'SGD' };
+        if (stash) Object.assign(p, {
+          value: stash.value, method: stash.method,
+          course_id: stash.course_id, course_name: stash.course_name
+        });
+        gtag('event', 'purchase', p);
+        gtag('event', 'close_convert_lead', Object.assign({ method: (stash && stash.method) || 'paid' }, p));
+      }
+    } catch (e) {}
+    payBack('Payment received! Your booking is confirmed and points are updated. (Refresh if you don\'t see it yet.)');
+  }
   if (params.get('payment') === 'cancelled') payBack('No payment was taken. Your seat is still held for a short while — pick it up under “Seats you\'re holding” at the top whenever you\'re ready.');
   if (params.get('setup') === 'done') payBack('Card saved ✓ — you have NOT been charged. Your card is only charged if your seat is accepted; we\'ll email you either way.');
   // ✉️ From the "starter prompt ready" email: land straight in My Classroom.
@@ -1631,6 +1653,17 @@ async function startCheckout(method) {
   }
   const payNow = quote().pay;
   if (payNow > 0 && !PAYMENTS_LIVE) return;   // card checkout not live yet
+  // GA4 Key Event: qualify_lead — student has passed every gate and is really starting a
+  // checkout (not just browsing). Fires once per attempt, before the network call, so it
+  // can never depend on how create-checkout responds. Analytics-only, never blocks booking.
+  try {
+    if (typeof gtag === 'function') {
+      gtag('event', 'qualify_lead', {
+        value: payNow, currency: 'SGD', method: method || 'free',
+        course_id: selCourse.id, course_name: selCourse.name
+      });
+    }
+  } catch (e) {}
   checkoutBusy = true;
   document.querySelectorAll('.pm').forEach(b => { b.disabled = true; });
   $('paybtn').disabled = true;
@@ -1650,12 +1683,32 @@ async function startCheckout(method) {
       // what invited the second click in the first place.
       bookedIds.add(selCourse.id);
       const what = `${selCourse.name} on ${fdate(selCourse.cohort_date)}`;
+      // GA4 Key Event: close_convert_lead — the booking is confirmed right here (S$0: fully
+      // covered by points/coupon/corp code), so this is the true conversion moment for this
+      // path. Analytics-only, fired after the booking already succeeded server-side.
+      try {
+        if (typeof gtag === 'function') {
+          gtag('event', 'close_convert_lead', {
+            value: 0, currency: 'SGD', method: 'free',
+            course_id: selCourse.id, course_name: selCourse.name
+          });
+        }
+      } catch (e) {}
       deselectCohort();
       const { data: { session: s2 } } = await sb.auth.getSession(); await showApp(s2);
       msg('bookmsg', 'ok', `Booked! Your seat for ${what} is confirmed — see you in class!`);
       $('bookmsg').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;                                  // form is closed; nothing to re-enable
     } else if (out.url) {
+      // Stash the value/course for the analytics event fired on return from Stripe (below in
+      // init()) — the page reloads on the way back, so nothing in memory here survives.
+      // Analytics-only; never read by any booking/payment logic.
+      try {
+        localStorage.setItem(GA_STASH, JSON.stringify({
+          value: payNow, currency: 'SGD', method: method || null,
+          course_id: selCourse.id, course_name: selCourse.name, at: Date.now()
+        }));
+      } catch (e) {}
       location.href = out.url;
       return;                                  // leaving the page; leave the buttons disabled
     }
