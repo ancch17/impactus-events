@@ -706,7 +706,7 @@ function renderPick() {
   }
   const f2f = deepLink.course.indexOf('f2f-') === 0;
   el.innerHTML = when
-    ? '<b>You picked ' + when + '</b><span>' + (f2f ? 'Face-to-face, Paya Lebar Square (Office Lobby 1)' : 'Online')
+    ? '<b>You picked ' + when + '</b><span>' + (f2f ? 'Face-to-face, 43A Beach Road' : 'Online')
       + ' — sign in below and we\'ll take you straight to it. Nothing is held until you book.</span>'
     : '<b>Your class is waiting</b><span>Sign in below and we\'ll take you straight to it.</span>';
   el.classList.remove('hidden');
@@ -1494,8 +1494,8 @@ function applyDeepLink() {
   if (!open.length) return;
   const d = params.get('date');
   const t = (params.get('time') || '').toLowerCase();
-  // Match by parsed slot, not by leading digit — house times move, and online (9 / 2 / 7) and
-  // F2F (8:30 / 1:30 / 6:30) don't even share a leading digit for the same slot.
+  // Match by parsed slot, not by leading digit — house times move (F2F AM became 9:00 – 12:30 on
+  // 2026-09-26), and F2F PM / night (1:30 / 6:30) don't share a leading digit with online (2 / 7).
   const wantSlot = { am: 0, pm: 1, n: 2, night: 2 }[t];
   let target = d ? open.find(c => c.cohort_date === d && (wantSlot === undefined || slotOf(c.session_time) === wantSlot)) : null;
   if (!target && d) target = open.find(c => c.cohort_date === d);
@@ -1800,7 +1800,7 @@ const isRemovable = (r) =>
 // seat on. Materials are what Andrew publishes on the admin Classroom tab: course-level items
 // (inherited by every cohort of the course) plus per-class extras.
 const CM_FILE_BASE = SUPABASE_URL + '/storage/v1/object/public/class-materials/';
-const CM_VENUE_FALLBACK = 'Paya Lebar Square #07-16, Office Lobby 1, Singapore 409051';
+const CM_VENUE_FALLBACK = '43A Beach Road, Evershine & Century Complex, 2nd floor (Straits Interactive), Singapore 189681';   // standing F2F venue (26 Sep 2026)
 
 async function loadClassroom() {
   const card = $('classroomcard');

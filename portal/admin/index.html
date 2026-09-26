@@ -648,9 +648,10 @@ function slotOf(t) {
 // full-day corporate class (9:00am – 5:00pm) starts in AM and finishes in PM, so it has to be
 // drawn in BOTH rows — that is what makes it read as a block covering the whole day rather than
 // a morning class. Returns [startSlot..endSlot].
-// The end time is nudged back one minute on purpose: a class ending exactly at 12:00pm is an
-// AM class, not an AM+PM one, so every existing cohort still resolves to the single slot it
-// always had. Falls back to slotOf() whenever a string carries only one time (or none).
+// The end time is nudged back 31 minutes on purpose: a class ending at 12:00pm OR 12:30pm (the F2F
+// AM slot since 2026-09-26) is an AM class, not an AM+PM one, so every house slot still resolves to
+// the single row it always had, while a 9-to-5 day still spans both. Falls back to slotOf()
+// whenever a string carries only one time (or none).
 function slotsOf(t) {
   const s = slotOf(t);
   const all = (t || '').match(/\d{1,2}(?::\d{2})?\s*(?:am|pm)/gi);
@@ -658,7 +659,7 @@ function slotsOf(t) {
   const m = all[all.length - 1].match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
   let h = parseInt(m[1], 10) % 12;
   if (m[3].toLowerCase() === 'pm') h += 12;
-  const end = h * 60 + (parseInt(m[2], 10) || 0) - 1;
+  const end = h * 60 + (parseInt(m[2], 10) || 0) - 31;
   const e = end < 720 ? 0 : end < 1080 ? 1 : 2;
   const out = [];
   for (let i = s; i <= Math.max(s, e); i++) out.push(i);
@@ -725,13 +726,14 @@ $('cal-prev').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calM
 $('cal-next').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); };
 // Fixed house times — three slots, but ONLINE and F2F run different lengths.
 //   ONLINE 3 hours   ·  9:00am – 12:00pm  ·  2:00pm – 5:00pm  ·  7:00pm – 10:00pm
-//   F2F    3.5 hours ·  8:30am – 12:00pm  ·  1:30pm – 5:00pm  ·  6:30pm – 10:00pm
-// The extra half hour is part of what the higher F2F price buys, and it gives an AM and a PM
-// cohort sharing one venue day a real 90-minute break in between. (On 2026-07-27 both were
+//   F2F    3.5 hours ·  9:00am – 12:30pm  ·  1:30pm – 5:00pm  ·  6:30pm – 10:00pm
+// The extra half hour is part of what the higher F2F price buys. (On 2026-07-27 both were
 // briefly moved to 3.5h; only F2F was meant to move, so online is back at 3h.)
+// 2026-09-26: F2F AM moved from 8:30 – 12:00 to 9:00 – 12:30 with the move to 43A Beach Road, so an
+// AM + PM day now has a one-hour lunch break (12:30 – 1:30). Older cohorts keep their stored string.
 const SLOT_KEYS = ['am', 'pm', 'n'];
 const SLOT_TIMES_ONLINE = { am: '9:00am – 12:00pm', pm: '2:00pm – 5:00pm', n: '7:00pm – 10:00pm' };
-const SLOT_TIMES_F2F    = { am: '8:30am – 12:00pm', pm: '1:30pm – 5:00pm', n: '6:30pm – 10:00pm' };
+const SLOT_TIMES_F2F    = { am: '9:00am – 12:30pm', pm: '1:30pm – 5:00pm', n: '6:30pm – 10:00pm' };
 // A corporate full day is ONE 9-to-5 block, not a three-slot day, so its family offers exactly
 // one time instead of AM/PM/Night. Because it crosses noon, slotsOf() draws it in both the AM
 // and PM calendar rows. Keep this table single-entry — the slot pickers read Object.keys(T).
@@ -1624,7 +1626,7 @@ function emFollowCohort(cid) {
 // Placeholders {date}/{day}/{dshort}/{time}/{zoomlink}/{zoomid}/{classlink}/{venue}/{doors}
 // resolve from the SELECTED COHORT when a template is loaded — {first}/{name} stay
 // per-recipient and are merged server-side by send-email, so they pass through untouched.
-const EM_DEFAULT_VENUE = 'Paya Lebar Square #07-16, Office Lobby 1, Singapore 409051';   // standing F2F venue (Aug 2026)
+const EM_DEFAULT_VENUE = '43A Beach Road, Evershine & Century Complex, 2nd floor (Straits Interactive), Singapore 189681';   // standing F2F venue (26 Sep 2026)
 function emScopeCourse() { const v = $('em-scope').value || ''; return v.startsWith('c:') ? byCourse[v.slice(2)] : null; }
 function renderEmTemplates() {
   const c = emScopeCourse();
@@ -1635,7 +1637,7 @@ function renderEmTemplates() {
     : '<option value="">' + (c ? '— no templates for this course yet —' : '— pick a cohort above to see its templates —') + '</option>';
 }
 function emDoors(sessionTime) {
-  // "8:30am – 12:00pm" -> doors 30 min before the start -> "8:00am"
+  // "9:00am – 12:30pm" -> doors 30 min before the start -> "8:30am"
   const m = String(sessionTime || '').match(/(\d{1,2}):(\d{2})\s*(am|pm)/i);
   if (!m) return '';
   let mins = (Number(m[1]) % 12) * 60 + Number(m[2]) + (m[3].toLowerCase() === 'pm' ? 720 : 0) - 30;
