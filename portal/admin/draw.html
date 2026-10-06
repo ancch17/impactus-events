@@ -204,6 +204,8 @@
         <div class="f"><label for="s-close">Entries close (Singapore time)</label><input id="s-close" type="datetime-local"></div>
         <div class="f"><label for="s-drawat">Draw date and time</label><input id="s-drawat" type="datetime-local"></div>
         <div class="f"><label for="s-collect">How the winner collects it</label><input id="s-collect" maxlength="300"></div>
+        <div class="f"><label for="s-community">WhatsApp community invite link</label><input id="s-community" maxlength="300" placeholder="https://chat.whatsapp.com/…"></div>
+        <div class="f" style="display:flex;align-items:flex-end"><label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink);margin:0 0 8px;cursor:pointer"><input type="checkbox" id="s-commreq" style="width:18px;height:18px;accent-color:var(--green)"> Only WhatsApp community members can enter</label></div>
         <div class="f full"><label for="s-rules">Rules (one per line). These fill in automatically: {open} {close} {draw} {place} {prize} {collection} {x}</label><textarea id="s-rules" style="min-height:220px"></textarea></div>
         <div class="f full" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink);margin:0;cursor:pointer"><input type="checkbox" id="s-pub" style="width:18px;height:18px;accent-color:var(--green)"> <strong>Published</strong>: anyone with the link can see it and enter</label>
@@ -318,7 +320,7 @@ function renderDraw() {
     : ph === 'upcoming' ? '<span class="pill draft">Published: opens ' + esc(fmtSG(D.open_at)) + '</span>'
     : '<span class="pill closed">Entries closed</span>';
   const link = publicLink(D);
-  const wa = `Lucky draw: ${D.prize_name || D.title}\n\nFree to enter. Impactus students get ${D.student_multiplier || 3} entries.\nCloses ${fmtSG(D.close_at)}.\n\n${link}`;
+  const wa = `Lucky draw: ${D.prize_name || D.title}\n\nFree to enter${D.community_required !== false ? ' for members of this community' : ''}. Paid and company-sponsored Impactus students get ${D.student_multiplier || 3} entries.\nCloses ${fmtSG(D.close_at)}.\n\n${link}`;
   $('linkbox').innerHTML = `${pill}<span class="muted">Link to post:</span><code>${esc(link)}</code>
     <button class="btn ghost sm" id="copy-link">Copy link</button>
     <button class="btn ghost sm" id="copy-wa">Copy WhatsApp post</button>
@@ -331,6 +333,7 @@ function renderDraw() {
   $('s-prize').value = D.prize_name || ''; $('s-place').value = D.draw_place || ''; $('s-details').value = D.prize_details || '';
   $('s-open').value = isoToLocal(D.open_at); $('s-close').value = isoToLocal(D.close_at); $('s-drawat').value = isoToLocal(D.draw_at);
   $('s-collect').value = D.collection_note || ''; $('s-rules').value = D.rules_text || ''; $('s-pub').checked = !!D.published;
+  $('s-community').value = D.community_url || ''; $('s-commreq').checked = D.community_required !== false;
   $('s-x').textContent = D.student_multiplier || 3;
   renderPhotos();
   $('draw-note').innerHTML = ph === 'closed'
@@ -368,6 +371,7 @@ $('sf').addEventListener('submit', async (e) => {
     prize_name: $('s-prize').value.trim() || null, draw_place: $('s-place').value.trim() || null,
     prize_details: $('s-details').value.trim() || null, open_at: open, close_at: close, draw_at: drawAt,
     collection_note: $('s-collect').value.trim() || null, rules_text: $('s-rules').value.trim() || null,
+    community_url: $('s-community').value.trim() || null, community_required: $('s-commreq').checked,
     published: pub, updated_at: new Date().toISOString() };
   const { error } = await sb.from('draws').update(upd).eq('id', D.id);
   saving = false; $('s-save').disabled = false; delete $('s-pub').dataset.ok;
@@ -688,6 +692,7 @@ function renderResult(p) {
     <div class="sub">${esc(mask(r.mobile))} · ${r.is_student ? 'Impactus student · ' + r.tickets + ' entries' : '1 entry'}</div>
     ${showContact ? `<div class="contact"><strong>${esc(r.name)}</strong><br>${esc(fmtMobile(r.mobile))}${r.student_email ? '<br>' + esc(r.student_email) : ''}</div>` : ''}
     <button class="btn ghost sm" id="r-contact" style="margin-top:8px">${showContact ? 'Hide' : 'Show'} contact details</button>
+    ${decided || D.community_required === false ? '' : `<div class="muted" style="margin-top:10px;color:#7a5a00">Before declaring: check this number is in the Impactus WhatsApp community. If not, void with reason "not in community" and spin again.</div>`}
     ${decided ? '' : `<div style="display:grid;gap:8px;margin-top:12px">
       <button class="btn green" id="r-win" ${picks.some(x => x.status === 'winner') ? 'disabled title="Already have a winner"' : ''}>Declare winner</button>
       <button class="btn dark" id="r-res">Make reserve</button>

@@ -153,6 +153,11 @@
               <label for="f-website">Leave this empty</label>
               <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off">
             </div>
+            <div id="community-box">
+              <label class="check"><input type="checkbox" id="f-community" name="community">
+                <span>I'm a member of the <strong>Impactus WhatsApp community</strong>. Only members can win.</span></label>
+              <p class="hint" id="community-join" style="margin:-6px 0 16px 34px"></p>
+            </div>
             <label class="check"><input type="checkbox" id="f-consent" name="consent" required>
               <span>I agree to the <a href="#rules">draw rules</a>, and to Impactus Learning using my name and mobile number to run this draw and contact me if I win.</span></label>
             <label class="check"><input type="checkbox" id="f-marketing" name="marketing">
@@ -199,7 +204,7 @@
             </div>
           </div>
 
-          <a class="btn ghost small" id="r-share" href="#" target="_blank" rel="noopener" style="margin-top:18px">Share with a friend on WhatsApp</a>
+          <a class="btn ghost small" id="r-share" href="#" target="_blank" rel="noopener" style="margin-top:18px">Invite a friend to the community</a>
         </div>
       </section>
 
@@ -355,7 +360,13 @@
     document.querySelectorAll('.x').forEach((e) => { e.textContent = x; });
     $('r-close').textContent = fmt(D.close_at);
     const url = 'https://events.impactuslearning.com/draw/' + (D.slug ? '?d=' + encodeURIComponent(D.slug) : '');
-    $('r-share').href = 'https://wa.me/?text=' + encodeURIComponent(`I just entered the Impactus lucky draw for ${D.prize_name || 'a prize'}. Free to enter: ${url}`);
+    // Sharing invites friends to JOIN THE COMMUNITY first (Andrew, 2026-10-06: "not tom dick and harry").
+    const msg = D.community_required
+      ? (D.community_url
+          ? `Impactus lucky draw: ${D.prize_name || 'a prize'}. Only for members of the Impactus WhatsApp community.\n\n1. Join the community: ${D.community_url}\n2. Then enter here: ${url}`
+          : `Impactus lucky draw: ${D.prize_name || 'a prize'}. Only for members of the Impactus WhatsApp community. Ask me for the invite link, join, then enter here: ${url}`)
+      : `I just entered the Impactus lucky draw for ${D.prize_name || 'a prize'}. Free to enter: ${url}`;
+    $('r-share').href = 'https://wa.me/?text=' + encodeURIComponent(msg);
   }
 
   // ---------- page ----------
@@ -369,11 +380,16 @@
     $('title').textContent = D.title || 'Lucky draw';
     $('tagline').textContent = D.tagline || '';
     $('x-hint').textContent = D.student_multiplier || 3;
+    $('community-box').classList.toggle('hidden', !D.community_required);
+    $('community-join').innerHTML = D.community_url
+      ? `Not a member yet? <a href="${esc(D.community_url)}" target="_blank" rel="noopener">Join the community first</a>, then come back and enter.`
+      : 'Not a member yet? Ask Andrew or a friend in the community for the invite link.';
     renderGallery();
     $('specs').innerHTML = String(D.prize_details || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => `<li>${esc(l)}</li>`).join('') || `<li>${esc(D.prize_name || '')}</li>`;
     const x = D.student_multiplier || 3;
     $('steps').innerHTML = [
-      `Enter your name and mobile number before <strong>${esc(fmt(D.close_at))}</strong>. One entry per person.`,
+      (D.community_required ? `Open to members of the <strong>Impactus WhatsApp community</strong>${D.community_url ? ` (<a href="${esc(D.community_url)}" target="_blank" rel="noopener">join here</a>)` : ''}. ` : '') +
+        `Enter your name and mobile number before <strong>${esc(fmt(D.close_at))}</strong>. One entry per person.`,
       `Impactus students (anyone who has paid for a class with us, or attended through their company) get <strong>${x} entries</strong>. Everyone else gets 1.`,
       `The winner is drawn on <strong>${esc(fmt(D.draw_at)) || 'a date to be announced'}</strong>, ${esc(D.draw_place || '')}. We'll contact the winner on WhatsApp.`,
     ].map((s) => `<li><span>${s}</span></li>`).join('');
@@ -406,11 +422,12 @@
     const name = $('f-name').value.trim(), mobile = $('f-mobile').value.trim();
     if (name.length < 2) { err.textContent = 'Please enter your name.'; $('f-name').focus(); return; }
     if (mobile.replace(/\D/g, '').length < 8) { err.textContent = 'Please enter your mobile number.'; $('f-mobile').focus(); return; }
+    if (D.community_required && !$('f-community').checked) { err.textContent = 'This draw is only for members of the Impactus WhatsApp community. Join first, then tick the box.'; $('f-community').focus(); return; }
     if (!$('f-consent').checked) { err.textContent = 'Please tick the box to agree to the rules.'; $('f-consent').focus(); return; }
     if (D.preview) { err.textContent = 'Preview only: entries are switched off until the draw is published.'; return; }
     submitting = true; const btn = $('f-submit'); btn.disabled = true; btn.textContent = 'Entering…';
     try {
-      const j = await call({ action: 'enter', slug: D.slug, name, mobile, consent: true, marketing: $('f-marketing').checked,
+      const j = await call({ action: 'enter', slug: D.slug, name, mobile, consent: true, marketing: $('f-marketing').checked, community: $('f-community').checked,
         device_id: deviceId(), website: $('f-website').value });
       if (j.ok) {
         entry = { name: j.name || name, entries: j.entries, is_student: j.is_student, excluded: !!j.excluded, token: j.token || null };
