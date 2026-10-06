@@ -172,7 +172,7 @@
 
           <div id="r-upgrade" class="hidden">
             <div class="boost">
-              <h3>Been to an Impactus class?</h3>
+              <h3>Paid for an Impactus class, or attended through your company?</h3>
               <p>Your number may not be on our records. Confirm with the email you booked with and your entry goes up to <strong class="x">3</strong>.</p>
               <div id="em-step1">
                 <button class="btn ghost small" type="button" id="em-open" aria-expanded="false" aria-controls="em-form" style="margin-top:10px">Use my booking email</button>
@@ -194,7 +194,7 @@
             </div>
             <div class="boost">
               <h3>Not a student yet?</h3>
-              <p>Book any Impactus class before <strong id="r-close"></strong>, using this same mobile number, and your entry becomes <strong class="x">3</strong>.</p>
+              <p>Book and pay for any Impactus class before <strong id="r-close"></strong>, using this same mobile number, and your entry becomes <strong class="x">3</strong>.</p>
               <a class="btn ghost small" href="https://events.impactuslearning.com/portal/app" style="margin-top:10px">See upcoming classes</a>
             </div>
           </div>
@@ -337,6 +337,13 @@
     const n = entry.entries || 1;
     $('r-tickets').innerHTML = Array.from({ length: n }, (_, i) => `<span class="ticket">${n > 1 ? i + 1 : '1'}</span>`).join('');
     const first = esc(String(entry.name || '').split(' ')[0] || '');
+    if (entry.excluded) {
+      $('r-tickets').innerHTML = '';
+      $('r-title').innerHTML = 'Test entry saved';
+      $('r-text').innerHTML = 'This number belongs to the organiser, so it is not in the draw.';
+      $('r-upgrade').classList.add('hidden');
+      return;
+    }
     if (entry.is_student) {
       $('r-title').innerHTML = `Congratulations, ${first}!`;
       $('r-text').innerHTML = `You're an Impactus student, so you're in the draw with <strong>${n} entries</strong>. Good luck!`;
@@ -367,7 +374,7 @@
     const x = D.student_multiplier || 3;
     $('steps').innerHTML = [
       `Enter your name and mobile number before <strong>${esc(fmt(D.close_at))}</strong>. One entry per person.`,
-      `Impactus students (anyone who has booked a class with us, paid or free) get <strong>${x} entries</strong>. Everyone else gets 1.`,
+      `Impactus students (anyone who has paid for a class with us, or attended through their company) get <strong>${x} entries</strong>. Everyone else gets 1.`,
       `The winner is drawn on <strong>${esc(fmt(D.draw_at)) || 'a date to be announced'}</strong>, ${esc(D.draw_place || '')}. We'll contact the winner on WhatsApp.`,
     ].map((s) => `<li><span>${s}</span></li>`).join('');
     $('rules-list').innerHTML = fill(D.rules_text).split('\n').map((l) => l.trim()).filter(Boolean).map((l) => `<li>${esc(l)}</li>`).join('');
@@ -406,7 +413,7 @@
       const j = await call({ action: 'enter', slug: D.slug, name, mobile, consent: true, marketing: $('f-marketing').checked,
         device_id: deviceId(), website: $('f-website').value });
       if (j.ok) {
-        entry = { name: j.name || name, entries: j.entries, is_student: j.is_student, token: j.token || null };
+        entry = { name: j.name || name, entries: j.entries, is_student: j.is_student, excluded: !!j.excluded, token: j.token || null };
         store.set('il_draw_entry_' + D.slug, entry);
         D.entrants = (D.entrants || 0) + 1;
         renderStatus(); renderSections();

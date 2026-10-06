@@ -5,7 +5,10 @@
      Public page: /draw/  ·  Public API: edge fn `draw-public` (verify_jwt false).
      Tables: draws, draw_entries, draw_picks, draw_email_codes (+ bucket draw-photos).
      Tickets are computed server-side by _draw_tickets() — students = confirmed
-     booking (any price, incl. free) made by close_at; Andrew's override wins.
+     PAID booking (cash or points) or company-sponsored (corp) seat made by close_at
+     (draw_booking_qualifies; free comp/make-up/test seats don't count — Andrew,
+     2026-10-06). Organiser accounts in draw_exclusions always get 0. Override wins
+     otherwise.
      The draw itself = rpc draw_pick (crypto-random, weighted, logged, only after
      close) + draw_decide. The wheel only ANIMATES the server's pick.
      esc() every entrant-typed field before it touches innerHTML (house rule).
@@ -204,7 +207,7 @@
         <div class="f full"><label for="s-rules">Rules (one per line). These fill in automatically: {open} {close} {draw} {place} {prize} {collection} {x}</label><textarea id="s-rules" style="min-height:220px"></textarea></div>
         <div class="f full" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink);margin:0;cursor:pointer"><input type="checkbox" id="s-pub" style="width:18px;height:18px;accent-color:var(--green)"> <strong>Published</strong>: anyone with the link can see it and enter</label>
-          <span class="muted">Students get <strong id="s-x">3</strong> entries, everyone else 1.</span>
+          <span class="muted">Paid or company-sponsored students get <strong id="s-x">3</strong> entries, everyone else 1. Your own accounts are never in the draw.</span>
           <span style="margin-left:auto"></span>
           <button class="btn" type="submit" id="s-save">Save settings</button>
           <span class="msg" id="s-msg"></span>
@@ -453,11 +456,12 @@ const flagsOf = (r) => {
   if (r.same_device > 0) f.push(['warn', `Same device ×${r.same_device + 1}`]);
   if (r.same_ip > 0) f.push(['info', `Same network ×${r.same_ip + 1}`]);
   if (r.name_mismatch) f.push(['warn', 'Name ≠ student record']);
-  if (r.system_note) f.push(['warn', 'Student\'s 2nd number']);
+  if (r.how === 'excluded') f.push(['bad', 'Organiser: not in draw']);
+  else if (r.system_note) f.push(['warn', 'Student\'s 2nd number']);
   return f;
 };
 function renderKPIs() {
-  const live = entries.filter(r => !r.disqualified);
+  const live = entries.filter(r => !r.disqualified && r.how !== 'excluded');
   const tickets = live.reduce((t, r) => t + (r.tickets || 0), 0);
   const stu = live.filter(r => r.is_student).length;
   const flagged = live.filter(r => flagsOf(r).length).length;
@@ -474,7 +478,7 @@ let sortKey = 'created_at', sortDir = -1;
 const SORTVAL = { created_at: r => r.created_at, name: r => (r.name || '').toLowerCase(), mobile: r => r.mobile, student: r => (r.student_name || '').toLowerCase(), tickets: r => r.tickets, flags: r => flagsOf(r).length };
 window.setSort = (k) => { if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = (k === 'name' || k === 'student') ? 1 : -1; } renderEntries(); };
 $('q').oninput = renderEntries; $('filter').onchange = renderEntries;
-const HOW = { mobile: 'matched by mobile', email: 'confirmed by email code', 'late-mobile': 'booked after entering', admin: 'set by you' };
+const HOW = { mobile: 'matched by mobile', email: 'confirmed by email code', 'late-mobile': 'booked after entering', admin: 'set by you', excluded: 'organiser account' };
 function renderEntries() {
   const q = $('q').value.trim().toLowerCase(), f = $('filter').value;
   let rows = entries.filter(r => {
