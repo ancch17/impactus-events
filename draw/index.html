@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- ═══ Community lucky draw — public entry page ══════════════════════════════
+     Data + every rule live server-side in the `draw-public` edge function
+     (entries, the 3x student check, abuse limits, cutoff). This page only
+     renders what it returns. Admin: /portal/admin/draw
+     Built 2026-10-06 (Andrew: Surface giveaway). Fresh-clone before editing.
+════════════════════════════════════════════════════════════════════════════ -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lucky Draw · Impactus Learning</title>
+<meta name="description" content="Impactus community lucky draw. Free to enter. Impactus students get 3 entries.">
+<meta property="og:title" content="Impactus community lucky draw">
+<meta property="og:description" content="Free to enter. Impactus students get 3 entries.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://events.impactuslearning.com/draw/">
+<meta property="og:image" content="https://events.impactuslearning.com/images/andrew-profile.jpg">
+<link rel="icon" href="https://events.impactuslearning.com/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand:#5B3516; --accent:#B8732A; --accent-h:#D08535; --bg:#FFFDF8; --surface:#F7F3EE; --surface2:#EFEBE4;
+    --text:#2B1D10; --muted:#7d6c5b; --line:#E5DDD4; --line2:#D5CBBD; --ok:#2f7d50; --err:#b3372d; --gold:#f5b731;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { -webkit-text-size-adjust:100%; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); line-height:1.55; font-size:16px; }
+  img { max-width:100%; display:block; }
+  a { color:var(--brand); }
+  .wrap { max-width:640px; margin:0 auto; padding:0 16px; }
+  header { padding:18px 0 6px; }
+  header img { height:30px; width:auto; }
+  .eyebrow { display:inline-block; font-size:12.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); margin-top:18px; }
+  h1 { font-family:'Fraunces',Georgia,serif; font-weight:600; font-size:clamp(1.9rem,6.4vw,2.6rem); line-height:1.12; margin-top:6px; color:var(--brand); }
+  .tagline { margin-top:10px; color:var(--muted); font-size:1.02rem; }
+  h2 { font-family:'Fraunces',Georgia,serif; font-weight:600; font-size:1.35rem; color:var(--brand); margin-bottom:10px; }
+  section { margin-top:26px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(43,29,16,.05); }
+
+  /* gallery */
+  .gallery-main { position:relative; aspect-ratio:4/3; border-radius:16px; overflow:hidden; background:var(--surface2); margin-top:20px; }
+  .gallery-main img { width:100%; height:100%; object-fit:cover; }
+  .gallery-main .nav { position:absolute; top:50%; transform:translateY(-50%); width:44px; height:44px; border-radius:50%; border:none; background:rgba(255,255,255,.88); color:var(--brand); font-size:22px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .gallery-main .prev { left:10px; } .gallery-main .next { right:10px; }
+  .gallery-main .count { position:absolute; right:10px; bottom:10px; background:rgba(43,29,16,.7); color:#fff; font-size:12.5px; padding:3px 9px; border-radius:20px; }
+  .gallery-main .cap { position:absolute; left:10px; bottom:10px; right:70px; color:#fff; font-size:13px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+  .thumbs { display:flex; gap:8px; margin-top:8px; overflow-x:auto; padding-bottom:4px; }
+  .thumbs button { flex:0 0 68px; height:52px; border-radius:8px; overflow:hidden; border:2px solid transparent; padding:0; cursor:pointer; background:var(--surface2); }
+  .thumbs button[aria-current="true"] { border-color:var(--accent); }
+  .thumbs img { width:100%; height:100%; object-fit:cover; }
+  .nophoto { display:grid; place-items:center; height:100%; color:var(--muted); font-size:14px; text-align:center; padding:20px; }
+
+  /* status */
+  .status { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; margin-top:18px; padding:14px 16px; border-radius:14px; background:var(--surface); border:1px solid var(--line); }
+  .status .lbl { font-size:13px; color:var(--muted); }
+  .status .big { font-weight:700; font-size:1.05rem; font-variant-numeric:tabular-nums; }
+  .status .entrants { margin-left:auto; font-size:13.5px; color:var(--muted); }
+  .winner { background:#fff8e6; border-color:#f0d58c; }
+
+  /* form */
+  .field { margin-bottom:18px; }
+  .field label { display:block; font-weight:600; font-size:15px; margin-bottom:6px; }
+  .field input { width:100%; font:inherit; font-size:1rem; padding:12px 14px; min-height:50px; border:1.5px solid var(--line2); border-radius:12px; background:#fff; color:var(--text); }
+  .field input:focus-visible { outline:3px solid var(--gold); outline-offset:1px; border-color:var(--accent); }
+  .field input:user-invalid { border-color:var(--err); }
+  .hint { font-size:13px; color:var(--muted); margin-top:5px; }
+  .check { display:flex; gap:12px; align-items:flex-start; margin-bottom:14px; font-size:14.5px; cursor:pointer; }
+  .check input { width:22px; height:22px; flex:0 0 22px; margin-top:1px; accent-color:var(--accent); }
+  .hp { position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:52px; padding:12px 18px; border:none; border-radius:12px; background:var(--accent); color:#fff; font:inherit; font-weight:700; font-size:1.05rem; cursor:pointer; text-decoration:none; }
+  .btn:hover { background:var(--accent-h); }
+  .btn:disabled { opacity:.6; cursor:wait; }
+  .btn.ghost { background:#fff; color:var(--brand); border:1.5px solid var(--line2); }
+  .btn.small { min-height:44px; font-size:.95rem; width:auto; }
+  .err { color:var(--err); font-weight:600; font-size:14.5px; margin-top:12px; }
+  .err:empty { display:none; }
+
+  /* result */
+  .result { text-align:center; }
+  .result .tickets { display:flex; justify-content:center; gap:10px; margin:18px 0 6px; }
+  .ticket { width:58px; height:40px; border-radius:8px; background:var(--gold); color:var(--brand); display:grid; place-items:center; font-weight:800; font-size:18px; position:relative; box-shadow:0 2px 6px rgba(184,115,42,.3); }
+  .ticket::before, .ticket::after { content:''; position:absolute; top:50%; width:10px; height:10px; border-radius:50%; background:#fff; transform:translateY(-50%); }
+  .ticket::before { left:-5px; } .ticket::after { right:-5px; }
+  .result h2 { font-size:1.6rem; margin-top:4px; }
+  .result p { margin-top:8px; }
+  .boost { text-align:left; margin-top:20px; padding:16px; border-radius:12px; background:var(--surface); border:1px solid var(--line); font-size:14.5px; }
+  .boost h3 { font-size:15px; margin-bottom:6px; }
+  .boost + .boost { margin-top:12px; }
+  .row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .row input { flex:1 1 180px; font:inherit; font-size:1rem; padding:10px 12px; min-height:46px; border:1.5px solid var(--line2); border-radius:10px; }
+
+  /* details */
+  .specs { list-style:none; }
+  .specs li { padding:8px 0; border-bottom:1px solid var(--line); font-size:15px; }
+  .specs li:last-child { border-bottom:none; }
+  .steps { list-style:none; counter-reset:s; display:grid; gap:12px; }
+  .steps li { counter-increment:s; display:flex; gap:12px; align-items:flex-start; font-size:15px; }
+  .steps li::before { content:counter(s); flex:0 0 28px; height:28px; border-radius:50%; background:var(--brand); color:#fff; display:grid; place-items:center; font-weight:700; font-size:14px; }
+  details.rules summary { cursor:pointer; font-weight:600; color:var(--brand); padding:4px 0; }
+  details.rules ol { margin-top:10px; padding-left:0; list-style:none; font-size:14px; color:#4a3a2b; }
+  details.rules li { margin-bottom:8px; }
+  .preview-bar { background:#101a2d; color:#f5b731; text-align:center; font-size:13.5px; font-weight:600; padding:8px 12px; }
+  footer { text-align:center; color:var(--muted); font-size:13px; padding:34px 0 40px; }
+  .center { text-align:center; }
+  .muted { color:var(--muted); }
+  .hidden { display:none !important; }
+  .visually-hidden { position:absolute; clip-path:inset(50%); overflow:hidden; width:1px; height:1px; margin:-1px; padding:0; border:0; white-space:nowrap; }
+</style>
+</head>
+<body>
+<div id="preview-bar" class="preview-bar hidden">PREVIEW: this draw is not public yet. Entries are switched off.</div>
+<div class="wrap">
+  <header><a href="https://impactuslearning.com/"><img src="https://events.impactuslearning.com/images/dark-color-logo.png" alt="Impactus Learning" width="150" height="30"></a></header>
+
+  <main id="main" aria-busy="true">
+    <p id="loading" class="muted" style="margin-top:30px">Loading…</p>
+
+    <div id="notfound" class="hidden" style="margin-top:30px">
+      <h1>No lucky draw running right now</h1>
+      <p class="tagline">Keep an eye on the Impactus community for the next one.</p>
+    </div>
+
+    <div id="draw" class="hidden">
+      <span class="eyebrow">Impactus community lucky draw</span>
+      <h1 id="title"></h1>
+      <p id="tagline" class="tagline"></p>
+
+      <div class="gallery-main" id="gallery">
+        <div class="nophoto">Photos coming soon</div>
+      </div>
+      <div class="thumbs" id="thumbs" role="group" aria-label="Photos"></div>
+
+      <div class="status" id="status" aria-live="polite"></div>
+
+      <!-- ENTRY FORM -->
+      <section id="form-wrap" class="hidden">
+        <div class="card">
+          <h2>Enter the draw</h2>
+          <form id="entry-form" novalidate>
+            <div class="field">
+              <label for="f-name">Your name</label>
+              <input id="f-name" name="name" type="text" autocomplete="name" enterkeyhint="next" required minlength="2" maxlength="80">
+            </div>
+            <div class="field">
+              <label for="f-mobile">Mobile number</label>
+              <input id="f-mobile" name="mobile" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="done" required placeholder="e.g. 9123 4567" aria-describedby="mobile-hint">
+              <p class="hint" id="mobile-hint">Impactus students: use the number you booked with, and you'll get <strong id="x-hint">3</strong> entries. Outside Singapore? Add your country code, e.g. +60.</p>
+            </div>
+            <div class="hp" aria-hidden="true">
+              <label for="f-website">Leave this empty</label>
+              <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off">
+            </div>
+            <label class="check"><input type="checkbox" id="f-consent" name="consent" required>
+              <span>I agree to the <a href="#rules">draw rules</a>, and to Impactus Learning using my name and mobile number to run this draw and contact me if I win.</span></label>
+            <label class="check"><input type="checkbox" id="f-marketing" name="marketing">
+              <span>Keep me posted on Impactus classes and events (optional).</span></label>
+            <button class="btn" type="submit" id="f-submit">Enter the draw</button>
+            <p class="err" id="f-err" role="alert"></p>
+          </form>
+        </div>
+      </section>
+
+      <!-- RESULT -->
+      <section id="result" class="hidden" aria-live="polite">
+        <div class="card result">
+          <div class="tickets" id="r-tickets" aria-hidden="true"></div>
+          <h2 id="r-title"></h2>
+          <p id="r-text"></p>
+
+          <div id="r-upgrade" class="hidden">
+            <div class="boost">
+              <h3>Been to an Impactus class?</h3>
+              <p>Your number may not be on our records. Confirm with the email you booked with and your entry goes up to <strong class="x">3</strong>.</p>
+              <div id="em-step1">
+                <button class="btn ghost small" type="button" id="em-open" aria-expanded="false" aria-controls="em-form" style="margin-top:10px">Use my booking email</button>
+                <form id="em-form" class="row hidden" novalidate>
+                  <label for="em-email" class="visually-hidden">Booking email</label>
+                  <input id="em-email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
+                  <button class="btn small" type="submit" id="em-send">Send code</button>
+                </form>
+              </div>
+              <form id="em-step2" class="hidden" novalidate>
+                <p style="margin-top:10px">If that email is on our booking records, a 6-digit code is on its way. Check your inbox (and spam).</p>
+                <div class="row">
+                  <label for="em-code" class="visually-hidden">6-digit code</label>
+                  <input id="em-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="6-digit code" required>
+                  <button class="btn small" type="submit" id="em-verify">Confirm</button>
+                </div>
+              </form>
+              <p class="err" id="em-err" role="alert"></p>
+            </div>
+            <div class="boost">
+              <h3>Not a student yet?</h3>
+              <p>Book any Impactus class before <strong id="r-close"></strong>, using this same mobile number, and your entry becomes <strong class="x">3</strong>.</p>
+              <a class="btn ghost small" href="https://events.impactuslearning.com/portal/app" style="margin-top:10px">See upcoming classes</a>
+            </div>
+          </div>
+
+          <a class="btn ghost small" id="r-share" href="#" target="_blank" rel="noopener" style="margin-top:18px">Share with a friend on WhatsApp</a>
+        </div>
+      </section>
+
+      <section id="about">
+        <h2>About the prize</h2>
+        <div class="card"><ul class="specs" id="specs"></ul></div>
+      </section>
+
+      <section>
+        <h2>How it works</h2>
+        <ol class="steps" id="steps"></ol>
+      </section>
+
+      <section id="rules">
+        <details class="rules card">
+          <summary>Draw rules</summary>
+          <ol id="rules-list"></ol>
+        </details>
+      </section>
+    </div>
+  </main>
+
+  <footer>Organised by Impactus Learning Pte. Ltd.<br>Questions? <a href="mailto:andrew@impactuslearning.com">andrew@impactuslearning.com</a></footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const FN = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co/functions/v1/draw-public';
+  const params = new URLSearchParams(location.search);
+  const SLUG = params.get('d') || '';
+  const PREVIEW = params.get('preview') || '';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode: fine */ } },
+  };
+  const fmt = (iso, opts) => iso ? new Intl.DateTimeFormat('en-SG', Object.assign({ timeZone: 'Asia/Singapore', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }, opts || {})).format(new Date(iso)) : '';
+
+  let D = null, clockOffset = 0, tick = null, submitting = false, entry = null;
+
+  function deviceId() {
+    let id = store.get('il_draw_dev');
+    if (!id) {
+      const a = new Uint8Array(12); crypto.getRandomValues(a);
+      id = Array.from(a, (x) => x.toString(16).padStart(2, '0')).join('');
+      store.set('il_draw_dev', id);
+    }
+    return id;
+  }
+  async function call(body) {
+    const r = await fetch(FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    let j = {}; try { j = await r.json(); } catch (e) { /* ignore */ }
+    if (!r.ok && !j.error) j.error = 'Something went wrong. Please try again.';
+    return j;
+  }
+  const now = () => Date.now() + clockOffset;
+  function phase() {
+    if (D.open_at && now() < Date.parse(D.open_at)) return 'upcoming';
+    if (D.close_at && now() >= Date.parse(D.close_at)) return 'closed';
+    return 'open';
+  }
+  function left(ms) {
+    if (ms <= 0) return '0m';
+    const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4), s = Math.floor(ms % 6e4 / 1e3);
+    return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
+  }
+  function fill(t) {
+    const x = D.student_multiplier || 3;
+    return String(t || '')
+      .replace(/\{open\}/g, fmt(D.open_at)).replace(/\{close\}/g, fmt(D.close_at))
+      .replace(/\{draw\}/g, fmt(D.draw_at)).replace(/\{place\}/g, D.draw_place || 'to be announced')
+      .replace(/\{prize\}/g, D.prize_name || 'prize').replace(/\{collection\}/g, D.collection_note || 'to be arranged with the winner.')
+      .replace(/\{x\}/g, x);
+  }
+
+  // ---------- gallery ----------
+  let gi = 0;
+  function renderGallery() {
+    const ph = Array.isArray(D.photos) ? D.photos.filter((p) => p && p.url) : [];
+    const g = $('gallery'), th = $('thumbs');
+    if (!ph.length) { g.innerHTML = '<div class="nophoto">Photos coming soon</div>'; th.innerHTML = ''; return; }
+    gi = Math.min(gi, ph.length - 1);
+    const p = ph[gi];
+    g.innerHTML = `<img src="${esc(p.url)}" alt="${esc(p.caption || D.prize_name || 'Prize photo')} (photo ${gi + 1} of ${ph.length})" ${gi === 0 ? 'fetchpriority="high"' : 'loading="lazy"'}>` +
+      (p.caption ? `<div class="cap">${esc(p.caption)}</div>` : '') +
+      (ph.length > 1 ? `<button class="nav prev" type="button" aria-label="Previous photo">‹</button><button class="nav next" type="button" aria-label="Next photo">›</button><span class="count">${gi + 1} / ${ph.length}</span>` : '');
+    if (ph.length > 1) {
+      g.querySelector('.prev').addEventListener('click', () => { gi = (gi - 1 + ph.length) % ph.length; renderGallery(); });
+      g.querySelector('.next').addEventListener('click', () => { gi = (gi + 1) % ph.length; renderGallery(); });
+    }
+    th.innerHTML = ph.length > 1 ? ph.map((q, i) => `<button type="button" data-i="${i}" aria-label="Photo ${i + 1}" aria-current="${i === gi}"><img src="${esc(q.url)}" alt="" loading="lazy"></button>`).join('') : '';
+    th.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { gi = +b.dataset.i; renderGallery(); }));
+  }
+  // swipe on phones
+  (function () {
+    let x0 = null;
+    const g = $('gallery');
+    g.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+    g.addEventListener('touchend', (e) => {
+      if (x0 == null || !D) return;
+      const dx = e.changedTouches[0].clientX - x0; x0 = null;
+      const n = (D.photos || []).length; if (n < 2 || Math.abs(dx) < 40) return;
+      gi = (gi + (dx < 0 ? 1 : -1) + n) % n; renderGallery();
+    }, { passive: true });
+  })();
+
+  // ---------- status / countdown ----------
+  function renderStatus() {
+    const st = $('status'), ph = phase();
+    const who = D.entrants ? `<span class="entrants">${D.entrants} ${D.entrants === 1 ? 'person has' : 'people have'} entered</span>` : '';
+    st.classList.toggle('winner', !!D.winner_label);
+    if (D.winner_label) {
+      st.innerHTML = `<div><div class="lbl">Winner</div><div class="big">${esc(D.winner_label)}</div></div><span class="entrants">Congratulations! Thank you to everyone who entered.</span>`;
+    } else if (ph === 'upcoming') {
+      st.innerHTML = `<div><div class="lbl">Entries open in</div><div class="big">${left(Date.parse(D.open_at) - now())}</div></div><span class="entrants">${esc(fmt(D.open_at))}</span>`;
+    } else if (ph === 'open') {
+      st.innerHTML = `<div><div class="lbl">Entries close in</div><div class="big">${left(Date.parse(D.close_at) - now())}</div></div>${who || `<span class="entrants">Closes ${esc(fmt(D.close_at))}</span>`}`;
+    } else {
+      st.innerHTML = `<div><div class="lbl">Entries closed · Draw</div><div class="big">${esc(fmt(D.draw_at)) || 'Soon'}</div></div>${who}`;
+    }
+  }
+  function renderSections() {
+    const ph = phase();
+    const showForm = ph === 'open' && !entry && !D.winner_label;
+    $('form-wrap').classList.toggle('hidden', !showForm);
+    $('result').classList.toggle('hidden', !entry);
+    if (entry) renderResult();
+  }
+
+  // ---------- result ----------
+  function renderResult() {
+    const x = D.student_multiplier || 3;
+    const n = entry.entries || 1;
+    $('r-tickets').innerHTML = Array.from({ length: n }, (_, i) => `<span class="ticket">${n > 1 ? i + 1 : '1'}</span>`).join('');
+    const first = esc(String(entry.name || '').split(' ')[0] || '');
+    if (entry.is_student) {
+      $('r-title').innerHTML = `Congratulations, ${first}!`;
+      $('r-text').innerHTML = `You're an Impactus student, so you're in the draw with <strong>${n} entries</strong>. Good luck!`;
+    } else {
+      $('r-title').innerHTML = `You're in, ${first}!`;
+      $('r-text').innerHTML = `You have <strong>1 entry</strong> in the draw. Good luck!`;
+    }
+    $('r-upgrade').classList.toggle('hidden', !!entry.is_student || phase() !== 'open');
+    document.querySelectorAll('.x').forEach((e) => { e.textContent = x; });
+    $('r-close').textContent = fmt(D.close_at);
+    const url = 'https://events.impactuslearning.com/draw/' + (D.slug ? '?d=' + encodeURIComponent(D.slug) : '');
+    $('r-share').href = 'https://wa.me/?text=' + encodeURIComponent(`I just entered the Impactus lucky draw for ${D.prize_name || 'a prize'}. Free to enter: ${url}`);
+  }
+
+  // ---------- page ----------
+  function renderAll() {
+    $('loading').classList.add('hidden');
+    $('main').setAttribute('aria-busy', 'false');
+    if (!D || !D.found) { $('notfound').classList.remove('hidden'); return; }
+    document.title = `${D.title} · Impactus Learning`;
+    $('draw').classList.remove('hidden');
+    $('preview-bar').classList.toggle('hidden', !D.preview);
+    $('title').textContent = D.title || 'Lucky draw';
+    $('tagline').textContent = D.tagline || '';
+    $('x-hint').textContent = D.student_multiplier || 3;
+    renderGallery();
+    $('specs').innerHTML = String(D.prize_details || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => `<li>${esc(l)}</li>`).join('') || `<li>${esc(D.prize_name || '')}</li>`;
+    const x = D.student_multiplier || 3;
+    $('steps').innerHTML = [
+      `Enter your name and mobile number before <strong>${esc(fmt(D.close_at))}</strong>. One entry per person.`,
+      `Impactus students (anyone who has booked a class with us, paid or free) get <strong>${x} entries</strong>. Everyone else gets 1.`,
+      `The winner is drawn on <strong>${esc(fmt(D.draw_at)) || 'a date to be announced'}</strong>, ${esc(D.draw_place || '')}. We'll contact the winner on WhatsApp.`,
+    ].map((s) => `<li><span>${s}</span></li>`).join('');
+    $('rules-list').innerHTML = fill(D.rules_text).split('\n').map((l) => l.trim()).filter(Boolean).map((l) => `<li>${esc(l)}</li>`).join('');
+    renderStatus(); renderSections();
+    clearInterval(tick);
+    let lastPhase = phase();
+    tick = setInterval(() => {
+      renderStatus();
+      const p = phase(); if (p !== lastPhase) { lastPhase = p; renderSections(); }
+    }, 1000);
+  }
+
+  async function load() {
+    const body = { action: 'get' };
+    if (PREVIEW) body.preview = PREVIEW; else if (SLUG) body.slug = SLUG;
+    let j;
+    try { j = await call(body); } catch (e) { j = { found: false }; }
+    if (j.server_now) clockOffset = Date.parse(j.server_now) - Date.now();
+    D = j;
+    if (D && D.found) entry = store.get('il_draw_entry_' + D.slug);
+    renderAll();
+  }
+
+  // ---------- entry ----------
+  $('entry-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (submitting) return;                       // module flag, not button.disabled (house rule)
+    const err = $('f-err'); err.textContent = '';
+    const name = $('f-name').value.trim(), mobile = $('f-mobile').value.trim();
+    if (name.length < 2) { err.textContent = 'Please enter your name.'; $('f-name').focus(); return; }
+    if (mobile.replace(/\D/g, '').length < 8) { err.textContent = 'Please enter your mobile number.'; $('f-mobile').focus(); return; }
+    if (!$('f-consent').checked) { err.textContent = 'Please tick the box to agree to the rules.'; $('f-consent').focus(); return; }
+    if (D.preview) { err.textContent = 'Preview only: entries are switched off until the draw is published.'; return; }
+    submitting = true; const btn = $('f-submit'); btn.disabled = true; btn.textContent = 'Entering…';
+    try {
+      const j = await call({ action: 'enter', slug: D.slug, name, mobile, consent: true, marketing: $('f-marketing').checked,
+        device_id: deviceId(), website: $('f-website').value });
+      if (j.ok) {
+        entry = { name: j.name || name, entries: j.entries, is_student: j.is_student, token: j.token || null };
+        store.set('il_draw_entry_' + D.slug, entry);
+        D.entrants = (D.entrants || 0) + 1;
+        renderStatus(); renderSections();
+        $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        err.textContent = j.error || 'Something went wrong. Please try again.';
+      }
+    } catch (ex) {
+      err.textContent = 'No connection. Please check your internet and try again.';
+    } finally {
+      submitting = false; btn.disabled = false; btn.textContent = 'Enter the draw';
+    }
+  });
+
+  // ---------- student upgrade by booking email ----------
+  $('em-open').addEventListener('click', () => {
+    const f = $('em-form'); f.classList.remove('hidden'); $('em-open').classList.add('hidden');
+    $('em-open').setAttribute('aria-expanded', 'true'); $('em-email').focus();
+  });
+  let emBusy = false;
+  $('em-form').addEventListener('submit', async (e) => {
+    e.preventDefault(); if (emBusy) return;
+    const er = $('em-err'); er.textContent = '';
+    const email = $('em-email').value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { er.textContent = 'Please enter a valid email.'; return; }
+    if (!entry || !entry.token) { er.textContent = 'Please message Andrew and he will sort it out.'; return; }
+    emBusy = true; $('em-send').disabled = true;
+    try {
+      const j = await call({ action: 'email_start', slug: D.slug, token: entry.token, email });
+      if (j.already) { entry.is_student = true; entry.entries = D.student_multiplier || 3; store.set('il_draw_entry_' + D.slug, entry); renderResult(); }
+      else if (j.ok) { $('em-step1').classList.add('hidden'); $('em-step2').classList.remove('hidden'); $('em-code').focus(); }
+      else er.textContent = j.error;
+    } catch (ex) { er.textContent = 'No connection. Please try again.'; }
+    finally { emBusy = false; $('em-send').disabled = false; }
+  });
+  $('em-step2').addEventListener('submit', async (e) => {
+    e.preventDefault(); if (emBusy) return;
+    const er = $('em-err'); er.textContent = '';
+    const code = $('em-code').value.replace(/\D/g, '');
+    if (code.length !== 6) { er.textContent = 'Enter the 6-digit code from the email.'; return; }
+    emBusy = true; $('em-verify').disabled = true;
+    try {
+      const j = await call({ action: 'email_verify', slug: D.slug, token: entry.token, code });
+      if (j.ok) {
+        entry.is_student = true; entry.entries = j.entries; store.set('il_draw_entry_' + D.slug, entry);
+        renderResult(); $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else er.textContent = j.error;
+    } catch (ex) { er.textContent = 'No connection. Please try again.'; }
+    finally { emBusy = false; $('em-verify').disabled = false; }
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

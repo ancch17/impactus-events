@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- ═══ READ BEFORE EDITING ═══════════════════════════════════════════════
+     Lucky draw admin (built 2026-10-06 for the Surface giveaway).
+     Public page: /draw/  ·  Public API: edge fn `draw-public` (verify_jwt false).
+     Tables: draws, draw_entries, draw_picks, draw_email_codes (+ bucket draw-photos).
+     Tickets are computed server-side by _draw_tickets() — students = confirmed
+     booking (any price, incl. free) made by close_at; Andrew's override wins.
+     The draw itself = rpc draw_pick (crypto-random, weighted, logged, only after
+     close) + draw_decide. The wheel only ANIMATES the server's pick.
+     esc() every entrant-typed field before it touches innerHTML (house rule).
+     Non-negotiables + the gotcha list: CRM Impactus\CLAUDE.md. Fresh-clone first.
+════════════════════════════════════════════════════════════════════════ -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Lucky Draw — Impactus Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --navy:#101a2d; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --red:#c93b3b; --line:#e6e9f0; --blue:#1b6da7; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:1180px; margin:0 auto; padding:16px; }
+  header { background:var(--navy); color:#fff; position:sticky; top:0; z-index:5; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:12px; padding-bottom:12px; gap:10px; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; }
+  nav.tabs { display:flex; gap:4px; flex-wrap:wrap; }
+  .tab { color:#fff; opacity:.75; padding:6px 12px; border-radius:8px; font-size:13px; text-decoration:none; font-weight:600; }
+  .tab:hover { opacity:1; }
+  .tab.active { background:rgba(255,255,255,.12); opacity:1; color:var(--amber); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; scroll-margin-top:72px; }
+  h1 { font-size:20px; font-weight:800; }
+  h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
+  .muted { color:var(--mut); font-size:13px; }
+  .hidden { display:none !important; }
+  .btn { display:inline-block; padding:8px 15px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; text-decoration:none; }
+  .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .btn.dark { background:var(--navy); color:#fff; }
+  .btn.red { background:#fff; border:1px solid #f0c4c4; color:var(--red); }
+  .btn.green { background:var(--green); color:#fff; }
+  .btn.sm { padding:5px 10px; font-size:12px; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:16px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .kpi .v { font-size:21px; font-weight:800; } .kpi .l { font-size:11.5px; color:var(--mut); margin-top:2px; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); padding:8px 8px 6px 0; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th.sortable { cursor:pointer; user-select:none; } th.sortable:hover { color:var(--ink); }
+  th .arr { color:var(--amber-d); margin-left:2px; }
+  td { padding:9px 8px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr.dq td { opacity:.5; } tr.dq td.act { opacity:1; }
+  .chip { display:inline-block; font-size:11px; font-weight:700; padding:2px 7px; border-radius:20px; margin:0 4px 3px 0; white-space:nowrap; }
+  .chip.stu { background:#e6f6ee; color:var(--green); } .chip.warn { background:#fff4dc; color:#9a6a00; } .chip.bad { background:#fde8e8; color:var(--red); } .chip.info { background:#e8f1fb; color:var(--blue); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; }
+  @media (max-width:760px) { .grid2 { grid-template-columns:1fr; } }
+  .f label { display:block; font-size:12px; font-weight:700; color:var(--mut); margin-bottom:4px; }
+  .f input, .f textarea, .f select, input.in, select.in { width:100%; font:inherit; font-size:14px; padding:8px 10px; border:1px solid #cfd4de; border-radius:9px; background:#fff; color:var(--ink); }
+  .f textarea { min-height:110px; resize:vertical; line-height:1.45; }
+  .f.full { grid-column:1 / -1; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .linkbox { display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:#f2f4f8; border-radius:10px; padding:10px 12px; margin-top:12px; font-size:13px; }
+  .linkbox code { font-size:13px; word-break:break-all; }
+  .pill { font-size:12px; font-weight:700; padding:4px 10px; border-radius:20px; }
+  .pill.live { background:#e6f6ee; color:var(--green); } .pill.draft { background:#eef0f4; color:var(--mut); } .pill.closed { background:#fff4dc; color:#9a6a00; }
+  .photos { display:flex; gap:12px; flex-wrap:wrap; }
+  .ph { width:170px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fafbfc; }
+  .ph img { width:170px; height:128px; object-fit:cover; display:block; }
+  .ph .b { padding:6px; display:flex; gap:4px; flex-wrap:wrap; }
+  .ph input { width:100%; font:inherit; font-size:12px; padding:5px 6px; border:1px solid #d7dbe3; border-radius:6px; margin-bottom:4px; }
+  .note { font-size:12.5px; color:var(--mut); margin-top:8px; }
+  .msg { font-size:13px; font-weight:600; margin-left:6px; }
+  .msg.ok { color:var(--green); } .msg.err { color:var(--red); }
+  footer { text-align:center; padding:26px 0 34px; }
+
+  /* ---- draw screen ---- */
+  dialog#dd { width:100vw; height:100vh; max-width:none; max-height:none; border:none; padding:0; background:radial-gradient(circle at 40% 40%, #1d2b48, #0b1220 70%); color:#fff; }
+  dialog#dd::backdrop { background:#0b1220; }
+  .dd-wrap { display:grid; grid-template-columns:minmax(0,1fr) 380px; height:100%; }
+  @media (max-width:900px) { .dd-wrap { grid-template-columns:1fr; overflow:auto; } }
+  .dd-stage { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; min-height:0; }
+  .dd-title { font-size:clamp(18px,2.4vw,28px); font-weight:800; text-align:center; }
+  .dd-sub { opacity:.75; font-size:14px; margin-top:4px; text-align:center; }
+  .wheel-box { position:relative; margin-top:18px; }
+  .pointer { position:absolute; left:50%; top:-6px; transform:translateX(-50%); width:0; height:0; border-left:18px solid transparent; border-right:18px solid transparent; border-top:34px solid var(--amber); filter:drop-shadow(0 3px 4px rgba(0,0,0,.5)); z-index:2; }
+  .ticker { margin-top:16px; min-height:44px; font-size:clamp(22px,3vw,34px); font-weight:800; color:var(--amber); text-align:center; letter-spacing:.3px; }
+  .dd-side { background:rgba(255,255,255,.05); border-left:1px solid rgba(255,255,255,.08); padding:20px; overflow:auto; }
+  .dd-side h3 { font-size:13px; text-transform:uppercase; letter-spacing:.6px; opacity:.7; margin:18px 0 8px; }
+  .dd-side h3:first-child { margin-top:0; }
+  .dd-stat { display:flex; justify-content:space-between; font-size:14px; padding:4px 0; }
+  .dd-side .btn { font-size:14px; padding:10px 14px; }
+  .bigspin { width:100%; font-size:18px !important; padding:14px !important; }
+  .result-card { background:#fff8e6; color:var(--ink); border-radius:14px; padding:16px; margin-top:10px; box-shadow:0 0 0 3px var(--amber), 0 10px 30px rgba(245,183,49,.35); }
+  .result-card .who { font-size:28px; font-weight:800; }
+  .result-card .sub { font-size:13.5px; color:var(--mut); margin-top:2px; }
+  .result-card .contact { margin-top:10px; font-size:14px; background:#fff; border-radius:8px; padding:8px 10px; border:1px dashed #e3c97a; }
+  .picklog { font-size:13px; }
+  .picklog div { padding:6px 0; border-bottom:1px solid rgba(255,255,255,.08); display:flex; justify-content:space-between; gap:8px; }
+  .st-winner { color:var(--amber); font-weight:800; } .st-reserve { color:#9fd3ff; font-weight:700; } .st-void { opacity:.55; text-decoration:line-through; } .st-pending { color:#fff; font-weight:700; }
+  .dd-close { position:absolute; top:12px; right:14px; z-index:3; background:rgba(255,255,255,.12); color:#fff; border:none; border-radius:8px; padding:6px 12px; cursor:pointer; font:inherit; font-size:13px; }
+  .dd-side input.in { background:#fff; }
+  .practice-tag { display:inline-block; margin-top:6px; font-size:12px; font-weight:700; color:#9fd3ff; }
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
+  <nav class="tabs">
+    <a class="tab" href="./" target="_blank">Dashboard ↗</a>
+    <a class="tab" href="classroom" target="_blank">Classroom ↗</a>
+    <a class="tab" href="students" target="_blank">Students ↗</a>
+    <a class="tab" href="signups" target="_blank">Signups ↗</a>
+    <a class="tab" href="earnings" target="_blank">Earnings ↗</a>
+    <a class="tab" href="payments" target="_blank">Payments ↗</a>
+    <a class="tab" href="referrals" target="_blank">Referrals ↗</a>
+    <a class="tab" href="coupons" target="_blank">Discounts ↗</a>
+    <a class="tab active" href="draw">Lucky draw</a>
+  </nav>
+  <button class="btn ghost sm hidden" id="signout" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff">Sign out</button>
+</div></header>
+
+<div class="wrap">
+  <div id="view-login" class="card hidden" style="max-width:460px;margin:40px auto">
+    <h1>Sign in required</h1>
+    <p class="muted" style="margin-top:6px">Please sign in from the <a href="./" target="_blank">admin dashboard</a> first, then refresh this page.</p>
+  </div>
+  <div id="view-noauth" class="card hidden" style="max-width:420px;margin:40px auto">
+    <h1>Not authorized</h1>
+    <button class="btn ghost" id="noauth-out" style="margin-top:14px">Sign out</button>
+  </div>
+
+  <div id="view-app" class="hidden">
+    <!-- draw picker -->
+    <div class="card">
+      <div class="toolbar">
+        <h1 style="margin-right:auto">Lucky draw</h1>
+        <label class="muted" for="pick-draw">Draw</label>
+        <select id="pick-draw" class="in" style="width:auto;min-width:220px"></select>
+        <button class="btn ghost sm" id="new-draw">+ New draw</button>
+      </div>
+      <div class="linkbox" id="linkbox"></div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <!-- draw screen launcher -->
+    <div class="card" id="draw-card">
+      <div class="toolbar">
+        <h2 style="margin:0;margin-right:auto">The draw</h2>
+        <button class="btn dark" id="open-dd">Open the draw screen ▸</button>
+      </div>
+      <p class="note" id="draw-note"></p>
+      <div id="winner-box" style="margin-top:12px"></div>
+    </div>
+
+    <!-- entries -->
+    <div class="card" id="entries-card">
+      <div class="toolbar" style="margin-bottom:10px">
+        <h2 style="margin:0;margin-right:auto">Entries</h2>
+        <input class="in" id="q" type="search" placeholder="Search name or number" style="width:200px">
+        <select class="in" id="filter" style="width:auto">
+          <option value="all">All</option>
+          <option value="flag">Flagged</option>
+          <option value="stu">Students</option>
+          <option value="dq">Disqualified</option>
+          <option value="opt">Opted in to updates</option>
+        </select>
+        <button class="btn ghost sm" id="csv">Export CSV</button>
+        <button class="btn ghost sm" id="reload">Refresh</button>
+      </div>
+      <p class="note" style="margin-top:-4px;margin-bottom:10px">Flags are hints, not proof: families share Wi-Fi and phones. Review them before the draw and disqualify only what you're sure about. Click a heading to sort.</p>
+      <div id="entries" class="muted">Loading…</div>
+    </div>
+
+    <!-- photos -->
+    <div class="card" id="photos-card">
+      <div class="toolbar" style="margin-bottom:10px">
+        <h2 style="margin:0;margin-right:auto">Photos</h2>
+        <label class="btn" for="ph-file">+ Add photos</label>
+        <input type="file" id="ph-file" accept="image/*" multiple class="hidden">
+        <span class="msg" id="ph-msg"></span>
+      </div>
+      <div class="photos" id="photos"></div>
+      <p class="note">The first photo is the main one. Phone photos are resized automatically. Include a close-up of the keyboard wear, honest photos prevent disputes.</p>
+    </div>
+
+    <!-- settings -->
+    <div class="card" id="settings-card">
+      <h2>Settings</h2>
+      <form id="sf" class="grid2" novalidate>
+        <div class="f"><label for="s-title">Title</label><input id="s-title" maxlength="120"></div>
+        <div class="f"><label for="s-slug">Link name (letters, numbers, dashes)</label><input id="s-slug" maxlength="40" pattern="[a-z0-9-]{2,40}"></div>
+        <div class="f full"><label for="s-tagline">Short intro (under the title)</label><input id="s-tagline" maxlength="300"></div>
+        <div class="f"><label for="s-prize">Prize name</label><input id="s-prize" maxlength="120"></div>
+        <div class="f"><label for="s-place">Where the draw happens</label><input id="s-place" maxlength="200" placeholder="live on Zoom"></div>
+        <div class="f full"><label for="s-details">About the prize (one line per point)</label><textarea id="s-details"></textarea></div>
+        <div class="f"><label for="s-open">Entries open (Singapore time)</label><input id="s-open" type="datetime-local"></div>
+        <div class="f"><label for="s-close">Entries close (Singapore time)</label><input id="s-close" type="datetime-local"></div>
+        <div class="f"><label for="s-drawat">Draw date and time</label><input id="s-drawat" type="datetime-local"></div>
+        <div class="f"><label for="s-collect">How the winner collects it</label><input id="s-collect" maxlength="300"></div>
+        <div class="f full"><label for="s-rules">Rules (one per line). These fill in automatically: {open} {close} {draw} {place} {prize} {collection} {x}</label><textarea id="s-rules" style="min-height:220px"></textarea></div>
+        <div class="f full" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink);margin:0;cursor:pointer"><input type="checkbox" id="s-pub" style="width:18px;height:18px;accent-color:var(--green)"> <strong>Published</strong>: anyone with the link can see it and enter</label>
+          <span class="muted">Students get <strong id="s-x">3</strong> entries, everyone else 1.</span>
+          <span style="margin-left:auto"></span>
+          <button class="btn" type="submit" id="s-save">Save settings</button>
+          <span class="msg" id="s-msg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<footer class="muted">Impactus Learning Pte Ltd · Admin console</footer>
+
+<!-- ============ DRAW SCREEN ============ -->
+<dialog id="dd" aria-label="Draw screen">
+  <button class="dd-close" id="dd-close" type="button">Close ✕</button>
+  <div class="dd-wrap">
+    <div class="dd-stage">
+      <div class="dd-title" id="dd-title"></div>
+      <div class="dd-sub" id="dd-sub"></div>
+      <div class="wheel-box"><div class="pointer"></div><canvas id="wheel"></canvas></div>
+      <div class="ticker" id="ticker" aria-live="polite"></div>
+    </div>
+    <div class="dd-side">
+      <h3>Pool</h3>
+      <div id="dd-stats"></div>
+      <h3>Spin</h3>
+      <button class="btn bigspin" id="spin" type="button">Spin the wheel</button>
+      <div class="muted" id="spin-note" style="color:#c9d2e3;margin-top:8px"></div>
+      <button class="btn ghost sm" id="practice" type="button" style="margin-top:10px">Practice spin (not recorded)</button>
+      <div id="dd-result"></div>
+      <h3>Draw log</h3>
+      <div class="picklog" id="picklog"></div>
+      <p class="muted" style="color:#9aa6bd;margin-top:10px;font-size:12px">Every spin is picked by the server with a secure random number, weighted by entries, and logged with a fingerprint of the entry list. Keep these records for 5 years.</p>
+    </div>
+  </div>
+</dialog>
+
+<script>
+const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+const ADMIN_EMAIL = 'andrew@impactuslearning.com';
+const PUBLIC_BASE = 'https://events.impactuslearning.com/draw/';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const fmtSG = (iso) => iso ? new Intl.DateTimeFormat('en-SG', { timeZone: 'Asia/Singapore', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) : '—';
+// Singapore has no DST: +8 is exact.
+const isoToLocal = (iso) => iso ? new Date(Date.parse(iso) + 8 * 3600e3).toISOString().slice(0, 16) : '';
+const localToIso = (v) => v ? new Date(v + ':00+08:00').toISOString() : null;
+const shortName = (n) => { const w = String(n || '').trim().split(/\s+/).filter(Boolean); return !w.length ? '?' : w.length === 1 ? w[0] : `${w[0]} ${w[w.length - 1][0].toUpperCase()}.`; };
+const mask = (m) => '••••' + String(m || '').slice(-4);
+const fmtMobile = (m) => { m = String(m || ''); return m.startsWith('65') && m.length === 10 ? `+65 ${m.slice(2, 6)} ${m.slice(6)}` : '+' + m; };
+
+let draws = [], D = null, entries = [], picks = [];
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  route(session);
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') route(s); });
+}
+function route(session) {
+  if (!session) { location.replace('./'); return; }
+  if ((session.user.email || '').toLowerCase() !== ADMIN_EMAIL) { show('view-noauth'); return; }
+  $('signout').classList.remove('hidden');
+  show('view-app');
+  loadDraws();
+}
+$('signout').onclick = () => sb.auth.signOut();
+$('noauth-out').onclick = () => sb.auth.signOut();
+
+// ---------------------------------------------------------------- draws
+async function loadDraws(selectId) {
+  const { data, error } = await sb.from('draws').select('*').order('created_at', { ascending: false });
+  if (error) { $('linkbox').textContent = 'Could not load draws: ' + error.message; return; }
+  // zz-* = test draws (hidden unless ?all=1)
+  draws = (data || []).filter(d => !d.slug.startsWith('zz-') || new URLSearchParams(location.search).get('all') === '1');
+  const want = selectId || new URLSearchParams(location.search).get('id') || store.get('il_admin_draw');
+  D = draws.find(d => d.id === want) || draws[0] || null;
+  $('pick-draw').innerHTML = draws.map(d => `<option value="${d.id}" ${D && d.id === D.id ? 'selected' : ''}>${esc(d.title)} (${esc(d.slug)})${d.published ? '' : ' · draft'}</option>`).join('');
+  if (D) { store.set('il_admin_draw', D.id); renderDraw(); await loadEntries(); }
+}
+$('pick-draw').onchange = (e) => loadDraws(e.target.value);
+$('new-draw').onclick = async () => {
+  const stamp = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10).replace(/-/g, '');
+  const base = D || {};
+  const row = { slug: 'draw-' + stamp + '-' + Math.random().toString(36).slice(2, 5), title: 'New lucky draw', rules_text: base.rules_text || null,
+                draw_place: base.draw_place || null, collection_note: base.collection_note || null, published: false };
+  const { data, error } = await sb.from('draws').insert(row).select('id').single();
+  if (error) { alertMsg('s-msg', error.message, true); return; }
+  loadDraws(data.id);
+  $('settings-card').scrollIntoView({ behavior: 'smooth' });
+};
+
+function phaseOf(d) {
+  const n = Date.now();
+  if (d.open_at && n < Date.parse(d.open_at)) return 'upcoming';
+  if (d.close_at && n >= Date.parse(d.close_at)) return 'closed';
+  return 'open';
+}
+function publicLink(d) { return PUBLIC_BASE + '?d=' + encodeURIComponent(d.slug); }
+
+function renderDraw() {
+  const ph = phaseOf(D);
+  const pill = !D.published ? '<span class="pill draft">Draft: not public</span>'
+    : ph === 'open' ? '<span class="pill live">Live: taking entries</span>'
+    : ph === 'upcoming' ? '<span class="pill draft">Published: opens ' + esc(fmtSG(D.open_at)) + '</span>'
+    : '<span class="pill closed">Entries closed</span>';
+  const link = publicLink(D);
+  const wa = `Lucky draw: ${D.prize_name || D.title}\n\nFree to enter. Impactus students get ${D.student_multiplier || 3} entries.\nCloses ${fmtSG(D.close_at)}.\n\n${link}`;
+  $('linkbox').innerHTML = `${pill}<span class="muted">Link to post:</span><code>${esc(link)}</code>
+    <button class="btn ghost sm" id="copy-link">Copy link</button>
+    <button class="btn ghost sm" id="copy-wa">Copy WhatsApp post</button>
+    <a class="btn ghost sm" href="${esc(PUBLIC_BASE + '?preview=' + D.id)}" target="_blank">Preview page ↗</a>
+    <span class="msg ok" id="copy-msg"></span>`;
+  $('copy-link').onclick = () => copy(link);
+  $('copy-wa').onclick = () => copy(wa);
+  // settings
+  $('s-title').value = D.title || ''; $('s-slug').value = D.slug || ''; $('s-tagline').value = D.tagline || '';
+  $('s-prize').value = D.prize_name || ''; $('s-place').value = D.draw_place || ''; $('s-details').value = D.prize_details || '';
+  $('s-open').value = isoToLocal(D.open_at); $('s-close').value = isoToLocal(D.close_at); $('s-drawat').value = isoToLocal(D.draw_at);
+  $('s-collect').value = D.collection_note || ''; $('s-rules').value = D.rules_text || ''; $('s-pub').checked = !!D.published;
+  $('s-x').textContent = D.student_multiplier || 3;
+  renderPhotos();
+  $('draw-note').innerHTML = ph === 'closed'
+    ? `Entries closed ${esc(fmtSG(D.close_at))}. Spinning is unlocked. Planned draw: ${esc(fmtSG(D.draw_at))}.`
+    : `Spinning unlocks when entries close: <strong>${esc(fmtSG(D.close_at))}</strong>. You can open the screen now and do a practice spin (not recorded).`;
+}
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); alertMsg('copy-msg', 'Copied'); }
+  catch (e) { alertMsg('copy-msg', 'Copy failed, select the text instead', true); }
+}
+function alertMsg(id, text, bad) {
+  const el = $(id); if (!el) return;
+  el.textContent = text; el.className = 'msg ' + (bad ? 'err' : 'ok');
+  clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = ''; }, bad ? 8000 : 3000);
+}
+
+// ---------------------------------------------------------------- settings
+let saving = false;
+$('sf').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (saving) return;
+  const slug = $('s-slug').value.trim().toLowerCase();
+  if (!/^[a-z0-9-]{2,40}$/.test(slug)) { alertMsg('s-msg', 'Link name: 2–40 lowercase letters, numbers or dashes.', true); return; }
+  const open = localToIso($('s-open').value), close = localToIso($('s-close').value), drawAt = localToIso($('s-drawat').value);
+  if (!close) { alertMsg('s-msg', 'Set when entries close.', true); return; }
+  if (open && Date.parse(open) >= Date.parse(close)) { alertMsg('s-msg', 'Entries must open before they close.', true); return; }
+  if (drawAt && Date.parse(drawAt) < Date.parse(close)) { alertMsg('s-msg', 'The draw must be after entries close.', true); return; }
+  const pub = $('s-pub').checked;
+  if (pub && !(D.photos || []).length && !$('s-pub').dataset.ok) {
+    $('s-pub').dataset.ok = '1';
+    alertMsg('s-msg', 'No photos yet. Click Save again to publish anyway.', true); return;
+  }
+  saving = true; $('s-save').disabled = true;
+  const upd = { title: $('s-title').value.trim() || 'Lucky draw', slug, tagline: $('s-tagline').value.trim() || null,
+    prize_name: $('s-prize').value.trim() || null, draw_place: $('s-place').value.trim() || null,
+    prize_details: $('s-details').value.trim() || null, open_at: open, close_at: close, draw_at: drawAt,
+    collection_note: $('s-collect').value.trim() || null, rules_text: $('s-rules').value.trim() || null,
+    published: pub, updated_at: new Date().toISOString() };
+  const { error } = await sb.from('draws').update(upd).eq('id', D.id);
+  saving = false; $('s-save').disabled = false; delete $('s-pub').dataset.ok;
+  if (error) { alertMsg('s-msg', error.code === '23505' ? 'That link name is taken.' : error.message, true); return; }
+  alertMsg('s-msg', 'Saved');
+  await loadDraws(D.id);
+});
+
+// ---------------------------------------------------------------- photos
+function renderPhotos() {
+  const ph = Array.isArray(D.photos) ? D.photos : [];
+  $('photos').innerHTML = ph.length ? ph.map((p, i) => `
+    <div class="ph">
+      <img src="${esc(p.url)}" alt="">
+      <div class="b">
+        <input value="${esc(p.caption || '')}" data-cap="${i}" placeholder="Caption (optional)" maxlength="120">
+        <button class="btn ghost sm" data-mv="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''} title="Move left">◀</button>
+        <button class="btn ghost sm" data-mv="${i}" data-d="1" ${i === ph.length - 1 ? 'disabled' : ''} title="Move right">▶</button>
+        <button class="btn red sm" data-rm="${i}" style="margin-left:auto">Remove</button>
+      </div>
+    </div>`).join('') : '<p class="muted">No photos yet.</p>';
+  $('photos').querySelectorAll('[data-mv]').forEach(b => b.onclick = () => movePhoto(+b.dataset.mv, +b.dataset.d));
+  $('photos').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => {
+    if (b.dataset.armed) { removePhoto(+b.dataset.rm); return; }
+    b.dataset.armed = '1'; b.textContent = 'Sure?'; setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.textContent = 'Remove'; } }, 4000);
+  });
+  $('photos').querySelectorAll('[data-cap]').forEach(inp => inp.onchange = () => {
+    const arr = [...(D.photos || [])]; arr[+inp.dataset.cap] = { ...arr[+inp.dataset.cap], caption: inp.value.trim() }; savePhotos(arr);
+  });
+}
+async function savePhotos(arr) {
+  const { error } = await sb.from('draws').update({ photos: arr, updated_at: new Date().toISOString() }).eq('id', D.id);
+  if (error) { alertMsg('ph-msg', error.message, true); return false; }
+  D.photos = arr; renderPhotos(); alertMsg('ph-msg', 'Saved'); return true;
+}
+function movePhoto(i, d) { const a = [...D.photos]; const j = i + d; [a[i], a[j]] = [a[j], a[i]]; savePhotos(a); }
+async function removePhoto(i) {
+  const a = [...D.photos]; const [p] = a.splice(i, 1);
+  if (await savePhotos(a) && p && p.path) await sb.storage.from('draw-photos').remove([p.path]);
+}
+function resizeImage(file, max = 1600, q = 0.85) {
+  return new Promise((resolve, reject) => {
+    const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      c.toBlob(b => b ? resolve(b) : reject(new Error('Could not read image')), 'image/jpeg', q);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Not an image this browser can open (HEIC? Export as JPEG)')); };
+    img.src = url;
+  });
+}
+$('ph-file').addEventListener('change', async (e) => {
+  const files = [...e.target.files]; e.target.value = '';
+  if (!files.length) return;
+  let arr = [...(D.photos || [])];
+  for (let i = 0; i < files.length; i++) {
+    alertMsg('ph-msg', `Uploading ${i + 1} of ${files.length}…`);
+    try {
+      const blob = await resizeImage(files[i]);
+      const path = `${D.id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
+      const { error } = await sb.storage.from('draw-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+      if (error) throw error;
+      const url = sb.storage.from('draw-photos').getPublicUrl(path).data.publicUrl;
+      arr.push({ path, url, caption: '' });
+    } catch (ex) { alertMsg('ph-msg', files[i].name + ': ' + (ex.message || ex), true); }
+  }
+  await savePhotos(arr);
+});
+
+// ---------------------------------------------------------------- entries
+async function loadEntries() {
+  const [e, p] = await Promise.all([
+    sb.rpc('draw_admin_entries2', { p_draw: D.id }),
+    sb.from('draw_picks').select('*').eq('draw_id', D.id).order('picked_at'),
+  ]);
+  if (e.error) { $('entries').textContent = 'Could not load entries: ' + e.error.message; return; }
+  entries = e.data || []; picks = p.data || [];
+  renderKPIs(); renderEntries(); renderWinnerBox();
+  if ($('dd').open) ddRender();
+}
+$('reload').onclick = loadEntries;
+const flagsOf = (r) => {
+  const f = [];
+  if (r.same_device > 0) f.push(['warn', `Same device ×${r.same_device + 1}`]);
+  if (r.same_ip > 0) f.push(['info', `Same network ×${r.same_ip + 1}`]);
+  if (r.name_mismatch) f.push(['warn', 'Name ≠ student record']);
+  if (r.system_note) f.push(['warn', 'Student\'s 2nd number']);
+  return f;
+};
+function renderKPIs() {
+  const live = entries.filter(r => !r.disqualified);
+  const tickets = live.reduce((t, r) => t + (r.tickets || 0), 0);
+  const stu = live.filter(r => r.is_student).length;
+  const flagged = live.filter(r => flagsOf(r).length).length;
+  const opt = live.filter(r => r.marketing_opt_in).length;
+  const pctStu = tickets ? Math.round(stu * (D.student_multiplier || 3) / tickets * 100) : 0;
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="v">${live.length}</div><div class="l">People entered</div></div>
+    <div class="kpi"><div class="v">${stu}</div><div class="l">Impactus students (${D.student_multiplier || 3}x)</div></div>
+    <div class="kpi"><div class="v">${tickets}</div><div class="l">Entries in the draw · students hold ${pctStu}%</div></div>
+    <div class="kpi"><div class="v">${flagged}</div><div class="l">Flagged to review</div></div>
+    <div class="kpi"><div class="v">${opt}</div><div class="l">Want class updates</div></div>`;
+}
+let sortKey = 'created_at', sortDir = -1;
+const SORTVAL = { created_at: r => r.created_at, name: r => (r.name || '').toLowerCase(), mobile: r => r.mobile, student: r => (r.student_name || '').toLowerCase(), tickets: r => r.tickets, flags: r => flagsOf(r).length };
+window.setSort = (k) => { if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = (k === 'name' || k === 'student') ? 1 : -1; } renderEntries(); };
+$('q').oninput = renderEntries; $('filter').onchange = renderEntries;
+const HOW = { mobile: 'matched by mobile', email: 'confirmed by email code', 'late-mobile': 'booked after entering', admin: 'set by you' };
+function renderEntries() {
+  const q = $('q').value.trim().toLowerCase(), f = $('filter').value;
+  let rows = entries.filter(r => {
+    if (q && !(String(r.name).toLowerCase().includes(q) || String(r.mobile).includes(q.replace(/\D/g, '') || '§'))) return false;
+    if (f === 'flag') return flagsOf(r).length > 0;
+    if (f === 'stu') return r.is_student;
+    if (f === 'dq') return r.disqualified;
+    if (f === 'opt') return r.marketing_opt_in;
+    return true;
+  });
+  rows.sort((a, b) => { const va = SORTVAL[sortKey](a), vb = SORTVAL[sortKey](b); const c = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb)); return c * sortDir; });
+  if (!entries.length) { $('entries').innerHTML = '<p class="muted">No entries yet.</p>'; return; }
+  const th = (k, l) => `<th class="sortable" onclick="setSort('${k}')">${l}${sortKey === k ? `<span class="arr">${sortDir === 1 ? '▲' : '▼'}</span>` : ''}</th>`;
+  $('entries').innerHTML = `<div style="overflow-x:auto"><table><thead><tr>${th('created_at', 'When')}${th('name', 'Name')}${th('mobile', 'Mobile')}${th('student', 'Student record')}${th('tickets', 'Entries')}${th('flags', 'Flags')}<th>Actions</th></tr></thead><tbody>` +
+    rows.map(r => {
+      const fl = flagsOf(r).map(([c, t]) => `<span class="chip ${c}">${esc(t)}</span>`).join('');
+      const stu = r.is_student
+        ? `<span class="chip stu">Student</span>${r.student_name ? `<br>${esc(r.student_name)}<br><span class="muted">${esc(r.student_email || '')}</span>` : ''}<br><span class="muted">${esc(HOW[r.how] || '')}</span>`
+        : (r.admin_student === false ? '<span class="chip bad">Not a student (you)</span>' : '<span class="muted">—</span>');
+      const ov = r.admin_student === null ? 'auto' : r.admin_student ? 'yes' : 'no';
+      return `<tr class="${r.disqualified ? 'dq' : ''}">
+        <td style="white-space:nowrap">${esc(fmtSG(r.created_at))}</td>
+        <td><strong>${esc(r.name)}</strong>${r.marketing_opt_in ? '<br><span class="chip info">Wants updates</span>' : ''}${r.pick_status ? `<br><span class="chip warn">Drawn: ${esc(r.pick_status)}</span>` : ''}</td>
+        <td style="white-space:nowrap"><a href="https://wa.me/${esc(r.mobile)}" target="_blank" rel="noopener">${esc(fmtMobile(r.mobile))}</a></td>
+        <td>${stu}</td>
+        <td style="font-weight:800;font-size:15px">${r.tickets}</td>
+        <td>${fl || '<span class="muted">—</span>'}${r.system_note ? `<br><span class="muted">${esc(r.system_note)}</span>` : ''}${r.disqualified ? `<br><span class="chip bad">Disqualified</span> <span class="muted">${esc(r.disqualify_reason || '')}</span>` : ''}</td>
+        <td class="act" style="white-space:nowrap">
+          <select class="in" data-ov="${r.id}" style="width:auto;font-size:12px;padding:4px 6px" title="Student status">
+            <option value="auto" ${ov === 'auto' ? 'selected' : ''}>Auto</option>
+            <option value="yes" ${ov === 'yes' ? 'selected' : ''}>Count as student</option>
+            <option value="no" ${ov === 'no' ? 'selected' : ''}>Not a student</option>
+          </select>
+          ${r.disqualified ? `<button class="btn ghost sm" data-rein="${r.id}">Reinstate</button>`
+            : `<button class="btn red sm" data-dq="${r.id}">Disqualify</button>`}
+          <div class="hidden" id="dqbox-${r.id}" style="margin-top:6px"><input class="in" placeholder="Reason (for your records)" id="dqr-${r.id}" style="width:180px;font-size:12px;padding:4px 6px"> <button class="btn red sm" data-dqgo="${r.id}">Confirm</button></div>
+        </td></tr>`;
+    }).join('') + '</tbody></table></div>';
+  $('entries').querySelectorAll('[data-ov]').forEach(s => s.onchange = async () => {
+    const v = s.value === 'auto' ? null : s.value === 'yes';
+    const { error } = await sb.from('draw_entries').update({ admin_student: v }).eq('id', s.dataset.ov);
+    if (error) alert(error.message); loadEntries();
+  });
+  $('entries').querySelectorAll('[data-dq]').forEach(b => b.onclick = () => { $('dqbox-' + b.dataset.dq).classList.remove('hidden'); $('dqr-' + b.dataset.dq).focus(); });
+  $('entries').querySelectorAll('[data-dqgo]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.dqgo, reason = $('dqr-' + id).value.trim() || 'No reason given';
+    const { error } = await sb.from('draw_entries').update({ disqualified: true, disqualify_reason: reason }).eq('id', id);
+    if (error) alert(error.message); loadEntries();
+  });
+  $('entries').querySelectorAll('[data-rein]').forEach(b => b.onclick = async () => {
+    const { error } = await sb.from('draw_entries').update({ disqualified: false, disqualify_reason: null }).eq('id', b.dataset.rein);
+    if (error) alert(error.message); loadEntries();
+  });
+}
+$('csv').onclick = () => {
+  const head = ['Entered (SGT)', 'Name', 'Mobile', 'Student', 'Student record', 'Student email', 'How', 'Entries', 'Flags', 'Disqualified', 'Reason', 'Wants updates', 'Drawn'];
+  const rows = entries.map(r => [fmtSG(r.created_at), r.name, '+' + r.mobile, r.is_student ? 'Yes' : 'No', r.student_name || '', r.student_email || '', HOW[r.how] || '', r.tickets,
+    flagsOf(r).map(x => x[1]).join('; '), r.disqualified ? 'Yes' : '', r.disqualify_reason || '', r.marketing_opt_in ? 'Yes' : '', r.pick_status || '']);
+  const csv = [head, ...rows].map(a => a.map(v => { v = String(v ?? ''); if (/^[=+\-@]/.test(v) && !/^\+\d+$/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; }).join(',')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
+  a.download = `lucky-draw-${D.slug}-entries.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
+// ---------------------------------------------------------------- winner box (main page)
+function renderWinnerBox() {
+  const w = picks.find(p => p.status === 'winner');
+  const rs = picks.filter(p => p.status === 'reserve');
+  const byId = Object.fromEntries(entries.map(r => [r.id, r]));
+  if (!w && !rs.length) { $('winner-box').innerHTML = ''; return; }
+  const line = (p, label) => { const r = byId[p.entry_id] || {}; return `<div style="margin:4px 0"><strong>${label}:</strong> ${esc(r.name || '?')} · <a href="https://wa.me/${esc(r.mobile || '')}" target="_blank" rel="noopener">${esc(fmtMobile(r.mobile))}</a>${r.is_student ? ' <span class="chip stu">Student</span>' : ''}</div>`; };
+  $('winner-box').innerHTML = (w ? line(w, 'Winner') : '') + rs.map((p, i) => line(p, 'Reserve ' + (i + 1))).join('') +
+    (w ? `<div class="linkbox"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="w-pub" ${D.winner_public ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--green)"> Show the winner on the public page as</label>
+      <input class="in" id="w-label" value="${esc(D.winner_label || '')}" style="width:220px"> <button class="btn sm" id="w-save">Save</button><span class="msg" id="w-msg"></span></div>` : '');
+  if (w) $('w-save').onclick = async () => {
+    const { error } = await sb.from('draws').update({ winner_public: $('w-pub').checked, winner_label: $('w-label').value.trim() || null }).eq('id', D.id);
+    if (error) { alertMsg('w-msg', error.message, true); return; }
+    D.winner_public = $('w-pub').checked; D.winner_label = $('w-label').value.trim(); alertMsg('w-msg', 'Saved');
+  };
+}
+
+// ================================================================= DRAW SCREEN
+const COLORS = ['#f5b731', '#1b6da7', '#0f766e', '#b83db8', '#c2410c', '#22872a', '#5e38a8', '#0e7490'];
+let slices = [], slicesSig = '', hold = false, rot = 0, spinning = false, practice = false, lastPick = null, showContact = false;
+const cv = $('wheel'), cx = cv.getContext('2d');
+
+function pool() {   // mirrors the server pool: tickets > 0 and never picked before
+  const picked = new Set(picks.map(p => p.entry_id));
+  return entries.filter(r => r.tickets > 0 && !picked.has(r.id));
+}
+function rand(n) { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; }
+function arrange(list) {
+  // spread each multi-entry person's slices around the wheel, then fill singles in random order
+  const T = list.reduce((t, r) => t + r.tickets, 0); const out = new Array(T).fill(null);
+  const multi = list.filter(r => r.tickets > 1).sort((a, b) => b.tickets - a.tickets);
+  const singles = list.filter(r => r.tickets === 1);
+  for (const r of multi) {
+    const step = T / r.tickets, off = rand(Math.max(1, Math.floor(step)));
+    for (let j = 0; j < r.tickets; j++) {
+      let pos = Math.floor(off + j * step) % T; let guard = 0;
+      while (out[pos] && guard++ < T) pos = (pos + 1) % T;
+      out[pos] = r;
+    }
+  }
+  for (let i = singles.length - 1; i > 0; i--) { const j = rand(i + 1); [singles[i], singles[j]] = [singles[j], singles[i]]; }
+  let k = 0; for (let i = 0; i < T; i++) if (!out[i]) out[i] = singles[k++];
+  return out;
+}
+function sizeWheel() {
+  const side = Math.max(260, Math.min(window.innerHeight - 230, (window.innerWidth > 900 ? window.innerWidth - 420 : window.innerWidth) - 40, 760));
+  const dpr = window.devicePixelRatio || 1;
+  cv.style.width = cv.style.height = side + 'px'; cv.width = cv.height = Math.round(side * dpr);
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0); cv._side = side; drawWheel();
+}
+function drawWheel() {
+  const s = cv._side || 400, R = s / 2 - 6, c = s / 2;
+  cx.clearRect(0, 0, s, s);
+  const n = slices.length;
+  cx.save(); cx.translate(c, c);
+  // rim
+  cx.beginPath(); cx.arc(0, 0, R + 4, 0, Math.PI * 2); cx.fillStyle = '#e8edf5'; cx.fill();
+  if (!n) {
+    cx.beginPath(); cx.arc(0, 0, R, 0, Math.PI * 2); cx.fillStyle = '#26324a'; cx.fill();
+    cx.fillStyle = '#c9d2e3'; cx.font = '600 18px Inter, sans-serif'; cx.textAlign = 'center'; cx.fillText('No entries in the pool', 0, 6);
+    cx.restore(); return;
+  }
+  const a = Math.PI * 2 / n, pal = (n % COLORS.length === 1) ? COLORS.slice(0, 7) : COLORS;
+  const showLabels = n <= 90, fs = Math.max(9, Math.min(18, R * a * 0.55));
+  for (let i = 0; i < n; i++) {
+    const st = -Math.PI / 2 + i * a + rot;
+    cx.beginPath(); cx.moveTo(0, 0); cx.arc(0, 0, R, st, st + a); cx.closePath();
+    cx.fillStyle = pal[i % pal.length]; cx.fill();
+    if (n <= 200) { cx.strokeStyle = 'rgba(255,255,255,.55)'; cx.lineWidth = 1; cx.stroke(); }
+    if (showLabels) {
+      cx.save(); cx.rotate(st + a / 2); cx.textAlign = 'right'; cx.textBaseline = 'middle';
+      cx.fillStyle = pal[i % pal.length] === '#f5b731' ? '#101a2d' : '#fff';
+      cx.font = `700 ${fs}px Inter, sans-serif`;
+      let label = shortName(slices[i].name); const maxW = R * 0.62;
+      while (cx.measureText(label).width > maxW && label.length > 3) label = label.slice(0, -2) + '…';
+      cx.fillText(label, R - 14, 0); cx.restore();
+    }
+  }
+  // hub
+  cx.beginPath(); cx.arc(0, 0, Math.max(34, R * 0.14), 0, Math.PI * 2); cx.fillStyle = '#101a2d'; cx.fill();
+  cx.lineWidth = 4; cx.strokeStyle = '#f5b731'; cx.stroke();
+  cx.fillStyle = '#f5b731'; cx.font = `800 ${Math.max(11, R * 0.045)}px Inter, sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText('IMPACTUS', 0, 0);
+  cx.restore();
+}
+function sliceAtPointer() {
+  const n = slices.length; if (!n) return null;
+  const a = Math.PI * 2 / n; const t = ((-rot) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+  return slices[Math.floor(t / a) % n];
+}
+function spinTo(entryId, done) {
+  const n = slices.length, a = Math.PI * 2 / n;
+  const idx = []; slices.forEach((r, i) => { if (r.id === entryId) idx.push(i); });
+  if (!idx.length) { done(); return; }
+  const t = idx[rand(idx.length)];
+  const jitter = (rand(1000) / 1000 - 0.5) * a * 0.6;
+  const target = (((Math.PI * 2 - ((t + 0.5) * a + jitter)) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const cur = ((rot % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  let delta = target - cur; if (delta < 0) delta += Math.PI * 2;
+  const from = rot, to = rot + Math.PI * 2 * 7 + delta, dur = 7500, t0 = performance.now();
+  const ease = (p) => 1 - Math.pow(1 - p, 4);
+  spinning = true;
+  (function frame(now) {
+    const p = Math.min(1, (now - t0) / dur);
+    rot = from + (to - from) * ease(p); drawWheel();
+    const r = sliceAtPointer(); $('ticker').textContent = r ? shortName(r.name) : '';
+    if (p < 1) requestAnimationFrame(frame); else { spinning = false; done(); }
+  })(t0);
+}
+function ddRender() {
+  const ph = phaseOf(D), list = pool();
+  const T = list.reduce((t, r) => t + r.tickets, 0), stu = list.filter(r => r.is_student).length;
+  // keep the wheel still after it lands (hold) so the pointer stays on the result until Andrew decides
+  const sig = list.map(r => r.id + ':' + r.tickets).sort().join(',');
+  if (!spinning && !hold && sig !== slicesSig) { slices = arrange(list); slicesSig = sig; }
+  if (!spinning) drawWheel();
+  $('dd-title').textContent = D.prize_name ? `Lucky draw: ${D.prize_name}` : D.title;
+  $('dd-sub').textContent = `${list.length} people · ${T} entries · students hold ${D.student_multiplier || 3} slices each`;
+  $('dd-stats').innerHTML = `<div class="dd-stat"><span>People in the pool</span><strong>${list.length}</strong></div>
+    <div class="dd-stat"><span>Entries (slices)</span><strong>${T}</strong></div>
+    <div class="dd-stat"><span>Students</span><strong>${stu}</strong></div>
+    <div class="dd-stat"><span>Entries close${ph === 'closed' ? 'd' : ''}</span><strong>${esc(fmtSG(D.close_at))}</strong></div>`;
+  const pending = picks.find(p => p.status === 'pending');
+  const spinOk = ph === 'closed' && !pending && T > 0 && !spinning;
+  $('spin').disabled = !spinOk;
+  $('spin-note').textContent = ph !== 'closed' ? 'Unlocks when entries close. Use a practice spin to rehearse.'
+    : pending ? 'Decide the last spin first (winner, reserve or void).'
+    : T === 0 ? 'Nobody left in the pool.' : picks.some(p => p.status === 'winner') ? 'Winner declared. Spin again to draw a reserve.' : '';
+  $('practice').disabled = spinning || T === 0;
+  // log
+  const byId = Object.fromEntries(entries.map(r => [r.id, r]));
+  $('picklog').innerHTML = picks.length ? picks.map((p, i) => `<div><span>#${i + 1} ${esc(shortName((byId[p.entry_id] || {}).name))} <span style="opacity:.6">${esc(new Intl.DateTimeFormat('en-SG', { timeZone: 'Asia/Singapore', hour: 'numeric', minute: '2-digit' }).format(new Date(p.picked_at)))}</span></span><span class="st-${p.status}">${esc(p.status)}${p.note ? ' · ' + esc(p.note) : ''}</span></div>`).join('')
+    : '<span style="opacity:.6">No spins yet.</span>';
+  // pending result
+  if (pending && !spinning) renderResult(pending);
+  else if (!lastPick && !practice) $('dd-result').innerHTML = '';
+}
+function renderResult(p) {
+  const r = entries.find(e => e.id === p.entry_id) || {};
+  const decided = p.status !== 'pending';
+  $('dd-result').innerHTML = `<div class="result-card">
+    <div class="muted">${decided ? esc(p.status.toUpperCase()) : 'The wheel says…'}</div>
+    <div class="who">${esc(shortName(r.name))}</div>
+    <div class="sub">${esc(mask(r.mobile))} · ${r.is_student ? 'Impactus student · ' + r.tickets + ' entries' : '1 entry'}</div>
+    ${showContact ? `<div class="contact"><strong>${esc(r.name)}</strong><br>${esc(fmtMobile(r.mobile))}${r.student_email ? '<br>' + esc(r.student_email) : ''}</div>` : ''}
+    <button class="btn ghost sm" id="r-contact" style="margin-top:8px">${showContact ? 'Hide' : 'Show'} contact details</button>
+    ${decided ? '' : `<div style="display:grid;gap:8px;margin-top:12px">
+      <button class="btn green" id="r-win" ${picks.some(x => x.status === 'winner') ? 'disabled title="Already have a winner"' : ''}>Declare winner</button>
+      <button class="btn dark" id="r-res">Make reserve</button>
+      <div style="display:flex;gap:6px"><input class="in" id="r-note" placeholder="Reason to void (e.g. no reply)"><button class="btn red" id="r-void">Void</button></div>
+    </div>`}</div>`;
+  $('r-contact').onclick = () => { showContact = !showContact; renderResult(p); };
+  if (!decided) {
+    const go = async (status) => {
+      const note = status === 'void' ? ($('r-note').value.trim() || 'voided') : null;
+      const { error } = await sb.rpc('draw_decide', { p_pick: p.id, p_status: status, p_note: note });
+      if (error) { alert(error.message); return; }
+      lastPick = null; hold = false; await loadEntries(); await refreshDraw(); $('dd-result').innerHTML = ''; ddRender();
+    };
+    if ($('r-win')) $('r-win').onclick = () => go('winner');
+    $('r-res').onclick = () => go('reserve'); $('r-void').onclick = () => go('void');
+  }
+}
+async function refreshDraw() {
+  const { data } = await sb.from('draws').select('*').eq('id', D.id).single();
+  if (data) { D = data; renderDraw(); renderWinnerBox(); }
+}
+$('spin').onclick = async () => {
+  if (spinning) return;                       // module flag (house rule), not button.disabled
+  practice = false; showContact = false; $('dd-result').innerHTML = '';
+  $('spin').disabled = true;
+  const { data, error } = await sb.rpc('draw_pick', { p_draw: D.id });
+  if (error) { alert(error.message); ddRender(); return; }
+  lastPick = data; hold = false;
+  if (!slices.some(r => r.id === data.entry_id)) { slices = arrange(pool()); slicesSig = ''; }   // pool still includes this entry (picks not reloaded yet)
+  spinTo(data.entry_id, async () => {
+    hold = true;
+    const { data: p } = await sb.from('draw_picks').select('*').eq('draw_id', D.id).order('picked_at');
+    picks = p || []; const mine = picks.find(x => x.id === data.pick_id);
+    ddRender(); if (mine) renderResult(mine);
+  });
+};
+$('practice').onclick = () => {
+  if (spinning) return;
+  const list = pool(); if (!list.length) return;
+  practice = true; hold = false; $('dd-result').innerHTML = '';
+  if (!slices.length) { slices = arrange(list); }
+  // weighted local pick, purely for rehearsal; nothing is recorded
+  const T = list.reduce((t, r) => t + r.tickets, 0); let k = rand(T), who = list[0];
+  for (const r of list) { if (k < r.tickets) { who = r; break; } k -= r.tickets; }
+  $('spin').disabled = true; $('practice').disabled = true;
+  spinTo(who.id, () => {
+    hold = true;
+    $('dd-result').innerHTML = `<div class="result-card"><div class="muted">Practice only, not recorded</div><div class="who">${esc(shortName(who.name))}</div><div class="sub">${who.is_student ? 'Student · ' + who.tickets + ' entries' : '1 entry'}</div></div>`;
+    ddRender();
+  });
+};
+$('open-dd').onclick = () => { hold = false; slicesSig = ''; $('dd').showModal(); sizeWheel(); ddRender(); };
+$('dd-close').onclick = () => { if (!spinning) $('dd').close(); };
+$('dd').addEventListener('cancel', (e) => { if (spinning) e.preventDefault(); });
+window.addEventListener('resize', () => { if ($('dd').open) sizeWheel(); });
+
+init();
+</script>
+</body>
+</html>
