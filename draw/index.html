@@ -160,8 +160,6 @@
             </div>
             <label class="check"><input type="checkbox" id="f-consent" name="consent" required>
               <span>I agree to the <a href="#rules">draw rules</a>, and to Impactus Learning using my name and mobile number to run this draw and contact me if I win.</span></label>
-            <label class="check"><input type="checkbox" id="f-marketing" name="marketing">
-              <span>Keep me posted on Impactus classes and events (optional).</span></label>
             <button class="btn" type="submit" id="f-submit">Enter the draw</button>
             <p class="err" id="f-err" role="alert"></p>
           </form>
@@ -427,7 +425,7 @@
     if (D.preview) { err.textContent = 'Preview only: entries are switched off until the draw is published.'; return; }
     submitting = true; const btn = $('f-submit'); btn.disabled = true; btn.textContent = 'Entering…';
     try {
-      const j = await call({ action: 'enter', slug: D.slug, name, mobile, consent: true, marketing: $('f-marketing').checked, community: $('f-community').checked,
+      const j = await call({ action: 'enter', slug: D.slug, name, mobile, consent: true, community: $('f-community').checked,
         device_id: deviceId(), website: $('f-website').value });
       if (j.ok) {
         entry = { name: j.name || name, entries: j.entries, is_student: j.is_student, excluded: !!j.excluded, token: j.token || null };

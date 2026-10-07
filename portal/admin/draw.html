@@ -169,7 +169,6 @@
           <option value="flag">Flagged</option>
           <option value="stu">Students</option>
           <option value="dq">Disqualified</option>
-          <option value="opt">Opted in to updates</option>
         </select>
         <button class="btn ghost sm" id="csv">Export CSV</button>
         <button class="btn ghost sm" id="reload">Refresh</button>
@@ -469,14 +468,12 @@ function renderKPIs() {
   const tickets = live.reduce((t, r) => t + (r.tickets || 0), 0);
   const stu = live.filter(r => r.is_student).length;
   const flagged = live.filter(r => flagsOf(r).length).length;
-  const opt = live.filter(r => r.marketing_opt_in).length;
   const pctStu = tickets ? Math.round(stu * (D.student_multiplier || 3) / tickets * 100) : 0;
   $('kpis').innerHTML = `
     <div class="kpi"><div class="v">${live.length}</div><div class="l">People entered</div></div>
     <div class="kpi"><div class="v">${stu}</div><div class="l">Impactus students (${D.student_multiplier || 3}x)</div></div>
     <div class="kpi"><div class="v">${tickets}</div><div class="l">Entries in the draw · students hold ${pctStu}%</div></div>
-    <div class="kpi"><div class="v">${flagged}</div><div class="l">Flagged to review</div></div>
-    <div class="kpi"><div class="v">${opt}</div><div class="l">Want class updates</div></div>`;
+    <div class="kpi"><div class="v">${flagged}</div><div class="l">Flagged to review</div></div>`;
 }
 let sortKey = 'created_at', sortDir = -1;
 const SORTVAL = { created_at: r => r.created_at, name: r => (r.name || '').toLowerCase(), mobile: r => r.mobile, student: r => (r.student_name || '').toLowerCase(), tickets: r => r.tickets, flags: r => flagsOf(r).length };
@@ -490,7 +487,6 @@ function renderEntries() {
     if (f === 'flag') return flagsOf(r).length > 0;
     if (f === 'stu') return r.is_student;
     if (f === 'dq') return r.disqualified;
-    if (f === 'opt') return r.marketing_opt_in;
     return true;
   });
   rows.sort((a, b) => { const va = SORTVAL[sortKey](a), vb = SORTVAL[sortKey](b); const c = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb)); return c * sortDir; });
@@ -505,7 +501,7 @@ function renderEntries() {
       const ov = r.admin_student === null ? 'auto' : r.admin_student ? 'yes' : 'no';
       return `<tr class="${r.disqualified ? 'dq' : ''}">
         <td style="white-space:nowrap">${esc(fmtSG(r.created_at))}</td>
-        <td><strong>${esc(r.name)}</strong>${r.marketing_opt_in ? '<br><span class="chip info">Wants updates</span>' : ''}${r.pick_status ? `<br><span class="chip warn">Drawn: ${esc(r.pick_status)}</span>` : ''}</td>
+        <td><strong>${esc(r.name)}</strong>${r.pick_status ? `<br><span class="chip warn">Drawn: ${esc(r.pick_status)}</span>` : ''}</td>
         <td style="white-space:nowrap"><a href="https://wa.me/${esc(r.mobile)}" target="_blank" rel="noopener">${esc(fmtMobile(r.mobile))}</a></td>
         <td>${stu}</td>
         <td style="font-weight:800;font-size:15px">${r.tickets}</td>
@@ -538,9 +534,9 @@ function renderEntries() {
   });
 }
 $('csv').onclick = () => {
-  const head = ['Entered (SGT)', 'Name', 'Mobile', 'Student', 'Student record', 'Student email', 'How', 'Entries', 'Flags', 'Disqualified', 'Reason', 'Wants updates', 'Drawn'];
+  const head = ['Entered (SGT)', 'Name', 'Mobile', 'Student', 'Student record', 'Student email', 'How', 'Entries', 'Flags', 'Disqualified', 'Reason', 'Drawn'];
   const rows = entries.map(r => [fmtSG(r.created_at), r.name, '+' + r.mobile, r.is_student ? 'Yes' : 'No', r.student_name || '', r.student_email || '', HOW[r.how] || '', r.tickets,
-    flagsOf(r).map(x => x[1]).join('; '), r.disqualified ? 'Yes' : '', r.disqualify_reason || '', r.marketing_opt_in ? 'Yes' : '', r.pick_status || '']);
+    flagsOf(r).map(x => x[1]).join('; '), r.disqualified ? 'Yes' : '', r.disqualify_reason || '', r.pick_status || '']);
   const csv = [head, ...rows].map(a => a.map(v => { v = String(v ?? ''); if (/^[=+\-@]/.test(v) && !/^\+\d+$/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; }).join(',')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
   a.download = `lucky-draw-${D.slug}-entries.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
