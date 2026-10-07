@@ -32,6 +32,9 @@
   h1 { font-size:20px; font-weight:800; }
   h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
   .muted { color:var(--mut); font-size:13px; }
+  /* Mobile numbers are WhatsApp links everywhere in the admin — WhatsApp green, tap to chat. */
+  .wa-num { color:#128c7e; text-decoration:none; border-bottom:1px dotted currentColor; white-space:nowrap; font-weight:600; }
+  .wa-num:hover { color:#075e54; border-bottom-style:solid; }
   .hidden { display:none !important; }
   input, select { padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; font-family:inherit; background:#fff; }
   .btn { display:inline-block; padding:9px 16px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit; }
@@ -197,6 +200,17 @@ function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.
 const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude L1', 'AI Animation Masterclass': 'Animation L1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude L1', 'F2F AI Animation Masterclass': 'F2F Animation L1', 'F2F AI Animation Automation': 'F2F Animation L2', 'F2F Master Claude - Build': 'F2F Claude L2', 'Claude Corporate Full Day': 'Claude Corp FD', 'Master Copilot: AI for Everyday Work': 'Copilot' };
 const shortName = (n) => SHORTNAMES[n] || n;
 const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// Every mobile shown in the admin opens a WhatsApp chat. wa.me wants bare digits (no "+", no
+// spaces) — stored shape is "+65 9123 4567". A bare 8-digit SG number gets 65 in front, same
+// rule as saveMobile below. Fewer than 6 digits isn't a number: show it as text.
+const waLink = (m) => {
+  const txt = String(m == null ? '' : m).trim();
+  if (!txt) return '—';
+  let d = txt.replace(/\D/g, '');
+  if (/^[89]\d{7}$/.test(d)) d = '65' + d;
+  if (d.length < 6) return esc(txt);
+  return `<a class="wa-num" href="https://wa.me/${d}" target="_blank" rel="noopener" title="Open WhatsApp chat with ${esc(txt)}">${esc(txt)}</a>`;
+};
 
 let students = [], courses = [], bookings = [], ledger = [], erasures = [], merges = [];
 let byCourse = {};
@@ -673,7 +687,7 @@ function render() {
         </td>
         <td>${esc(s.email || '—')}
           <div id="mobcell-${s.id}" style="margin-top:2px">
-            <span class="muted">${esc(s.mobile || '—')}</span>
+            <span class="muted">${waLink(s.mobile)}</span>
             ${isAnon(s) ? '' : `<button class="btn ghost sm" onclick="editMobile('${s.id}')" style="margin-left:4px;padding:1px 6px;font-size:10.5px" title="The number the class WhatsApp goes to. A student who retypes it at sign-in does NOT change it — this is the only place it can be corrected.">✎</button>`}
           </div>
         </td>

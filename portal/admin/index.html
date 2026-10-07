@@ -34,6 +34,9 @@
   h1 { font-size:20px; font-weight:800; }
   h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
   .muted { color:var(--mut); font-size:13px; }
+  /* Mobile numbers are WhatsApp links everywhere in the admin — WhatsApp green, tap to chat. */
+  .wa-num { color:#128c7e; text-decoration:none; border-bottom:1px dotted currentColor; white-space:nowrap; font-weight:600; }
+  .wa-num:hover { color:#075e54; border-bottom-style:solid; }
   .othercourses { font-size:12.5px; line-height:1.5; }
   .cls-line { white-space:nowrap; }
   .cls-line.up { color:var(--mut); font-style:italic; }
@@ -403,6 +406,17 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType:
 const $ = (id) => document.getElementById(id);
 const fmt$ = (n) => 'S$' + Number(n).toLocaleString('en-SG', { maximumFractionDigits: 0 });
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+// Every mobile shown in the admin opens a WhatsApp chat. wa.me wants bare digits (no "+", no
+// spaces) — stored shape is "+65 9123 4567". A bare 8-digit SG number gets 65 in front, same
+// rule as the Students tab's editor. Fewer than 6 digits isn't a number: show it as text.
+const waLink = (m) => {
+  const txt = String(m == null ? '' : m).trim();
+  if (!txt) return '—';
+  let d = txt.replace(/\D/g, '');
+  if (/^[89]\d{7}$/.test(d)) d = '65' + d;
+  if (d.length < 6) return esc(txt);
+  return `<a class="wa-num" href="https://wa.me/${d}" target="_blank" rel="noopener" title="Open WhatsApp chat with ${esc(txt)}">${esc(txt)}</a>`;
+};
 const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
 // Asia/Singapore, not UTC — from midnight to 8am SGT the UTC date is still "yesterday",
 // which kept a finished class OPEN (and in "upcoming" blasts) for 8 hours every day.
@@ -1060,7 +1074,7 @@ window.openRoster = function (cid, noScroll) {
       return `<tr${s.remark_pinned ? ' class="hasremark"' : ''}>
         <td>${i + 1}</td>
         <td>${s.email ? `<a href="students?q=${encodeURIComponent(s.email)}" target="_blank" title="Open ${esc(s.name)} on the Students tab"><strong>${esc(s.name)}</strong> ↗</a>` : `<strong>${esc(s.name)}</strong>`}${b.note ? `<br><span class="muted">${esc(b.note)}</span>` : ''}</td>
-        <td>${esc(s.email)}<br><span class="muted">${esc(s.mobile) || '—'}</span></td>
+        <td>${esc(s.email)}<br><span class="muted">${waLink(s.mobile)}</span></td>
         <td class="othercourses">${otherCoursesCell(b.student_id, cid)}</td>
         <td>${fmt$(b.cash_paid_sgd)}${b.points_redeemed ? `<br><span class="muted">−${b.points_redeemed} pts</span>` : ''}${Number(b.refunded_sgd) > 0 ? `<br><span class="muted" style="color:#6b4bab">↩︎ ${fmt$(b.refunded_sgd)} refunded</span>` : ''}</td>
         <td><span class="pill ${b.status === 'confirmed' ? 'open' : b.status === 'pending' ? 'pending' : b.status}">${b.status}</span></td>
