@@ -38,6 +38,9 @@
   h1 { font-size:20px; font-weight:800; }
   h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
   .muted { color:var(--mut); font-size:13px; }
+  /* Mobile numbers are WhatsApp links everywhere in the admin — WhatsApp green, tap to chat. */
+  .wa-num { color:#128c7e; text-decoration:none; border-bottom:1px dotted currentColor; white-space:nowrap; font-weight:600; }
+  .wa-num:hover { color:#075e54; border-bottom-style:solid; }
   .hidden { display:none !important; }
   .btn { display:inline-block; padding:8px 15px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; text-decoration:none; }
   .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
@@ -502,7 +505,7 @@ function renderEntries() {
       return `<tr class="${r.disqualified ? 'dq' : ''}">
         <td style="white-space:nowrap">${esc(fmtSG(r.created_at))}</td>
         <td><strong>${esc(r.name)}</strong>${r.pick_status ? `<br><span class="chip warn">Drawn: ${esc(r.pick_status)}</span>` : ''}</td>
-        <td style="white-space:nowrap"><a href="https://wa.me/${esc(r.mobile)}" target="_blank" rel="noopener">${esc(fmtMobile(r.mobile))}</a></td>
+        <td style="white-space:nowrap"><a class="wa-num" href="https://wa.me/${esc(r.mobile)}" target="_blank" rel="noopener" title="Open WhatsApp chat">${esc(fmtMobile(r.mobile))}</a></td>
         <td>${stu}</td>
         <td style="font-weight:800;font-size:15px">${r.tickets}</td>
         <td>${fl || '<span class="muted">—</span>'}${r.system_note ? `<br><span class="muted">${esc(r.system_note)}</span>` : ''}${r.disqualified ? `<br><span class="chip bad">Disqualified</span> <span class="muted">${esc(r.disqualify_reason || '')}</span>` : ''}</td>
@@ -548,7 +551,7 @@ function renderWinnerBox() {
   const rs = picks.filter(p => p.status === 'reserve');
   const byId = Object.fromEntries(entries.map(r => [r.id, r]));
   if (!w && !rs.length) { $('winner-box').innerHTML = ''; return; }
-  const line = (p, label) => { const r = byId[p.entry_id] || {}; return `<div style="margin:4px 0"><strong>${label}:</strong> ${esc(r.name || '?')} · <a href="https://wa.me/${esc(r.mobile || '')}" target="_blank" rel="noopener">${esc(fmtMobile(r.mobile))}</a>${r.is_student ? ' <span class="chip stu">Student</span>' : ''}</div>`; };
+  const line = (p, label) => { const r = byId[p.entry_id] || {}; return `<div style="margin:4px 0"><strong>${label}:</strong> ${esc(r.name || '?')} · <a class="wa-num" href="https://wa.me/${esc(r.mobile || '')}" target="_blank" rel="noopener" title="Open WhatsApp chat">${esc(fmtMobile(r.mobile))}</a>${r.is_student ? ' <span class="chip stu">Student</span>' : ''}</div>`; };
   $('winner-box').innerHTML = (w ? line(w, 'Winner') : '') + rs.map((p, i) => line(p, 'Reserve ' + (i + 1))).join('') +
     (w ? `<div class="linkbox"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="w-pub" ${D.winner_public ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--green)"> Show the winner on the public page as</label>
       <input class="in" id="w-label" value="${esc(D.winner_label || '')}" style="width:220px"> <button class="btn sm" id="w-save">Save</button><span class="msg" id="w-msg"></span></div>` : '');
@@ -686,7 +689,7 @@ function renderResult(p) {
     <div class="muted">${decided ? esc(p.status.toUpperCase()) : 'The wheel says…'}</div>
     <div class="who">${esc(shortName(r.name))}</div>
     <div class="sub">${esc(mask(r.mobile))} · ${r.is_student ? 'Impactus student · ' + r.tickets + ' entries' : '1 entry'}</div>
-    ${showContact ? `<div class="contact"><strong>${esc(r.name)}</strong><br>${esc(fmtMobile(r.mobile))}${r.student_email ? '<br>' + esc(r.student_email) : ''}</div>` : ''}
+    ${showContact ? `<div class="contact"><strong>${esc(r.name)}</strong><br><a class="wa-num" href="https://wa.me/${esc(r.mobile || '')}" target="_blank" rel="noopener" title="Open WhatsApp chat">${esc(fmtMobile(r.mobile))}</a>${r.student_email ? '<br>' + esc(r.student_email) : ''}</div>` : ''}
     <button class="btn ghost sm" id="r-contact" style="margin-top:8px">${showContact ? 'Hide' : 'Show'} contact details</button>
     ${decided || D.community_required === false ? '' : `<div class="muted" style="margin-top:10px;color:#7a5a00">Before declaring: check this number is in the Impactus WhatsApp community. If not, void with reason "not in community" and spin again.</div>`}
     ${decided ? '' : `<div style="display:grid;gap:8px;margin-top:12px">
