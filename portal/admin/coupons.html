@@ -54,7 +54,7 @@
 
 <header><div class="wrap">
   <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
-  <nav class="tabs">
+  <nav class="tabs hidden" id="navtabs">
     <a class="tab" href="./" target="_blank">Dashboard</a>
     <a class="tab" href="classroom" target="_blank">Classroom ↗</a>
     <a class="tab" href="students" target="_blank">Students</a>
@@ -124,13 +124,17 @@
 <script>
 const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
-const ADMIN_EMAIL = 'andrew@impactuslearning.com';
+// No admin address or allow-list lives in this page any more (2026-10-13). Who is admin is
+// decided server-side only: public.is_admin() in Postgres (the same test every RLS policy
+// uses), asked via rpc after sign-in, and the admin-login edge function for the magic link.
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fdate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
-function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  // Tabs and Sign out exist only for a confirmed admin — a stranger on this URL sees a bare card.
+  $('navtabs').classList.toggle('hidden', id !== 'view-app'); $('signout').classList.toggle('hidden', id !== 'view-app'); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; if (cls === 'ok') setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 6000); }
 
 let courses = [], families = [], coupons = [], couponAudit = [], byCourse = {};
@@ -142,11 +146,13 @@ let couponRefs = new Set();
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
   route(session);
-  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') route(s); });
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') setTimeout(() => route(s), 0); });
 }
-function route(session) {
+async function route(session) {
   if (!session) { location.replace('./'); return; }   // sign-in lives on the Dashboard — land there (Andrew, 2026-08-17)
-  if ((session.user.email || '').toLowerCase() !== ADMIN_EMAIL) { show('view-noauth'); return; }
+  // Server decides. is_admin() reads the caller's own JWT — it cannot be asked about anyone else.
+  const { data: isAdmin, error: adminErr } = await sb.rpc('is_admin');
+  if (adminErr || !isAdmin) { show('view-noauth'); return; }
   $('signout').classList.remove('hidden');
   show('view-app');
   loadAll();
