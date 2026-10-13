@@ -11,6 +11,10 @@
      otherwise.
      The draw itself = rpc draw_pick (crypto-random, weighted, logged, only after
      close) + draw_decide. The wheel only ANIMATES the server's pick.
+     Off the wheel (2026-10-13): draw_entries.off_wheel, set from the draw screen
+     ("Remove" / "Put back"), e.g. before reserve spins. draw_pick skips them and
+     logs who was off in draw_picks.off_wheel_ids. Not a disqualification.
+     Shuffle only re-arranges the slices on screen; it never changes the odds.
      esc() every entrant-typed field before it touches innerHTML (house rule).
      Non-negotiables + the gotcha list: CRM Impactus\CLAUDE.md. Fresh-clone first.
 ════════════════════════════════════════════════════════════════════════ -->
@@ -108,6 +112,16 @@
   .dd-close { position:absolute; top:12px; right:14px; z-index:3; background:rgba(255,255,255,.12); color:#fff; border:none; border-radius:8px; padding:6px 12px; cursor:pointer; font:inherit; font-size:13px; }
   .dd-side input.in { background:#fff; }
   .practice-tag { display:inline-block; margin-top:6px; font-size:12px; font-weight:700; color:#9fd3ff; }
+  .dd-row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .dd-row .btn { flex:1 1 auto; }
+  .wl-hint { font-size:12px; color:#9aa6bd; margin-bottom:8px; line-height:1.45; }
+  .wl { font-size:13.5px; }
+  .wl-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,.08); }
+  .wl-row .nm { font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wl-row .dim { opacity:.6; font-weight:400; font-size:12px; margin-left:4px; }
+  .wl-row.off .nm { opacity:.6; text-decoration:line-through; }
+  .dd-side .wl-row .btn { font-size:12px; padding:4px 10px; flex:none; }
+  .dd-side input.wl-q { width:100%; margin-bottom:8px; font-size:13px; padding:6px 9px; }
 </style>
 </head>
 <body>
@@ -239,8 +253,19 @@
       <h3>Spin</h3>
       <button class="btn bigspin" id="spin" type="button">Spin the wheel</button>
       <div class="muted" id="spin-note" style="color:#c9d2e3;margin-top:8px"></div>
-      <button class="btn ghost sm" id="practice" type="button" style="margin-top:10px">Practice spin (not recorded)</button>
+      <div class="dd-row">
+        <button class="btn ghost sm" id="shuffle" type="button" title="Mix up where the names sit on the wheel. Doesn't change anyone's chances.">⤮ Shuffle the wheel</button>
+        <button class="btn ghost sm" id="practice" type="button">Practice spin (not recorded)</button>
+      </div>
       <div id="dd-result"></div>
+      <h3>On the wheel <span id="wl-count" style="opacity:.8"></span></h3>
+      <p class="wl-hint">Remove a name to keep it out of the next spins, e.g. before drawing a reserve. They stay entered and you can put them back. Names already drawn come off automatically.</p>
+      <input class="in wl-q hidden" id="wl-q" type="search" placeholder="Find a name">
+      <div class="wl" id="wl-on"></div>
+      <div id="wl-off-box" class="hidden">
+        <h3 style="display:flex;align-items:center;justify-content:space-between">Taken off the wheel <button class="btn ghost sm" type="button" id="wl-allback" style="font-size:11.5px;padding:3px 9px;text-transform:none;letter-spacing:0">Put all back</button></h3>
+        <div class="wl" id="wl-off"></div>
+      </div>
       <h3>Draw log</h3>
       <div class="picklog" id="picklog"></div>
       <p class="muted" style="color:#9aa6bd;margin-top:10px;font-size:12px">Every spin is picked by the server with a secure random number, weighted by entries, and logged with a fingerprint of the entry list. Keep these records for 5 years.</p>
@@ -447,12 +472,15 @@ $('ph-file').addEventListener('change', async (e) => {
 
 // ---------------------------------------------------------------- entries
 async function loadEntries() {
-  const [e, p] = await Promise.all([
+  const [e, p, w] = await Promise.all([
     sb.rpc('draw_admin_entries2', { p_draw: D.id }),
     sb.from('draw_picks').select('*').eq('draw_id', D.id).order('picked_at'),
+    sb.from('draw_entries').select('id,off_wheel,off_wheel_at').eq('draw_id', D.id),
   ]);
   if (e.error) { $('entries').textContent = 'Could not load entries: ' + e.error.message; return; }
-  entries = e.data || []; picks = p.data || [];
+  const offMap = Object.fromEntries(((w && w.data) || []).map(x => [x.id, x]));
+  entries = (e.data || []).map(r => ({ ...r, off_wheel: !!(offMap[r.id] && offMap[r.id].off_wheel), off_wheel_at: offMap[r.id] ? offMap[r.id].off_wheel_at : null }));
+  picks = p.data || [];
   renderKPIs(); renderEntries(); renderWinnerBox();
   if ($('dd').open) ddRender();
 }
@@ -504,7 +532,7 @@ function renderEntries() {
       const ov = r.admin_student === null ? 'auto' : r.admin_student ? 'yes' : 'no';
       return `<tr class="${r.disqualified ? 'dq' : ''}">
         <td style="white-space:nowrap">${esc(fmtSG(r.created_at))}</td>
-        <td><strong>${esc(r.name)}</strong>${r.pick_status ? `<br><span class="chip warn">Drawn: ${esc(r.pick_status)}</span>` : ''}</td>
+        <td><strong>${esc(r.name)}</strong>${r.pick_status ? `<br><span class="chip warn">Drawn: ${esc(r.pick_status)}</span>` : ''}${r.off_wheel && !r.pick_status ? `<br><span class="chip info" title="Taken off on the draw screen. Put back from there.">Off the wheel</span>` : ''}</td>
         <td style="white-space:nowrap"><a class="wa-num" href="https://wa.me/${esc(r.mobile)}" target="_blank" rel="noopener" title="Open WhatsApp chat">${esc(fmtMobile(r.mobile))}</a></td>
         <td>${stu}</td>
         <td style="font-weight:800;font-size:15px">${r.tickets}</td>
@@ -537,9 +565,9 @@ function renderEntries() {
   });
 }
 $('csv').onclick = () => {
-  const head = ['Entered (SGT)', 'Name', 'Mobile', 'Student', 'Student record', 'Student email', 'How', 'Entries', 'Flags', 'Disqualified', 'Reason', 'Drawn'];
+  const head = ['Entered (SGT)', 'Name', 'Mobile', 'Student', 'Student record', 'Student email', 'How', 'Entries', 'Flags', 'Disqualified', 'Reason', 'Drawn', 'Off the wheel'];
   const rows = entries.map(r => [fmtSG(r.created_at), r.name, '+' + r.mobile, r.is_student ? 'Yes' : 'No', r.student_name || '', r.student_email || '', HOW[r.how] || '', r.tickets,
-    flagsOf(r).map(x => x[1]).join('; '), r.disqualified ? 'Yes' : '', r.disqualify_reason || '', r.pick_status || '']);
+    flagsOf(r).map(x => x[1]).join('; '), r.disqualified ? 'Yes' : '', r.disqualify_reason || '', r.pick_status || '', r.off_wheel ? 'Yes, ' + fmtSG(r.off_wheel_at) : '']);
   const csv = [head, ...rows].map(a => a.map(v => { v = String(v ?? ''); if (/^[=+\-@]/.test(v) && !/^\+\d+$/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; }).join(',')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
   a.download = `lucky-draw-${D.slug}-entries.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -564,16 +592,24 @@ function renderWinnerBox() {
 
 // ================================================================= DRAW SCREEN
 const COLORS = ['#f5b731', '#1b6da7', '#0f766e', '#b83db8', '#c2410c', '#22872a', '#5e38a8', '#0e7490'];
-let slices = [], slicesSig = '', hold = false, rot = 0, spinning = false, practice = false, lastPick = null, showContact = false;
+let slices = [], slicesSig = '', hold = false, rot = 0, spinning = false, practice = false, lastPick = null, showContact = false, wlBusy = false;
 const cv = $('wheel'), cx = cv.getContext('2d');
 
-function pool() {   // mirrors the server pool: tickets > 0 and never picked before
+function pool() {   // mirrors the server pool (draw_pick): tickets > 0, never picked before, not taken off the wheel
   const picked = new Set(picks.map(p => p.entry_id));
-  return entries.filter(r => r.tickets > 0 && !picked.has(r.id));
+  return entries.filter(r => r.tickets > 0 && !picked.has(r.id) && !r.off_wheel);
 }
+function offWheel() {  // taken off by Andrew and not yet drawn
+  const picked = new Set(picks.map(p => p.entry_id));
+  return entries.filter(r => r.tickets > 0 && !picked.has(r.id) && r.off_wheel);
+}
+const poolSig = (list) => list.map(r => r.id + ':' + r.tickets).sort().join(',');
 function rand(n) { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; }
+function shuffled(a) { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function arrange(list) {
   // spread each multi-entry person's slices around the wheel, then fill singles in random order
+  // (shuffle first so people with the same number of entries don't always sit in the same order)
+  list = shuffled(list);
   const T = list.reduce((t, r) => t + r.tickets, 0); const out = new Array(T).fill(null);
   const multi = list.filter(r => r.tickets > 1).sort((a, b) => b.tickets - a.tickets);
   const singles = list.filter(r => r.tickets === 1);
@@ -658,22 +694,27 @@ function ddRender() {
   const ph = phaseOf(D), list = pool();
   const T = list.reduce((t, r) => t + r.tickets, 0), stu = list.filter(r => r.is_student).length;
   // keep the wheel still after it lands (hold) so the pointer stays on the result until Andrew decides
-  const sig = list.map(r => r.id + ':' + r.tickets).sort().join(',');
+  const sig = poolSig(list);
   if (!spinning && !hold && sig !== slicesSig) { slices = arrange(list); slicesSig = sig; }
   if (!spinning) drawWheel();
+  const off = offWheel();
   $('dd-title').textContent = D.prize_name ? `Lucky draw: ${D.prize_name}` : D.title;
   $('dd-sub').textContent = `${list.length} people · ${T} entries · students hold ${D.student_multiplier || 3} slices each`;
   $('dd-stats').innerHTML = `<div class="dd-stat"><span>People in the pool</span><strong>${list.length}</strong></div>
     <div class="dd-stat"><span>Entries (slices)</span><strong>${T}</strong></div>
     <div class="dd-stat"><span>Students</span><strong>${stu}</strong></div>
+    ${off.length ? `<div class="dd-stat"><span>Taken off the wheel</span><strong>${off.length}</strong></div>` : ''}
     <div class="dd-stat"><span>Entries close${ph === 'closed' ? 'd' : ''}</span><strong>${esc(fmtSG(D.close_at))}</strong></div>`;
   const pending = picks.find(p => p.status === 'pending');
-  const spinOk = ph === 'closed' && !pending && T > 0 && !spinning;
+  const spinOk = ph === 'closed' && !pending && T > 0 && !spinning && !wlBusy;
   $('spin').disabled = !spinOk;
   $('spin-note').textContent = ph !== 'closed' ? 'Unlocks when entries close. Use a practice spin to rehearse.'
     : pending ? 'Decide the last spin first (winner, reserve or void).'
-    : T === 0 ? 'Nobody left in the pool.' : picks.some(p => p.status === 'winner') ? 'Winner declared. Spin again to draw a reserve.' : '';
+    : T === 0 ? (off.length ? 'Everyone left is off the wheel. Put names back below.' : 'Nobody left in the pool.')
+    : picks.some(p => p.status === 'winner') ? 'Winner declared. Remove any names you don\'t want, then spin again to draw a reserve.' : '';
   $('practice').disabled = spinning || T === 0;
+  $('shuffle').disabled = spinning || !!pending || list.length < 2;
+  renderWheelList(list, off, !!pending);
   // log
   const byId = Object.fromEntries(entries.map(r => [r.id, r]));
   $('picklog').innerHTML = picks.length ? picks.map((p, i) => `<div><span>#${i + 1} ${esc(shortName((byId[p.entry_id] || {}).name))} <span style="opacity:.6">${esc(new Intl.DateTimeFormat('en-SG', { timeZone: 'Asia/Singapore', hour: 'numeric', minute: '2-digit' }).format(new Date(p.picked_at)))}</span></span><span class="st-${p.status}">${esc(p.status)}${p.note ? ' · ' + esc(p.note) : ''}</span></div>`).join('')
@@ -709,6 +750,65 @@ function renderResult(p) {
     $('r-res').onclick = () => go('reserve'); $('r-void').onclick = () => go('void');
   }
 }
+// ---- who is on the wheel: Remove / Put back (server-enforced via draw_entries.off_wheel)
+function renderWheelList(list, off, pending) {
+  const lock = spinning || pending || wlBusy;
+  const q = ($('wl-q').value || '').trim().toLowerCase();
+  const total = list.length + off.length;
+  $('wl-q').classList.toggle('hidden', total <= 10);
+  $('wl-count').textContent = `(${list.length})`;
+  const row = (r, isOff) => `<div class="wl-row${isOff ? ' off' : ''}">
+      <span class="nm">${esc(shortName(r.name))}<span class="dim">${esc(mask(r.mobile))} · ${r.tickets} ${r.tickets === 1 ? 'entry' : 'entries'}</span></span>
+      ${isOff ? `<button class="btn ghost" type="button" data-wl-back="${r.id}" ${lock ? 'disabled' : ''}>Put back</button>`
+              : `<button class="btn red" type="button" data-wl-off="${r.id}" ${lock ? 'disabled' : ''}>Remove</button>`}
+    </div>`;
+  const match = (r) => !q || String(r.name).toLowerCase().includes(q) || String(r.mobile).endsWith(q.replace(/\D/g, '') || '§');
+  const byName = (a, b) => String(a.name).localeCompare(String(b.name));
+  const on = [...list].sort(byName).filter(match);
+  $('wl-on').innerHTML = on.length ? on.map(r => row(r, false)).join('') : `<span style="opacity:.6">${list.length ? 'No match.' : 'Nobody on the wheel.'}</span>`;
+  $('wl-off-box').classList.toggle('hidden', !off.length);
+  $('wl-off').innerHTML = [...off].sort(byName).map(r => row(r, true)).join('');
+  $('wl-allback').disabled = lock; $('wl-allback').classList.toggle('hidden', off.length < 2);
+  $('wl-on').querySelectorAll('[data-wl-off]').forEach(b => b.onclick = () => setOffWheel(b.dataset.wlOff, true));
+  $('wl-off').querySelectorAll('[data-wl-back]').forEach(b => b.onclick = () => setOffWheel(b.dataset.wlBack, false));
+}
+$('wl-q').oninput = () => { if ($('dd').open) ddRender(); };
+$('wl-allback').onclick = () => setOffWheel(null, false);
+async function setOffWheel(id, isOff) {   // id null + isOff false = put everyone back
+  if (spinning || wlBusy || picks.some(p => p.status === 'pending')) return;
+  wlBusy = true; ddRender();
+  const upd = isOff ? { off_wheel: true, off_wheel_at: new Date().toISOString(), off_wheel_note: `Taken off before spin #${picks.length + 1}` }
+                    : { off_wheel: false, off_wheel_at: null, off_wheel_note: null };
+  const q = sb.from('draw_entries').update(upd);
+  const { error } = id ? await q.eq('id', id) : await q.eq('draw_id', D.id).eq('off_wheel', true);
+  wlBusy = false;
+  if (error) { alert('Could not update the wheel: ' + error.message); await loadEntries(); ddRender(); return; }
+  entries.filter(e => id ? e.id === id : e.off_wheel).forEach(r => { r.off_wheel = isOff; r.off_wheel_at = upd.off_wheel_at; });
+  // the wheel rebuilds without (or with) this person; drop any practice result still on screen
+  hold = false; practice = false; $('dd-result').innerHTML = ''; $('ticker').textContent = '';
+  renderEntries(); ddRender();
+}
+
+// ---- Shuffle: re-arranges the slices on screen only. The server still picks the winner.
+function shuffleWheel() {
+  if (spinning || wlBusy || picks.some(p => p.status === 'pending')) return;
+  const list = pool(); if (list.length < 2) return;
+  hold = false; practice = false; $('dd-result').innerHTML = '';
+  spinning = true; ddRender();
+  const from = rot, dur = 1100, t0 = performance.now(); let last = 0;
+  const ease = (p) => 1 - Math.pow(1 - p, 3);
+  $('ticker').textContent = 'Shuffling…';
+  (function frame(now) {
+    const p = Math.min(1, (now - t0) / dur);
+    if (now - last > 110 && p < 0.85) { slices = arrange(list); last = now; }
+    rot = from + Math.PI * 0.75 * ease(p); drawWheel();
+    if (p < 1) { requestAnimationFrame(frame); return; }
+    slices = arrange(list); slicesSig = poolSig(list); drawWheel();
+    spinning = false; $('ticker').textContent = ''; ddRender();
+  })(t0);
+}
+$('shuffle').onclick = shuffleWheel;
+
 async function refreshDraw() {
   const { data } = await sb.from('draws').select('*').eq('id', D.id).single();
   if (data) { D = data; renderDraw(); renderWinnerBox(); }
@@ -727,6 +827,7 @@ $('spin').onclick = async () => {
     picks = p || []; const mine = picks.find(x => x.id === data.pick_id);
     ddRender(); if (mine) renderResult(mine);
   });
+  ddRender();   // greys out Shuffle / Remove while the wheel turns
 };
 $('practice').onclick = () => {
   if (spinning) return;
@@ -742,6 +843,7 @@ $('practice').onclick = () => {
     $('dd-result').innerHTML = `<div class="result-card"><div class="muted">Practice only, not recorded</div><div class="who">${esc(shortName(who.name))}</div><div class="sub">${who.is_student ? 'Student · ' + who.tickets + ' entries' : '1 entry'}</div></div>`;
     ddRender();
   });
+  ddRender();
 };
 $('open-dd').onclick = () => { hold = false; slicesSig = ''; $('dd').showModal(); sizeWheel(); ddRender(); };
 $('dd-close').onclick = () => { if (!spinning) $('dd').close(); };
