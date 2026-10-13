@@ -15,6 +15,10 @@
      ("Remove" / "Put back"), e.g. before reserve spins. draw_pick skips them and
      logs who was off in draw_picks.off_wheel_ids. Not a disqualification.
      Shuffle only re-arranges the slices on screen; it never changes the odds.
+     After a decision the result card + wheel stay on that person until "Remove name
+     from wheel" (or the next spin). "Reset wheel" puts every off-wheel name back;
+     drawn names never come back (draw_pick skips anyone in draw_picks).
+     A real spin with names still off and no winner yet asks to confirm first.
      esc() every entrant-typed field before it touches innerHTML (house rule).
      Non-negotiables + the gotcha list: CRM Impactus\CLAUDE.md. Fresh-clone first.
 ════════════════════════════════════════════════════════════════════════ -->
@@ -256,14 +260,15 @@
       <div class="dd-row">
         <button class="btn ghost sm" id="shuffle" type="button" title="Mix up where the names sit on the wheel. Doesn't change anyone's chances.">⤮ Shuffle the wheel</button>
         <button class="btn ghost sm" id="practice" type="button">Practice spin (not recorded)</button>
+        <button class="btn ghost sm" id="reset" type="button" title="Put back every name you took off. Names already drawn stay off: they're in the draw log.">↺ Reset wheel</button>
       </div>
       <div id="dd-result"></div>
       <h3>On the wheel <span id="wl-count" style="opacity:.8"></span></h3>
-      <p class="wl-hint">Remove a name to keep it out of the next spins, e.g. before drawing a reserve. They stay entered and you can put them back. Names already drawn come off automatically.</p>
+      <p class="wl-hint">Remove a name to keep it out of the next spins, e.g. before drawing a reserve. They stay entered. Reset wheel puts every removed name back. Names already drawn (winner, reserve, void) stay off: they're in the draw log.</p>
       <input class="in wl-q hidden" id="wl-q" type="search" placeholder="Find a name">
       <div class="wl" id="wl-on"></div>
       <div id="wl-off-box" class="hidden">
-        <h3 style="display:flex;align-items:center;justify-content:space-between">Taken off the wheel <button class="btn ghost sm" type="button" id="wl-allback" style="font-size:11.5px;padding:3px 9px;text-transform:none;letter-spacing:0">Put all back</button></h3>
+        <h3>Taken off the wheel</h3>
         <div class="wl" id="wl-off"></div>
       </div>
       <h3>Draw log</h3>
@@ -708,12 +713,15 @@ function ddRender() {
   const pending = picks.find(p => p.status === 'pending');
   const spinOk = ph === 'closed' && !pending && T > 0 && !spinning && !wlBusy;
   $('spin').disabled = !spinOk;
-  $('spin-note').textContent = ph !== 'closed' ? 'Unlocks when entries close. Use a practice spin to rehearse.'
+  const offNote = off.length ? ` Heads-up: ${off.length} ${off.length === 1 ? 'name is' : 'names are'} off the wheel. Reset wheel puts them back.` : '';
+  $('spin-note').textContent = ph !== 'closed' ? 'Unlocks when entries close. Use a practice spin to rehearse.' + offNote
     : pending ? 'Decide the last spin first (winner, reserve or void).'
-    : T === 0 ? (off.length ? 'Everyone left is off the wheel. Put names back below.' : 'Nobody left in the pool.')
-    : picks.some(p => p.status === 'winner') ? 'Winner declared. Remove any names you don\'t want, then spin again to draw a reserve.' : '';
+    : T === 0 ? (off.length ? 'Everyone left is off the wheel. Click Reset wheel to put them back.' : 'Nobody left in the pool.')
+    : picks.some(p => p.status === 'winner') ? 'Winner declared. Remove any names you don\'t want, then spin again to draw a reserve.'
+    : offNote.trim();
   $('practice').disabled = spinning || T === 0;
   $('shuffle').disabled = spinning || !!pending || list.length < 2;
+  $('reset').disabled = spinning || !!pending || wlBusy || (!off.length && !hold && !lastPick);
   renderWheelList(list, off, !!pending);
   // log
   const byId = Object.fromEntries(entries.map(r => [r.id, r]));
@@ -733,22 +741,44 @@ function renderResult(p) {
     ${showContact ? `<div class="contact"><strong>${esc(r.name)}</strong><br><a class="wa-num" href="https://wa.me/${esc(r.mobile || '')}" target="_blank" rel="noopener" title="Open WhatsApp chat">${esc(fmtMobile(r.mobile))}</a>${r.student_email ? '<br>' + esc(r.student_email) : ''}</div>` : ''}
     <button class="btn ghost sm" id="r-contact" style="margin-top:8px">${showContact ? 'Hide' : 'Show'} contact details</button>
     ${decided || D.community_required === false ? '' : `<div class="muted" style="margin-top:10px;color:#7a5a00">Before declaring: check this number is in the Impactus WhatsApp community. If not, void with reason "not in community" and spin again.</div>`}
-    ${decided ? '' : `<div style="display:grid;gap:8px;margin-top:12px">
+    ${decided ? resultButtons() : `<div style="display:grid;gap:8px;margin-top:12px">
       <button class="btn green" id="r-win" ${picks.some(x => x.status === 'winner') ? 'disabled title="Already have a winner"' : ''}>Declare winner</button>
       <button class="btn dark" id="r-res">Make reserve</button>
       <div style="display:flex;gap:6px"><input class="in" id="r-note" placeholder="Reason to void (e.g. no reply)"><button class="btn red" id="r-void">Void</button></div>
     </div>`}</div>`;
   $('r-contact').onclick = () => { showContact = !showContact; renderResult(p); };
-  if (!decided) {
+  if (decided) {
+    // drawn names are already out of the server pool; this just takes them off the wheel on screen
+    $('r-remove').onclick = releaseHeld;
+    $('r-reset').onclick = resetWheel;
+  } else {
     const go = async (status) => {
       const note = status === 'void' ? ($('r-note').value.trim() || 'voided') : null;
       const { error } = await sb.rpc('draw_decide', { p_pick: p.id, p_status: status, p_note: note });
       if (error) { alert(error.message); return; }
-      lastPick = null; hold = false; await loadEntries(); await refreshDraw(); $('dd-result').innerHTML = ''; ddRender();
+      // keep the wheel and the card on this person until Andrew clicks "Remove name" (or spins again)
+      hold = true; await loadEntries(); await refreshDraw();
+      const mine = picks.find(x => x.id === p.id); ddRender(); if (mine) renderResult(mine);
     };
     if ($('r-win')) $('r-win').onclick = () => go('winner');
     $('r-res').onclick = () => go('reserve'); $('r-void').onclick = () => go('void');
   }
+}
+const resultButtons = () => `<div class="dd-row" style="margin-top:12px">
+    <button class="btn dark" type="button" id="r-remove">Remove name from wheel</button>
+    <button class="btn ghost" type="button" id="r-reset" title="Put back every name you took off. Names already drawn stay off: they're in the draw log.">↺ Reset wheel</button>
+  </div>`;
+// clear the result card and let the wheel rebuild from the current pool
+function releaseHeld() {
+  if (spinning) return;
+  lastPick = null; hold = false; practice = false; showContact = false;
+  $('dd-result').innerHTML = ''; $('ticker').textContent = '';
+  ddRender();
+}
+// Reset = every name taken off the wheel goes back on. Drawn names (winner / reserve / void) stay off.
+function resetWheel() {
+  if (spinning || wlBusy || picks.some(p => p.status === 'pending')) return;
+  if (offWheel().length) setOffWheel(null, false); else releaseHeld();
 }
 // ---- who is on the wheel: Remove / Put back (server-enforced via draw_entries.off_wheel)
 function renderWheelList(list, off, pending) {
@@ -768,12 +798,10 @@ function renderWheelList(list, off, pending) {
   $('wl-on').innerHTML = on.length ? on.map(r => row(r, false)).join('') : `<span style="opacity:.6">${list.length ? 'No match.' : 'Nobody on the wheel.'}</span>`;
   $('wl-off-box').classList.toggle('hidden', !off.length);
   $('wl-off').innerHTML = [...off].sort(byName).map(r => row(r, true)).join('');
-  $('wl-allback').disabled = lock; $('wl-allback').classList.toggle('hidden', off.length < 2);
   $('wl-on').querySelectorAll('[data-wl-off]').forEach(b => b.onclick = () => setOffWheel(b.dataset.wlOff, true));
   $('wl-off').querySelectorAll('[data-wl-back]').forEach(b => b.onclick = () => setOffWheel(b.dataset.wlBack, false));
 }
 $('wl-q').oninput = () => { if ($('dd').open) ddRender(); };
-$('wl-allback').onclick = () => setOffWheel(null, false);
 async function setOffWheel(id, isOff) {   // id null + isOff false = put everyone back
   if (spinning || wlBusy || picks.some(p => p.status === 'pending')) return;
   wlBusy = true; ddRender();
@@ -785,7 +813,7 @@ async function setOffWheel(id, isOff) {   // id null + isOff false = put everyon
   if (error) { alert('Could not update the wheel: ' + error.message); await loadEntries(); ddRender(); return; }
   entries.filter(e => id ? e.id === id : e.off_wheel).forEach(r => { r.off_wheel = isOff; r.off_wheel_at = upd.off_wheel_at; });
   // the wheel rebuilds without (or with) this person; drop any practice result still on screen
-  hold = false; practice = false; $('dd-result').innerHTML = ''; $('ticker').textContent = '';
+  hold = false; practice = false; lastPick = null; $('dd-result').innerHTML = ''; $('ticker').textContent = '';
   renderEntries(); ddRender();
 }
 
@@ -793,7 +821,7 @@ async function setOffWheel(id, isOff) {   // id null + isOff false = put everyon
 function shuffleWheel() {
   if (spinning || wlBusy || picks.some(p => p.status === 'pending')) return;
   const list = pool(); if (list.length < 2) return;
-  hold = false; practice = false; $('dd-result').innerHTML = '';
+  hold = false; practice = false; lastPick = null; $('dd-result').innerHTML = '';
   spinning = true; ddRender();
   const from = rot, dur = 1100, t0 = performance.now(); let last = 0;
   const ease = (p) => 1 - Math.pow(1 - p, 3);
@@ -808,6 +836,7 @@ function shuffleWheel() {
   })(t0);
 }
 $('shuffle').onclick = shuffleWheel;
+$('reset').onclick = resetWheel;
 
 async function refreshDraw() {
   const { data } = await sb.from('draws').select('*').eq('id', D.id).single();
@@ -815,12 +844,20 @@ async function refreshDraw() {
 }
 $('spin').onclick = async () => {
   if (spinning) return;                       // module flag (house rule), not button.disabled
+  // safety net: names left off the wheel from rehearsing would otherwise miss the main draw
+  const off = offWheel();
+  if (off.length && !picks.some(p => p.status === 'winner')) {
+    const who = off.map(r => shortName(r.name)).join(', ');
+    if (!confirm(`${off.length} ${off.length === 1 ? 'name is' : 'names are'} off the wheel and won't be in this spin:\n${who}\n\nOK = spin without them.\nCancel = stop, then click Reset wheel to put everyone back.`)) return;
+  }
   practice = false; showContact = false; $('dd-result').innerHTML = '';
   $('spin').disabled = true;
   const { data, error } = await sb.rpc('draw_pick', { p_draw: D.id });
   if (error) { alert(error.message); ddRender(); return; }
   lastPick = data; hold = false;
-  if (!slices.some(r => r.id === data.entry_id)) { slices = arrange(pool()); slicesSig = ''; }   // pool still includes this entry (picks not reloaded yet)
+  // rebuild if the wheel still shows the last drawn name (pool() still includes this new pick: picks not reloaded yet)
+  const now = pool(); if (poolSig(now) !== slicesSig) { slices = arrange(now); slicesSig = poolSig(now); }
+  if (!slices.some(r => r.id === data.entry_id)) { slices = arrange(pool()); slicesSig = ''; }
   spinTo(data.entry_id, async () => {
     hold = true;
     const { data: p } = await sb.from('draw_picks').select('*').eq('draw_id', D.id).order('picked_at');
@@ -832,15 +869,18 @@ $('spin').onclick = async () => {
 $('practice').onclick = () => {
   if (spinning) return;
   const list = pool(); if (!list.length) return;
-  practice = true; hold = false; $('dd-result').innerHTML = '';
-  if (!slices.length) { slices = arrange(list); }
+  practice = true; hold = false; lastPick = null; $('dd-result').innerHTML = '';
+  if (!slices.length || poolSig(list) !== slicesSig) { slices = arrange(list); slicesSig = poolSig(list); }
   // weighted local pick, purely for rehearsal; nothing is recorded
   const T = list.reduce((t, r) => t + r.tickets, 0); let k = rand(T), who = list[0];
   for (const r of list) { if (k < r.tickets) { who = r; break; } k -= r.tickets; }
   $('spin').disabled = true; $('practice').disabled = true;
   spinTo(who.id, () => {
     hold = true;
-    $('dd-result').innerHTML = `<div class="result-card"><div class="muted">Practice only, not recorded</div><div class="who">${esc(shortName(who.name))}</div><div class="sub">${who.is_student ? 'Student · ' + who.tickets + ' entries' : '1 entry'}</div></div>`;
+    $('dd-result').innerHTML = `<div class="result-card"><div class="muted">Practice only, not recorded</div><div class="who">${esc(shortName(who.name))}</div><div class="sub">${who.is_student ? 'Student · ' + who.tickets + ' entries' : '1 entry'}</div>${resultButtons()}</div>`;
+    // practice: Remove really takes them off (saved), so a rehearsed reserve spin works; Reset wheel puts them back
+    $('r-remove').onclick = () => setOffWheel(who.id, true);
+    $('r-reset').onclick = resetWheel;
     ddRender();
   });
   ddRender();
