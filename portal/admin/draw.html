@@ -19,6 +19,10 @@
      from wheel" (or the next spin). "Reset wheel" puts every off-wheel name back;
      drawn names never come back (draw_pick skips anyone in draw_picks).
      A real spin with names still off and no winner yet asks to confirm first.
+     Real spins (2026-10-13 evening): 3 slots in order Winner, Reserve 1, Reserve 2.
+     Each spin is recorded automatically as the next slot (draw_decide), the name
+     comes off the wheel 2.5 s later, and the slots show under the wheel. Void on
+     the card reopens that slot. After 3, Spin locks; "+ Spin an extra reserve".
      esc() every entrant-typed field before it touches innerHTML (house rule).
      Non-negotiables + the gotcha list: CRM Impactus\CLAUDE.md. Fresh-clone first.
 ════════════════════════════════════════════════════════════════════════ -->
@@ -115,6 +119,15 @@
   .st-winner { color:var(--amber); font-weight:800; } .st-reserve { color:#9fd3ff; font-weight:700; } .st-void { opacity:.55; text-decoration:line-through; } .st-pending { color:#fff; font-weight:700; }
   .dd-close { position:absolute; top:12px; right:14px; z-index:3; background:rgba(255,255,255,.12); color:#fff; border:none; border-radius:8px; padding:6px 12px; cursor:pointer; font:inherit; font-size:13px; }
   .dd-side input.in { background:#fff; }
+  .slots { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; justify-content:center; }
+  .slot { min-width:180px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:8px 16px; text-align:center; }
+  .slot .k { font-size:11px; text-transform:uppercase; letter-spacing:.6px; opacity:.7; }
+  .slot .n { font-size:19px; font-weight:800; margin-top:2px; }
+  .slot .n.wait { opacity:.4; font-weight:600; font-size:15px; }
+  .slot.win.filled { border-color:var(--amber); background:rgba(245,183,49,.16); } .slot.win.filled .n { color:var(--amber); }
+  .slot.res.filled { border-color:rgba(159,211,255,.5); } .slot.res.filled .n { color:#9fd3ff; }
+  .slot.next { border-style:dashed; border-color:rgba(255,255,255,.55); }
+  .slots-x { width:100%; text-align:center; font-size:12.5px; opacity:.7; }
   .practice-tag { display:inline-block; margin-top:6px; font-size:12px; font-weight:700; color:#9fd3ff; }
   .dd-row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
   .dd-row .btn { flex:1 1 auto; }
@@ -250,6 +263,7 @@
       <div class="dd-sub" id="dd-sub"></div>
       <div class="wheel-box"><div class="pointer"></div><canvas id="wheel"></canvas></div>
       <div class="ticker" id="ticker" aria-live="polite"></div>
+      <div class="slots" id="slots"></div>
     </div>
     <div class="dd-side">
       <h3>Pool</h3>
@@ -257,6 +271,7 @@
       <h3>Spin</h3>
       <button class="btn bigspin" id="spin" type="button">Spin the wheel</button>
       <div class="muted" id="spin-note" style="color:#c9d2e3;margin-top:8px"></div>
+      <button class="btn ghost sm hidden" id="extra" type="button" style="margin-top:8px">+ Spin an extra reserve</button>
       <div class="dd-row">
         <button class="btn ghost sm" id="shuffle" type="button" title="Mix up where the names sit on the wheel. Doesn't change anyone's chances.">⤮ Shuffle the wheel</button>
         <button class="btn ghost sm" id="practice" type="button">Practice spin (not recorded)</button>
@@ -631,7 +646,7 @@ function arrange(list) {
   return out;
 }
 function sizeWheel() {
-  const side = Math.max(260, Math.min(window.innerHeight - 230, (window.innerWidth > 900 ? window.innerWidth - 420 : window.innerWidth) - 40, 760));
+  const side = Math.max(260, Math.min(window.innerHeight - 320, (window.innerWidth > 900 ? window.innerWidth - 420 : window.innerWidth) - 40, 760));
   const dpr = window.devicePixelRatio || 1;
   cv.style.width = cv.style.height = side + 'px'; cv.width = cv.height = Math.round(side * dpr);
   cx.setTransform(dpr, 0, 0, dpr, 0, 0); cv._side = side; drawWheel();
@@ -711,13 +726,19 @@ function ddRender() {
     ${off.length ? `<div class="dd-stat"><span>Taken off the wheel</span><strong>${off.length}</strong></div>` : ''}
     <div class="dd-stat"><span>Entries close${ph === 'closed' ? 'd' : ''}</span><strong>${esc(fmtSG(D.close_at))}</strong></div>`;
   const pending = picks.find(p => p.status === 'pending');
-  const spinOk = ph === 'closed' && !pending && T > 0 && !spinning && !wlBusy;
+  const S = slotsState(), next = nextSlot();
+  const spinOk = ph === 'closed' && !pending && T > 0 && !spinning && !wlBusy && S.filled < 3;
   $('spin').disabled = !spinOk;
+  if (!spinning) $('spin').textContent = ph !== 'closed' ? 'Spin the wheel' : S.filled >= 3 ? 'Winner + 2 reserves drawn' : `Spin for ${next.status === 'winner' ? 'the Winner' : next.label}`;
+  $('extra').classList.toggle('hidden', !(ph === 'closed' && S.filled >= 3 && T > 0 && !pending));
+  $('extra').disabled = spinning || wlBusy;
+  renderSlots(S, next, ph === 'closed' && S.filled < 3 && !pending);
   const offNote = off.length ? ` Heads-up: ${off.length} ${off.length === 1 ? 'name is' : 'names are'} off the wheel. Reset wheel puts them back.` : '';
   $('spin-note').textContent = ph !== 'closed' ? 'Unlocks when entries close. Use a practice spin to rehearse.' + offNote
     : pending ? 'Decide the last spin first (winner, reserve or void).'
     : T === 0 ? (off.length ? 'Everyone left is off the wheel. Click Reset wheel to put them back.' : 'Nobody left in the pool.')
-    : picks.some(p => p.status === 'winner') ? 'Winner declared. Remove any names you don\'t want, then spin again to draw a reserve.'
+    : S.filled >= 3 ? 'Done: winner + 2 reserves. Each drawn name was taken off the wheel automatically.'
+    : S.filled ? `${S.win ? 'Winner' : 'Reserve'} drawn and taken off the wheel. Next: spin for ${next.status === 'winner' ? 'the Winner' : next.label}.` + offNote
     : offNote.trim();
   $('practice').disabled = spinning || T === 0;
   $('shuffle').disabled = spinning || !!pending || list.length < 2;
@@ -735,30 +756,36 @@ function renderResult(p) {
   const r = entries.find(e => e.id === p.entry_id) || {};
   const decided = p.status !== 'pending';
   $('dd-result').innerHTML = `<div class="result-card">
-    <div class="muted">${decided ? esc(p.status.toUpperCase()) : 'The wheel says…'}</div>
+    <div class="muted">${decided ? esc(labelOf(p).toUpperCase()) : 'The wheel says…'}</div>
     <div class="who">${esc(shortName(r.name))}</div>
     <div class="sub">${esc(mask(r.mobile))} · ${r.is_student ? 'Impactus student · ' + r.tickets + ' entries' : '1 entry'}</div>
     ${showContact ? `<div class="contact"><strong>${esc(r.name)}</strong><br><a class="wa-num" href="https://wa.me/${esc(r.mobile || '')}" target="_blank" rel="noopener" title="Open WhatsApp chat">${esc(fmtMobile(r.mobile))}</a>${r.student_email ? '<br>' + esc(r.student_email) : ''}</div>` : ''}
     <button class="btn ghost sm" id="r-contact" style="margin-top:8px">${showContact ? 'Hide' : 'Show'} contact details</button>
-    ${decided || D.community_required === false ? '' : `<div class="muted" style="margin-top:10px;color:#7a5a00">Before declaring: check this number is in the Impactus WhatsApp community. If not, void with reason "not in community" and spin again.</div>`}
-    ${decided ? resultButtons() : `<div style="display:grid;gap:8px;margin-top:12px">
+    ${p.status === 'void' || D.community_required === false ? '' : `<div class="muted" style="margin-top:10px;color:#7a5a00">Check this number is in the Impactus WhatsApp community. If not (or they can't be reached), void it and spin again for this slot.</div>`}
+    ${decided ? (p.status === 'void' ? '' : `<div style="display:flex;gap:6px;margin-top:10px"><input class="in" id="r-note" placeholder="Reason (e.g. not in community)"><button class="btn red" id="r-void">Void</button></div>`) : `<div style="display:grid;gap:8px;margin-top:12px">
       <button class="btn green" id="r-win" ${picks.some(x => x.status === 'winner') ? 'disabled title="Already have a winner"' : ''}>Declare winner</button>
       <button class="btn dark" id="r-res">Make reserve</button>
       <div style="display:flex;gap:6px"><input class="in" id="r-note" placeholder="Reason to void (e.g. no reply)"><button class="btn red" id="r-void">Void</button></div>
     </div>`}</div>`;
   $('r-contact').onclick = () => { showContact = !showContact; renderResult(p); };
   if (decided) {
-    // drawn names are already out of the server pool; this just takes them off the wheel on screen
-    $('r-remove').onclick = releaseHeld;
-    $('r-reset').onclick = resetWheel;
+    if ($('r-void')) $('r-void').onclick = async () => {
+      if (spinning) return;
+      const { error } = await sb.rpc('draw_decide', { p_pick: p.id, p_status: 'void', p_note: $('r-note').value.trim() || 'voided' });
+      if (error) { alert(error.message); return; }
+      hold = false; await loadEntries(); await refreshDraw();
+      const mine = picks.find(x => x.id === p.id); const r2 = entries.find(e => e.id === p.entry_id) || {};
+      $('ticker').textContent = `Voided: ${shortName(r2.name)}`;
+      ddRender(); if (mine) renderResult(mine);
+    };
   } else {
     const go = async (status) => {
       const note = status === 'void' ? ($('r-note').value.trim() || 'voided') : null;
       const { error } = await sb.rpc('draw_decide', { p_pick: p.id, p_status: status, p_note: note });
       if (error) { alert(error.message); return; }
-      // keep the wheel and the card on this person until Andrew clicks "Remove name" (or spins again)
       hold = true; await loadEntries(); await refreshDraw();
       const mine = picks.find(x => x.id === p.id); ddRender(); if (mine) renderResult(mine);
+      autoRemove(p.id);
     };
     if ($('r-win')) $('r-win').onclick = () => go('winner');
     $('r-res').onclick = () => go('reserve'); $('r-void').onclick = () => go('void');
@@ -768,6 +795,39 @@ const resultButtons = () => `<div class="dd-row" style="margin-top:12px">
     <button class="btn dark" type="button" id="r-remove">Remove name from wheel</button>
     <button class="btn ghost" type="button" id="r-reset" title="Put back every name you took off. Names already drawn stay off: they're in the draw log.">↺ Reset wheel</button>
   </div>`;
+// ---- the 3 real spins: Winner, Reserve 1, Reserve 2 (voids don't use up a slot)
+function slotsState() {
+  const win = picks.find(p => p.status === 'winner') || null;
+  const res = picks.filter(p => p.status === 'reserve');            // picks are ordered by picked_at
+  return { win, res, voids: picks.filter(p => p.status === 'void'), filled: (win ? 1 : 0) + Math.min(res.length, 2) };
+}
+function nextSlot() {
+  const { win, res } = slotsState();
+  if (!win) return { status: 'winner', label: 'Winner' };
+  return { status: 'reserve', label: res.length < 2 ? `Reserve ${res.length + 1}` : `Extra reserve ${res.length - 1}` };
+}
+function labelOf(p) {
+  if (p.status === 'winner') return 'Winner';
+  if (p.status === 'reserve') { const i = picks.filter(x => x.status === 'reserve').findIndex(x => x.id === p.id); return i < 2 ? `Reserve ${i + 1}` : `Extra reserve ${i - 1}`; }
+  return p.status === 'void' ? 'Voided' : p.status;
+}
+function renderSlots(S, next, showNext) {
+  const byId = Object.fromEntries(entries.map(r => [r.id, r]));
+  const box = (cls, k, pk, isNext) => `<div class="slot ${cls}${pk ? ' filled' : ''}${isNext ? ' next' : ''}"><div class="k">${k}</div>${pk ? `<div class="n">${esc(shortName((byId[pk.entry_id] || {}).name))}</div>` : `<div class="n wait">${isNext ? 'Next spin' : '—'}</div>`}</div>`;
+  const nx = (lbl) => showNext && next.label === lbl;
+  const extra = S.res.length > 2 ? S.res.slice(2).map((p, i) => `Extra reserve ${i + 1}: ${shortName((byId[p.entry_id] || {}).name)}`) : [];
+  const voids = S.voids.map(p => `${shortName((byId[p.entry_id] || {}).name)} (voided${p.note ? ': ' + p.note : ''})`);
+  $('slots').innerHTML = box('win', 'Winner', S.win, nx('Winner')) + box('res', 'Reserve 1', S.res[0], nx('Reserve 1')) + box('res', 'Reserve 2', S.res[1], nx('Reserve 2')) +
+    (extra.length || voids.length ? `<div class="slots-x">${esc([...extra, ...voids].join(' · '))}</div>` : '');
+}
+// after a result is recorded, keep it on screen for a moment, then take the name off the wheel
+function autoRemove(pickId) {
+  setTimeout(() => {
+    if (spinning || !hold || !lastPick || lastPick.pick_id !== pickId) return;
+    hold = false; ddRender();
+  }, 2500);
+}
+
 // clear the result card and let the wheel rebuild from the current pool
 function releaseHeld() {
   if (spinning) return;
@@ -842,8 +902,13 @@ async function refreshDraw() {
   const { data } = await sb.from('draws').select('*').eq('id', D.id).single();
   if (data) { D = data; renderDraw(); renderWinnerBox(); }
 }
+let extraArmed = false;
+$('extra').onclick = () => { extraArmed = true; $('spin').disabled = false; $('spin').click(); };
 $('spin').onclick = async () => {
   if (spinning) return;                       // module flag (house rule), not button.disabled
+  if (slotsState().filled >= 3 && !extraArmed) return;
+  extraArmed = false;
+  const slot = nextSlot();                    // Winner, then Reserve 1, Reserve 2 (voids reopen their slot)
   // safety net: names left off the wheel from rehearsing would otherwise miss the main draw
   const off = offWheel();
   if (off.length && !picks.some(p => p.status === 'winner')) {
@@ -860,9 +925,15 @@ $('spin').onclick = async () => {
   if (!slices.some(r => r.id === data.entry_id)) { slices = arrange(pool()); slicesSig = ''; }
   spinTo(data.entry_id, async () => {
     hold = true;
-    const { data: p } = await sb.from('draw_picks').select('*').eq('draw_id', D.id).order('picked_at');
-    picks = p || []; const mine = picks.find(x => x.id === data.pick_id);
+    // record it straight away as this slot (Andrew can still Void it from the card)
+    const { error: de } = await sb.rpc('draw_decide', { p_pick: data.pick_id, p_status: slot.status, p_note: null });
+    await loadEntries(); if (!de) await refreshDraw();
+    const mine = picks.find(x => x.id === data.pick_id);
+    if (de) { alert('Could not record this spin automatically: ' + de.message + '\nChoose on the card instead.'); ddRender(); if (mine) renderResult(mine); return; }
+    const r = entries.find(e => e.id === data.entry_id) || {};
+    $('ticker').textContent = `${slot.label}: ${shortName(r.name)}`;
     ddRender(); if (mine) renderResult(mine);
+    autoRemove(data.pick_id);
   });
   ddRender();   // greys out Shuffle / Remove while the wheel turns
 };
