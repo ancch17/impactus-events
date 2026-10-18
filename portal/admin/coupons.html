@@ -49,6 +49,7 @@
   tr:last-child td { border-bottom:none; }
   select.alsel { width:auto; max-width:260px; padding:5px 8px; font-size:12.5px; border-radius:9px; margin-top:6px; display:block; }
   .pill.alumni { background:#fff4d6; color:#8a5a00; white-space:nowrap; }
+  .pill.newonly { background:#e3f4ea; color:#14774a; white-space:nowrap; }
   footer { text-align:center; padding:26px 0 34px; }
 </style>
 </head>
@@ -87,7 +88,7 @@
 
     <div class="card">
       <h2>Discounts &amp; free passes</h2>
-      <p class="muted" style="margin-top:-6px;margin-bottom:12px">A code students type at checkout. Points come off the class fee first; a % code then discounts the nett balance (S$-off and free passes still come off the full fee, and a code left with nothing to discount is not consumed). Rebate is always earned on cash actually paid — a free pass earns nothing. Tick <strong>Reusable</strong> to let a student use the same code on more than one course; otherwise every code is one use per student. Corporate “as quoted” classes (Claude Corporate Full Day and any corporate course added later) only accept their own company code — a code scoped to that course or family — unless it is marked <strong>🏢 Corporate</strong>, which lets an any-course code open those classes too. Pick <strong>🎓 Alumni only</strong> to limit a code to students who have already done that course (a confirmed seat on a past class, not marked a no-show) — anyone else is told at checkout that the code is for alumni and pointed to a new-student code.</p>
+      <p class="muted" style="margin-top:-6px;margin-bottom:12px">A code students type at checkout. Points come off the class fee first; a % code then discounts the nett balance (S$-off and free passes still come off the full fee, and a code left with nothing to discount is not consumed). Rebate is always earned on cash actually paid — a free pass earns nothing. Tick <strong>Reusable</strong> to let a student use the same code on more than one course; otherwise every code is one use per student. Corporate “as quoted” classes (Claude Corporate Full Day and any corporate course added later) only accept their own company code — a code scoped to that course or family — unless it is marked <strong>🏢 Corporate</strong>, which lets an any-course code open those classes too. Use <strong>Who can use it</strong> to limit a code: <strong>🎓 alumni</strong> of a course (a confirmed seat on a past class, not marked a no-show), or <strong>🆕 new sign-ups only</strong> (an Impactus account created after the code was set, whose mobile isn't already on file — anyone already in your records is refused). Everyone else is told why at checkout.</p>
       <div class="formgrid">
         <div><label>Code</label><input id="c-code" placeholder="e.g. LAUNCH20" style="text-transform:uppercase"></div>
         <div><label>Type</label><select id="c-kind">
@@ -101,7 +102,7 @@
         <div><label>Max uses (blank = unlimited)</label><input type="number" id="c-max" min="1" step="1" placeholder="e.g. 50"></div>
         <div><label>Expires (optional)</label><input type="date" id="c-exp"></div>
         <div><label>Note (internal only)</label><input id="c-note" placeholder="e.g. July WhatsApp promo"></div>
-        <div><label>🎓 Alumni only (optional)</label><select id="c-alumni"></select></div>
+        <div><label>Who can use it</label><select id="c-alumni"></select></div>
       </div>
       <label style="display:flex;align-items:center;gap:9px;margin-top:14px;cursor:pointer;font-size:13.5px;color:var(--ink);font-weight:600">
         <input type="checkbox" id="c-reuse" style="width:auto;margin:0;flex:none">
@@ -216,6 +217,7 @@ function alumniOf(c) {
 function renderCouponForm() {
   const keep = $('c-alumni').value;
   $('c-alumni').innerHTML = '<option value="">Anyone can use it</option>' +
+    '<option value="new">🆕 New sign-ups only</option>' +
     alumniOptions().map(o => `<option value="${o.key}">🎓 ${esc(o.label)}</option>`).join('');
   $('c-alumni').value = keep;
   $('c-family').innerHTML = '<option value="">Any course</option>' +
@@ -262,11 +264,14 @@ $('c-save').onclick = async () => {
     corporate_ok: $('c-corp').checked && !$('c-family').value && !$('c-course').value,
   };
   const al = alumniOptions().find(o => o.key === $('c-alumni').value);
+  const newOnly = $('c-alumni').value === 'new';
   rec.alumni_of_family_ids = al ? al.ids : null;
   rec.alumni_label = al ? al.label : null;
+  // 🆕 New sign-ups only: "new" = an Impactus account created from this moment on.
+  rec.new_students_since = newOnly ? new Date().toISOString() : null;
   const { error } = await sb.from('coupons').insert(rec);
   if (error) return msg('c-msg', 'err', /duplicate|unique/i.test(error.message) ? 'That code already exists — pick another.' : error.message);
-  msg('c-msg', 'ok', `Code ${code} created and live.${rec.reusable_per_student ? ' Reusable — each student can use it on more than one course.' : ''}${rec.corporate_ok ? ' 🏢 Also opens corporate “as quoted” classes.' : ''}${al ? ` 🎓 Only ${al.label} can use it.` : ''}`);
+  msg('c-msg', 'ok', `Code ${code} created and live.${rec.reusable_per_student ? ' Reusable — each student can use it on more than one course.' : ''}${rec.corporate_ok ? ' 🏢 Also opens corporate “as quoted” classes.' : ''}${al ? ` 🎓 Only ${al.label} can use it.` : ''}${newOnly ? ' 🆕 Only people who sign up from now on can use it.' : ''}`);
   ['c-code', 'c-value', 'c-max', 'c-exp', 'c-note', 'c-alumni'].forEach(i => $(i).value = '');
   $('c-reuse').checked = false;
   $('c-corp').checked = false;
@@ -316,10 +321,14 @@ function renderCoupons() {
       // 🎓 Alumni only: badge under the code, and a picker under the buttons that both shows and
       // changes who may use it. A hand-set family list that matches no choice is shown, not lost.
       const al = alumniOf(c);
-      const alumniBadge = al
-        ? `<div style="margin-top:3px"><span class="pill alumni">🎓 ${esc(al.label)} only</span></div>` : '';
+      const isNew = !!c.new_students_since;
+      const sinceTxt = isNew ? new Date(c.new_students_since).toLocaleString('en-SG', { timeZone: 'Asia/Singapore', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+      const alumniBadge = (al
+        ? `<div style="margin-top:3px"><span class="pill alumni">🎓 ${esc(al.label)} only</span></div>` : '') +
+        (isNew ? `<div style="margin-top:3px"><span class="pill newonly" title="Only accounts created from ${esc(sinceTxt)} whose mobile isn't already on file">🆕 New sign-ups only · from ${esc(sinceTxt)}</span></div>` : '');
       const alumniSel = `<select class="alsel" onchange="setAlumni('${c.id}','${c.code}',this)" title="Who may use this code. Alumni = a confirmed seat on a past class of that course, not a no-show.">` +
         `<option value="">Anyone can use it</option>` +
+        `<option value="new"${isNew && !al ? ' selected' : ''}>🆕 New sign-ups only</option>` +
         alumniOptions().map(o => `<option value="${o.key}"${al && al.key === o.key ? ' selected' : ''}>🎓 ${esc(o.label)}</option>`).join('') +
         (al && al.custom ? `<option value="__custom" selected>🎓 ${esc(al.label)}</option>` : '') +
         `</select>`;
@@ -358,14 +367,17 @@ window.toggleCorp = async function (id, cur) {
 window.setAlumni = async function (id, code, sel) {
   if (sel.value === '__custom') return;
   const al = alumniOptions().find(o => o.key === sel.value) || null;
+  const newOnly = sel.value === 'new';
   const q = al ? `Make ${code} usable only by ${al.label}?\n\nEveryone else will be told at checkout that the code is for alumni.`
-               : `Open ${code} to anyone?\n\nNew students will be able to use it too.`;
+        : newOnly ? `Make ${code} usable only by people who sign up from now on?\n\nAnyone already in your records — students, past sign-ups, lucky-draw entrants (matched by mobile) — will be refused.`
+               : `Open ${code} to anyone?\n\nExisting and new students will all be able to use it.`;
   if (!confirm(q)) { renderCoupons(); return; }
   const { error } = await sb.from('coupons')
-    .update({ alumni_of_family_ids: al ? al.ids : null, alumni_label: al ? al.label : null }).eq('id', id);
+    .update({ alumni_of_family_ids: al ? al.ids : null, alumni_label: al ? al.label : null,
+              new_students_since: newOnly ? new Date().toISOString() : null }).eq('id', id);
   if (error) { alert(error.message); renderCoupons(); return; }
   await loadAll();
-  msg('c-msg', 'ok', al ? `${code}: only ${al.label} can use it now.` : `${code}: open to anyone now.`);
+  msg('c-msg', 'ok', al ? `${code}: only ${al.label} can use it now.` : newOnly ? `${code}: only people who sign up from now on can use it.` : `${code}: open to anyone now.`);
 };
 
 // Deleting a code only ever applies to codes NO booking row points at. bookings.coupon_id has
