@@ -1185,7 +1185,9 @@ function refundPayload(bid, dry) {
     release_seat: $('rfseat-' + bid).value === 'release',
     reason: $('rfwhy-' + bid).value || null,
     dry_run: !!dry,
-    email: (!dry && mail) ? { send: true, subject: $('rfsub-' + bid).value, body: $('rfbody-' + bid).value } : null,
+    // Sent on the dry run too: refund-booking never emails on a dry run, it only returns
+    // email_preview — built by the same code as the real send — so Preview shows the exact email.
+    email: mail ? { send: true, subject: $('rfsub-' + bid).value, body: $('rfbody-' + bid).value } : null,
   };
 }
 window.previewRefund = async function (bid) {
@@ -1204,7 +1206,20 @@ window.previewRefund = async function (bid) {
   if (p.coupon_freed) bits.push(`Coupon <strong>${esc(p.coupon_freed)}</strong> freed for reuse`);
   bits.push(`Their balance: ${p.balance_before} → <strong>${p.balance_after}</strong> pts`);
   if (p.balance_goes_negative) bits.push('<span style="color:var(--red)"><strong>Heads up:</strong> that puts them below zero — they have already spent points earned on this seat.</span>');
-  box.innerHTML = 'Nothing has changed yet.<br>• ' + bits.join('<br>• ');
+  let mailHtml = '';
+  const ep = out.email_preview;
+  if (ep) {
+    mailHtml = `<div style="margin-top:9px;font-weight:700;color:#1a2233">The email, exactly as it will be sent:</div>
+      <div style="margin-top:4px;padding:9px 10px;background:#fff;border:1px solid #e6e8ee;border-radius:8px;color:#1a2233;font-size:12.5px;line-height:1.5">
+        <div><strong>To:</strong> ${esc(ep.to)}${ep.cc ? `<br><strong>Cc:</strong> ${esc(ep.cc)}` : ''}<br><strong>Reply-to:</strong> ${esc(ep.reply_to)}<br><strong>Subject:</strong> ${esc(ep.subject)}</div>
+        <hr style="border:none;border-top:1px solid #e6e8ee;margin:7px 0">
+        <div style="white-space:pre-wrap">${esc(ep.text)}</div>
+      </div>
+      <div style="margin-top:3px">Sent with the Impactus logo on top and andrew@impactuslearning.com in the footer.</div>`;
+  } else if (!$('rfmail-' + bid).checked) {
+    mailHtml = '<div style="margin-top:7px">No email will be sent. Tick the box above to email them.</div>';
+  }
+  box.innerHTML = 'Nothing has changed yet.<br>• ' + bits.join('<br>• ') + mailHtml;
 };
 // refundBusy is a module flag, not button.disabled — a re-render re-enables the button and a
 // fast second click beats the repaint (the 2026-07-28 double-submit lesson). The edge function
