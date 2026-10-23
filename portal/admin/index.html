@@ -405,7 +405,9 @@ const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
 
 const $ = (id) => document.getElementById(id);
-const fmt$ = (n) => 'S$' + Number(n).toLocaleString('en-SG', { maximumFractionDigits: 0 });
+// Whole dollars stay whole (S$218); anything with cents shows both digits (S$43.60, S$174.40).
+// Was maximumFractionDigits:0, which showed a S$43.60 refund as "S$44" (Andrew, 2026-10-23).
+const fmt$ = (n) => { const v = Math.round((Number(n) || 0) * 100) / 100; return 'S$' + v.toLocaleString('en-SG', Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 // Every mobile shown in the admin opens a WhatsApp chat. wa.me wants bare digits (no "+", no
 // spaces) — stored shape is "+65 9123 4567". A bare 8-digit SG number gets 65 in front, same
