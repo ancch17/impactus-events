@@ -1163,8 +1163,8 @@ function refundForm(b, s) {
       <label>Opening line ({first} = their name). The refund details are added automatically.</label>
       <textarea id="rfbody-${b.id}" rows="2">Hi {first},</textarea>
     </div>
-    <label>Reason (internal note, optional)</label>
-    <input id="rfwhy-${b.id}" placeholder="e.g. medical, requested by student">
+    <label>Reason (optional) — saved on the booking, and shown to them in the email if you send one</label>
+    <input id="rfwhy-${b.id}" placeholder="e.g. alumni discount code not applied at booking">
     <div class="rfrow">
       <button class="btn ghost sm" onclick="previewRefund('${b.id}')">Preview</button>
       <button class="btn sm" style="background:var(--red);color:#fff" onclick="doRefund('${b.id}')">Refund</button>
