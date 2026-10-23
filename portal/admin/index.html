@@ -1163,8 +1163,12 @@ function refundForm(b, s) {
       <label>Opening line ({first} = their name). The refund details are added automatically.</label>
       <textarea id="rfbody-${b.id}" rows="2">Hi {first},</textarea>
     </div>
-    <label>Reason (optional) — saved on the booking, and shown to them in the email if you send one</label>
-    <input id="rfwhy-${b.id}" placeholder="e.g. alumni discount code not applied at booking">
+    <label>Reason (optional) — your own words; saved on the booking. If you email them, Claude writes it up properly for the email.</label>
+    <input id="rfwhy-${b.id}" placeholder="e.g. forgot to use alumni code 20%">
+    <div id="rfwhyl-box-${b.id}" class="hidden">
+      <label>How the reason reads in the email (edit if you like, then Preview again)</label>
+      <textarea id="rfwhyl-${b.id}" rows="3"></textarea>
+    </div>
     <div class="rfrow">
       <button class="btn ghost sm" onclick="previewRefund('${b.id}')">Preview</button>
       <button class="btn sm" style="background:var(--red);color:#fff" onclick="doRefund('${b.id}')">Refund</button>
@@ -1177,8 +1181,17 @@ window.showRefund = function (bid) {
   const cb = $('rfmail-' + bid);
   if (cb) cb.onchange = () => $('rfmailbox-' + bid).classList.toggle('hidden', !cb.checked);
 };
+// The polished reason sentence belongs to the raw Reason it was written from. Change the raw
+// Reason and the sentence is thrown away, so the next Preview asks Claude for a fresh one.
+const rfPolishedFor = {};
+function reasonLineFor(bid) {
+  const raw = ($('rfwhy-' + bid).value || '').trim();
+  const line = ($('rfwhyl-' + bid).value || '').trim();
+  return (raw && rfPolishedFor[bid] === raw && line) ? line : null;
+}
 function refundPayload(bid, dry) {
   const mail = $('rfmail-' + bid).checked;
+  const line = reasonLineFor(bid);
   return {
     booking_id: bid,
     amount: Number($('rfamt-' + bid).value),
@@ -1187,15 +1200,27 @@ function refundPayload(bid, dry) {
     dry_run: !!dry,
     // Sent on the dry run too: refund-booking never emails on a dry run, it only returns
     // email_preview — built by the same code as the real send — so Preview shows the exact email.
-    email: mail ? { send: true, subject: $('rfsub-' + bid).value, body: $('rfbody-' + bid).value } : null,
+    // reason_line = the approved sentence; without it, Preview asks Claude to write one.
+    email: mail ? { send: true, subject: $('rfsub-' + bid).value, body: $('rfbody-' + bid).value, ...(line ? { reason_line: line } : {}) } : null,
   };
 }
 window.previewRefund = async function (bid) {
   const box = $('rfmsg-' + bid);
-  box.textContent = 'Checking…';
+  const rawWhy = ($('rfwhy-' + bid).value || '').trim();
+  box.textContent = ($('rfmail-' + bid).checked && rawWhy && !reasonLineFor(bid)) ? 'Checking… (Claude is writing up the reason)' : 'Checking…';
   const { ok, out } = await callFn('refund-booking', refundPayload(bid, true));
   if (!ok) { box.innerHTML = `<span style="color:var(--red)">${esc(out.error || 'Preview failed')}</span>`; return; }
   const p = out.plan;
+  const epr = out.email_preview;
+  if (epr && rawWhy) {
+    // Show the sentence that will go out, editable. Keep the admin's own edit if they sent one.
+    if (epr.reason_line && epr.reason_polished) $('rfwhyl-' + bid).value = epr.reason_line;
+    rfPolishedFor[bid] = rawWhy;
+    $('rfwhyl-box-' + bid).classList.remove('hidden');
+  } else if (!rawWhy) {
+    $('rfwhyl-' + bid).value = ''; delete rfPolishedFor[bid];
+    $('rfwhyl-box-' + bid).classList.add('hidden');
+  }
   const bits = [
     `<strong>${fmt$(p.amount)}</strong> back to ${p.stripe_ready ? 'their original payment method' : '<span style="color:var(--red)">— no Stripe payment on file, you\'ll have to send this one by hand</span>'}`,
     `Paid on this seat goes ${fmt$(p.cash_before)} → <strong>${fmt$(p.cash_after)}</strong>`,
@@ -1208,8 +1233,11 @@ window.previewRefund = async function (bid) {
   if (p.balance_goes_negative) bits.push('<span style="color:var(--red)"><strong>Heads up:</strong> that puts them below zero — they have already spent points earned on this seat.</span>');
   let mailHtml = '';
   const ep = out.email_preview;
+  if (ep && ep.reason_error) {
+    mailHtml += `<div style="margin-top:7px;color:var(--red)">${esc(ep.reason_error)}</div>`;
+  }
   if (ep) {
-    mailHtml = `<div style="margin-top:9px;font-weight:700;color:#1a2233">The email, exactly as it will be sent:</div>
+    mailHtml += `<div style="margin-top:9px;font-weight:700;color:#1a2233">The email, exactly as it will be sent:</div>
       <div style="margin-top:4px;padding:9px 10px;background:#fff;border:1px solid #e6e8ee;border-radius:8px;color:#1a2233;font-size:12.5px;line-height:1.5">
         <div><strong>To:</strong> ${esc(ep.to)}${ep.cc ? `<br><strong>Cc:</strong> ${esc(ep.cc)}` : ''}<br><strong>Reply-to:</strong> ${esc(ep.reply_to)}<br><strong>Subject:</strong> ${esc(ep.subject)}</div>
         <hr style="border:none;border-top:1px solid #e6e8ee;margin:7px 0">
@@ -1233,6 +1261,12 @@ window.doRefund = async function (bid) {
   const release = $('rfseat-' + bid).value === 'release';
   const box = $('rfmsg-' + bid);
   if (!(amt > 0)) { box.innerHTML = '<span style="color:var(--red)">Enter an amount.</span>'; return; }
+  // With an email and a Reason, the reason sentence must have been previewed first, so what
+  // goes out is exactly what was shown (a fresh Claude write-up at send time could differ).
+  if ($('rfmail-' + bid).checked && ($('rfwhy-' + bid).value || '').trim() && !reasonLineFor(bid)) {
+    box.innerHTML = '<span style="color:var(--red)">Press <strong>Preview</strong> first — Claude writes the reason up for the email and you see exactly what they\'ll get. Nothing has been refunded.</span>';
+    return;
+  }
   if (!confirm(`Refund ${fmt$(amt)} to ${s.name}?\n\nThis sends real money back through Stripe and ${release ? 'releases their seat' : 'leaves their seat booked'}. It can't be undone from here.`)) return;
   refundBusy = true;
   box.textContent = 'Refunding…';
