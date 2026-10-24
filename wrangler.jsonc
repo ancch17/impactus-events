@@ -1,0 +1,14 @@
+// Cloudflare Workers static-assets config for events.impactuslearning.com.
+// The whole repo root is the site. Files that must never be served
+// (.git, this config, local secrets) are listed in .assetsignore.
+// Clean URLs: /portal/app serves portal/app.html, /copilot/ serves
+// copilot/index.html (html_handling "auto-trailing-slash", the default).
+{
+  "name": "impactus-events",
+  "compatibility_date": "2026-10-24",
+  "assets": {
+    "directory": "./",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  }
+}
