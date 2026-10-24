@@ -150,6 +150,20 @@
   .pay-summary .ps-min { font-size:12.5px; line-height:1.45; color:#5b6472; margin-top:8px;
                          padding-top:8px; border-top:1px dashed var(--line); }
   .online-tag { background:#eef1f6; color:#5b6472; font-size:9.5px; font-weight:800; letter-spacing:.4px; padding:1px 5px; border-radius:4px; }
+  /* Full-day bundle (2026-10-24): "Full day" vs "This class only" on a bundled date. */
+  .bundle-pick { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+  .bundle-pick .bp { text-align:left; border:1.5px solid var(--line); border-radius:10px; background:#fff;
+                     padding:10px 12px; cursor:pointer; font:inherit; color:inherit; min-width:0; }
+  .bundle-pick .bp.on { border-color:#101a2d; box-shadow:0 0 0 2px rgba(16,26,45,.08); background:#fbfaf6; }
+  .bundle-pick .bp-k { font-size:13.5px; font-weight:700; }
+  .bundle-pick .bp-p { font-size:17px; font-weight:800; margin-top:2px; }
+  .bundle-pick .bp-s { font-size:12px; color:#5b6472; margin-top:2px; line-height:1.4; }
+  .bundle-pick .bp-save { display:inline-block; background:#e3f4ea; color:#1c7a4a; font-size:11px; font-weight:700;
+                          padding:1px 8px; border-radius:20px; margin-left:4px; vertical-align:2px; }
+  .bundle-chip { font-size:11.5px; font-weight:700; color:#1c7a4a; background:#e3f4ea; padding:2px 9px;
+                 border-radius:20px; margin-top:5px; display:inline-block; white-space:nowrap; }
+  .pay-summary .ps-line { font-size:13.5px; margin-top:3px; }
+  @media (max-width:420px) { .bundle-pick { grid-template-columns:1fr; } }
   .calnav { display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:8px; font-size:14px; }
   .calnav button { background:#fff; border:1px solid var(--line); border-radius:8px; width:30px; height:30px; font-size:16px; line-height:1; cursor:pointer; color:#101a2d; padding:0; }
   table.scal { width:100%; border-collapse:collapse; table-layout:fixed; }
@@ -450,13 +464,16 @@
       </div>
       <!-- Restates exactly what's being booked, so the student never pays without seeing it. -->
       <div class="pay-summary" id="paysummary"></div>
+      <!-- Full-day bundle choice — only shown on a date sold as a full day (course_bundles). -->
+      <div class="bundle-pick hidden" id="bundlepick"></div>
       <div class="reflink" style="margin-top:14px">
         <input type="text" id="couponcode" placeholder="Discount code (optional)" style="text-transform:uppercase">
         <button class="btn" id="couponbtn">Apply</button>
       </div>
       <div class="msg" id="couponmsg" style="margin-top:8px"></div>
       <div class="breakdown">
-        <div class="row"><span>Class price</span><span id="bd-price"></span></div>
+        <div class="row"><span id="bd-price-label">Class price</span><span id="bd-price"></span></div>
+        <div class="row hidden" id="bd-bundle-row"><span id="bd-bundle-label">Full-day saving</span><span class="pts" id="bd-bundle">− S$0</span></div>
         <div class="row hidden" id="bd-disc-row"><span id="bd-disc-label">Discount</span><span class="pts" id="bd-disc">− S$0</span></div>
         <div class="row hidden" id="bd-pts-row"><span id="bd-pts-label">Your points applied</span><span class="pts" id="bd-pts">− S$0</span></div>
         <div class="row total"><span>You pay</span><span id="bd-total"></span></div>
@@ -610,6 +627,11 @@ let student = null, balance = 0, courses = [], selCourse = null, myEmail = '';
 // Seats reserved but unpaid. They ring-fence points, so the portal must price against
 // them — quoting the raw balance is what made the page and Stripe disagree.
 let holds = [], holdTick = null;
+// Full-day bundles (2026-10-24): same-day pairs sold as one booking, from the bundle_offers
+// view (course_bundles). bundleOpt = the full-day option for the class being booked, if any;
+// bundleSel = that option when the student has chosen "Full day", else null.
+let bundleOffers = [], bundleOpt = null, bundleSel = null;
+const r2 = (n) => Math.round(Number(n) * 100) / 100;
 
 // Surface auth errors from the magic link (expired / already used)
 const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
@@ -868,7 +890,11 @@ async function showApp(session) {
 // A seat is held from the moment checkout starts until the student pays, releases it,
 // or the 30-minute clock runs out (Stripe expires its session and the sweeper tidies up).
 async function loadHolds() {
-  const { data } = await sb.from('student_holds').select('*').order('created_at');
+  const [{ data }, { data: offers }] = await Promise.all([
+    sb.from('student_holds').select('*').order('created_at'),
+    sb.from('bundle_offers').select('*'),
+  ]);
+  bundleOffers = offers || [];
   const now = Date.now();
   holds = (data || []).filter(h => !h.hold_expires_at || new Date(h.hold_expires_at).getTime() > now);
   renderHolds();
@@ -877,10 +903,42 @@ async function loadHolds() {
 // Points the student can actually spend right now. Mirrors the server exactly: a seat
 // held for THIS class is about to be replaced by the new checkout, so its points are
 // spendable again — any other hold's points are not.
+// A full day passes BOTH of its class ids: the server retires holds on both before pricing.
 function spendablePoints(forCourseId) {
+  const ids = Array.isArray(forCourseId) ? forCourseId : [forCourseId];
   const locked = holds.reduce((s, h) =>
-    s + (h.course_id === forCourseId ? 0 : (Number(h.points_redeemed) || 0)), 0);
+    s + (ids.includes(h.course_id) ? 0 : (Number(h.points_redeemed) || 0)), 0);
   return Math.max(0, balance - locked);
+}
+
+// The two seats of a held full day (same bundle_id) show as ONE item: one total, one Pay,
+// one Release (release-hold drops both). Single holds pass through unchanged.
+function holdItems() {
+  const items = [], byBundle = {};
+  holds.forEach(h => {
+    if (!h.bundle_id) { items.push({ ...h, ids: [h.id] }); return; }
+    let it = byBundle[h.bundle_id];
+    if (!it) {
+      it = byBundle[h.bundle_id] = { ...h, ids: [], seats: [], price_sgd: 0, discount_sgd: 0, points_redeemed: 0, amount_due: 0 };
+      items.push(it);
+    }
+    it.ids.push(h.id); it.seats.push(h);
+    it.price_sgd = r2(it.price_sgd + Number(h.price_sgd || 0));
+    it.discount_sgd = r2(it.discount_sgd + Number(h.discount_sgd || 0));
+    it.points_redeemed += Number(h.points_redeemed || 0);
+    it.amount_due = r2(it.amount_due + Number(h.amount_due || 0));
+    if (h.coupon_code) it.coupon_code = h.coupon_code;
+  });
+  items.forEach(it => {
+    if (!it.seats) return;
+    const o = bundleOffers.find(b => it.seats.some(s => s.family_slug === b.first_slug) && it.seats.some(s => s.family_slug === b.second_slug));
+    it.seats.sort((a, b) => slotOf(a.session_time) - slotOf(b.session_time));
+    const lead = (o && it.seats.find(s => s.family_slug === o.first_slug)) || it.seats[0];
+    it.id = lead.id; it.course_id = lead.course_id; it.family_slug = lead.family_slug;
+    it.bundleName = o ? o.name : 'Full day';
+    it.session_time = it.seats.map(s => s.session_time).filter(Boolean).join(' + ');
+  });
+  return items;
 }
 
 function countdownText(iso) {
@@ -898,7 +956,7 @@ function renderHolds() {
     return;
   }
   card.classList.remove('hidden');
-  $('holdlist').innerHTML = holds.map(h => {
+  $('holdlist').innerHTML = holdItems().map(h => {
     const L = lvlOf(h.family_slug);
     const bits = [];
     if (Number(h.discount_sgd) > 0) bits.push(`${h.coupon_code ? 'Code ' + esc(h.coupon_code) : 'Discount'} − ${fmt$(h.discount_sgd)}`);
@@ -906,7 +964,7 @@ function renderHolds() {
     return `<div class="hold" data-hold="${h.id}">
       <div class="hold-top">
         <div style="flex:1;min-width:180px">
-          <div class="hold-title">${esc(L.title || h.course)}</div>
+          <div class="hold-title">${h.seats ? esc(h.bundleName) + ' — both classes' : esc(L.title || h.course)}</div>
           <div class="hold-when">${fdate(h.cohort_date)}${h.session_time ? ' · ' + esc(h.session_time) : ''}</div>
         </div>
         <div style="text-align:right">
@@ -914,7 +972,7 @@ function renderHolds() {
           <div class="hold-when">still to pay</div>
         </div>
       </div>
-      ${bits.length ? `<div class="hold-lines">${fmt$(h.price_sgd)} class fee${bits.map(b => '<br>' + b).join('')}</div>` : ''}
+      ${bits.length ? `<div class="hold-lines">${fmt$(h.price_sgd)} ${h.seats ? 'full-day fee' : 'class fee'}${bits.map(b => '<br>' + b).join('')}</div>` : ''}
       <div><span class="hold-clock" data-clock="${esc(h.hold_expires_at || '')}"></span></div>
       <div class="hold-acts">
         <button type="button" class="btn" data-payhold="${h.id}">Pay ${fmt$(h.amount_due)}</button>
@@ -943,17 +1001,29 @@ function tickHolds() {
 // Picking a held seat back up: select that class, restore its discount code, and let the
 // student choose how to pay. The server retires the old hold and issues a fresh one.
 function resumeHold(id) {
-  const h = holds.find(x => x.id === id);
+  const h = holdItems().find(x => x.id === id);
   if (!h) return;
   const c = allCohorts.find(x => x.id === h.course_id);
   if (!c) { msg('holdmsg', 'err', 'That class is no longer open for booking — please release the seat and email us.'); return; }
   pickCohort(c.id, true, true);   // they already hold this seat — "full" must not bar paying for it
+  // A held full day resumes as a full day, even if one half now reads full (their hold is
+  // part of why) — the server lets them pay for seats they already hold.
+  if (h.seats) {
+    const other = h.seats.find(s => s.id !== h.id);
+    const p = other && allCohorts.find(x => x.id === other.course_id);
+    const o = p && bundleOffers.find(b => b.first_slug === c.family_slug && b.second_slug === p.family_slug);
+    if (o) {
+      const list = Number(c.price_sgd) + Number(p.price_sgd);
+      bundleOpt = bundleSel = { offer: o, first: c, second: p, partner: p, mine: 'first', list, off: Number(o.off_sgd), price: r2(list - Number(o.off_sgd)) };
+      renderBundlePick(); renderPaySummary(c);
+    }
+  }
   if (h.coupon_code && Number(h.discount_sgd) > 0) {
     coupon = { code: h.coupon_code, discount: Number(h.discount_sgd), label: 'Code ' + h.coupon_code };
     $('couponcode').value = h.coupon_code;
     msg('couponmsg', 'ok', 'Code ' + h.coupon_code + ' applied ✓');
-    updateBreakdown();
   }
+  updateBreakdown();
 }
 
 async function releaseHold(id, btn) {
@@ -1405,7 +1475,9 @@ function renderCards() {
       ? `<div class="price-big">As quoted</div>
          <div class="earn-chip">Company code required</div>`
       : `<div class="price-big">${fmt$(next.price_sgd)}</div>
-         <div class="earn-chip">Earn ${earn} pt${earn === 1 ? '' : 's'}</div>`;
+         <div class="earn-chip">Earn ${earn} pt${earn === 1 ? '' : 's'}</div>
+         ${(() => { const bo = offerable.map(bundleOptionFor).find(Boolean);
+                    return bo ? `<div class="bundle-chip">Full day ${fmt$(bo.price)}</div>` : ''; })()}`;
     return `<div class="ccard" data-card="${slug}" style="--accent:${allFull ? '#b9c0cc' : L.color}">
       <div class="ccard-accent"></div>
       <div class="ccard-body">
@@ -1474,7 +1546,7 @@ function pickCohort(id, scroll, allowFull) {
 // Re-clicking the already-selected date chip deselects it — clears the pick,
 // hides the payment step, and un-highlights the card/chip instead of no-op re-selecting.
 function deselectCohort() {
-  selCourse = null; coupon = null;
+  selCourse = null; coupon = null; bundleOpt = null; bundleSel = null;
   $('bookform').classList.add('hidden');
   document.querySelectorAll('.date-chip').forEach(b => b.classList.remove('on'));
   document.querySelectorAll('.ccard').forEach(x => x.classList.remove('active'));
@@ -1520,8 +1592,56 @@ if (window.matchMedia('(max-width: 640px)').matches) switchView('list');
 let coupon = null;         // { code, discount, label } once a valid code is applied
 let deepLinkDone = false;  // the ?course=… deep link is honoured once per page load
 
+// The full-day option for this class, if its date is sold as a full day (bundle_offers) and
+// the other half is open and not already this student's. The morning class opens on "Full
+// day"; the afternoon class opens on "This class only" (mostly alumni coming back for it).
+function bundleOptionFor(c) {
+  if (!c || isQuoted(c) || isBooked(c)) return null;
+  for (const o of bundleOffers) {
+    const mine = c.family_slug === o.first_slug ? 'first' : c.family_slug === o.second_slug ? 'second' : null;
+    if (!mine) continue;
+    const want = mine === 'first' ? o.second_slug : o.first_slug;
+    const p = allCohorts.find(x => x.family_slug === want && x.cohort_date === c.cohort_date && !x.is_full && !isBooked(x));
+    if (!p) continue;
+    const first = mine === 'first' ? c : p, second = mine === 'first' ? p : c;
+    const list = Number(first.price_sgd) + Number(second.price_sgd);
+    return { offer: o, first, second, partner: p, mine, list, off: Number(o.off_sgd), price: r2(list - Number(o.off_sgd)) };
+  }
+  return null;
+}
+
+function renderBundlePick() {
+  const box = $('bundlepick');
+  if (!bundleOpt) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  const one = selCourse;
+  const partnerL = lvlOf(bundleOpt.partner.family_slug);
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <button type="button" class="bp${bundleSel ? ' on' : ''}" data-bp="day">
+      <div class="bp-k">Full day — both classes</div>
+      <div class="bp-p">${fmt$(bundleOpt.price)}<span class="bp-save">save ${fmt$(bundleOpt.off)}</span></div>
+      <div class="bp-s">${esc(lvlOf(bundleOpt.first.family_slug).short)} ${esc(bundleOpt.first.session_time || '')} + ${esc(lvlOf(bundleOpt.second.family_slug).short)} ${esc(bundleOpt.second.session_time || '')}. One payment.</div>
+    </button>
+    <button type="button" class="bp${bundleSel ? '' : ' on'}" data-bp="one">
+      <div class="bp-k">This class only</div>
+      <div class="bp-p">${fmt$(one.price_sgd)}</div>
+      <div class="bp-s">${esc(lvlOf(one.family_slug).short)} ${esc(one.session_time || '')}. Already done ${esc(partnerL.short)}? Pick this.</div>
+    </button>`;
+  box.querySelectorAll('[data-bp]').forEach(b => b.onclick = () => {
+    const wantDay = b.dataset.bp === 'day';
+    if (wantDay === !!bundleSel) return;
+    bundleSel = wantDay ? bundleOpt : null;
+    renderBundlePick(); renderPaySummary(selCourse);
+    // A code's eligibility can differ between a single class and the full day — re-check it.
+    if ($('couponcode').value.trim()) $('couponbtn').click(); else updateBreakdown();
+  });
+}
+
 function selectCourse(c) {
   selCourse = c; coupon = null;
+  bundleOpt = bundleOptionFor(c);
+  bundleSel = bundleOpt && bundleOpt.mine === 'first' ? bundleOpt : null;
+  renderBundlePick();
   $('bookform').classList.remove('hidden');
   // A fresh tick for every booking — agreement is per seat, never remembered across classes.
   $('termsok').checked = false; $('termsrow').classList.remove('on');
@@ -1538,6 +1658,21 @@ function renderPaySummary(c) {
   const L = lvlOf(c.family_slug);
   const box = $('paysummary');
   box.style.setProperty('--accent', L.color);
+  if (bundleSel) {
+    const a = bundleSel.first, b = bundleSel.second, La = lvlOf(a.family_slug), Lb = lvlOf(b.family_slug);
+    box.innerHTML = `
+      <div class="ps-pills">
+        <span class="f2f-tag">F2F · in person</span>
+        <span class="lvl-pill" style="background:${La.color}">${La.short}</span>
+        <span class="lvl-pill" style="background:${Lb.color}">${Lb.short}</span>
+      </div>
+      <div class="ps-title">${esc(bundleSel.offer.name)} — both classes</div>
+      <div class="ps-when"><strong>${fdate(a.cohort_date)}</strong></div>
+      <div class="ps-line">${esc(La.title || a.family_name)}${a.session_time ? ' · ' + esc(a.session_time) : ''}</div>
+      <div class="ps-line">${esc(Lb.title || b.family_name)}${b.session_time ? ' · ' + esc(b.session_time) : ''}</div>
+      <div class="ps-min">In-person classes run with a minimum of ${F2F_MIN_PAX} participants. If this date doesn't reach the minimum, we'll offer you a place on another date.</div>`;
+    return;
+  }
   box.innerHTML = `
     <div class="ps-pills">
       ${L.f2f ? '<span class="f2f-tag">F2F · in person</span>' : '<span class="online-tag">Online</span>'}
@@ -1556,16 +1691,24 @@ function renderPaySummary(c) {
 // as a fixed snapshot, which lands in the same branch and reproduces the held numbers.
 // Mirrors create-checkout exactly, including the S$0.50-floor handback — rule 6: the
 // number beside "Pay" is computed by the rule the server will use, one formula, not two.
+// A FULL DAY (bundleSel) runs the very same formula on the full-day price (both classes minus
+// the bundle saving) — create-checkout bundleCheckout() does exactly this.
 function quote() {
-  const price = Number(selCourse.price_sgd);
-  const spend = spendablePoints(selCourse.id);
+  const price = bundleSel ? bundleSel.price : Number(selCourse.price_sgd);
+  const spend = spendablePoints(bundleSel ? [bundleSel.first.id, bundleSel.second.id] : selCourse.id);
   const isPercent = coupon && coupon.kind === 'percent' && coupon.value != null && Number(coupon.value) < 100;
   let pts, discount;
   if (!coupon || isPercent) {
     pts = Math.max(0, Math.min(spend, Math.floor(price)));
     discount = isPercent ? +(((price - pts) * Number(coupon.value)) / 100).toFixed(2) : 0;
   } else {
-    discount = Math.min(Number(coupon.discount) || 0, price);
+    // preview_coupon prices fixed/free codes against ONE class. On a full day the server
+    // takes a fixed code's face value, and a free pass covers the whole day, so do the same.
+    // A resumed hold's snapshot (no kind) is already the full-day figure.
+    const base = bundleSel && coupon.kind
+      ? (coupon.kind === 'fixed' ? Number(coupon.value) : price)
+      : (Number(coupon.discount) || 0);
+    discount = +Math.min(base, price).toFixed(2);
     pts = Math.max(0, Math.min(spend, Math.floor(price - discount)));
   }
   let pay = +(price - discount - pts).toFixed(2);
@@ -1591,6 +1734,13 @@ $('couponbtn').onclick = async () => {
   }
   // `discount` arrives null for a percentage code — quote() computes it on the nett
   // after points. kind/value are what the formula actually needs.
+  // A code minted for one class (family or date) can't be used on a full day — the server
+  // refuses it the same way (create-checkout bundleCheckout).
+  if (bundleSel && data.scoped) {
+    coupon = null;
+    msg('couponmsg', 'err', 'This code is for a single class — choose “This class only” to use it.');
+    updateBreakdown(); return;
+  }
   coupon = { code: code.toUpperCase(), kind: data.kind, value: data.value == null ? null : Number(data.value),
              discount: data.discount == null ? 0 : Number(data.discount), label: data.label };
   msg('couponmsg', 'ok', data.label + ' applied ✓');
@@ -1599,9 +1749,12 @@ $('couponbtn').onclick = async () => {
 $('couponcode').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); $('couponbtn').click(); } };
 
 function updateBreakdown() {
-  const price = Number(selCourse.price_sgd);
+  const price = bundleSel ? bundleSel.list : Number(selCourse.price_sgd);
   const { pts, discount, pay } = quote();
+  $('bd-price-label').textContent = bundleSel ? 'Both classes' : 'Class price';
   $('bd-price').textContent = isQuoted(selCourse) ? 'As quoted' : fmt$(price);
+  $('bd-bundle-row').classList.toggle('hidden', !bundleSel);
+  if (bundleSel) $('bd-bundle').textContent = '− ' + fmt$(bundleSel.off);
   // Points-first can leave a code with nothing left to discount. The server won't
   // consume it in that case — tell the student instead of silently dropping the row.
   // NOT on an "as quoted" class: there the code discounts S$0 by design and IS consumed.
@@ -1619,7 +1772,7 @@ function updateBreakdown() {
 
   // If another held seat is sitting on some of this student's points, say so here rather
   // than letting them wonder why fewer points came off than their balance suggests.
-  const locked = balance - spendablePoints(selCourse.id);
+  const locked = balance - spendablePoints(bundleSel ? [bundleSel.first.id, bundleSel.second.id] : selCourse.id);
   const lockNote = $('bd-lock');
   if (locked > 0) {
     lockNote.classList.remove('hidden');
@@ -1724,7 +1877,11 @@ async function startCheckout(method) {
     const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      body: JSON.stringify({ course_id: selCourse.id, coupon_code: coupon ? coupon.code : null, pay_method: method,
+      // A full day sends both classes: course_id = the morning class, bundle_course_id = the
+      // afternoon one. create-checkout prices and holds both in one payment.
+      body: JSON.stringify({ course_id: bundleSel ? bundleSel.first.id : selCourse.id,
+                             bundle_course_id: bundleSel ? bundleSel.second.id : undefined,
+                             coupon_code: coupon ? coupon.code : null, pay_method: method,
                              terms_version: TERMS_VERSION }),
     });
     const out = await res.json();
@@ -1734,7 +1891,10 @@ async function startCheckout(method) {
       // Close the payment step before re-rendering: leaving it open with a live button is
       // what invited the second click in the first place.
       bookedIds.add(selCourse.id);
-      const what = `${selCourse.name} on ${fdate(selCourse.cohort_date)}`;
+      if (bundleSel) { bookedIds.add(bundleSel.first.id); bookedIds.add(bundleSel.second.id); }
+      const what = bundleSel
+        ? `${bundleSel.offer.name} (both classes) on ${fdate(selCourse.cohort_date)}`
+        : `${selCourse.name} on ${fdate(selCourse.cohort_date)}`;
       // GA4 Key Event: close_convert_lead — the booking is confirmed right here (S$0: fully
       // covered by points/coupon/corp code), so this is the true conversion moment for this
       // path. Analytics-only, fired after the booking already succeeded server-side.
@@ -1748,7 +1908,8 @@ async function startCheckout(method) {
       } catch (e) {}
       deselectCohort();
       const { data: { session: s2 } } = await sb.auth.getSession(); await showApp(s2);
-      msg('bookmsg', 'ok', `Booked! Your seat for ${what} is confirmed — see you in class!`);
+      const both = what.includes('(both classes)');   // deselectCohort() above has cleared bundleSel
+      msg('bookmsg', 'ok', `Booked! Your ${both ? 'seats' : 'seat'} for ${what} ${both ? 'are' : 'is'} confirmed — see you in class!`);
       $('bookmsg').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;                                  // form is closed; nothing to re-enable
     } else if (out.url) {
