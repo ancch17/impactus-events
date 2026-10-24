@@ -1705,6 +1705,9 @@ function emFollowCohort(cid) {
 // resolve from the SELECTED COHORT when a template is loaded — {first}/{name} stay
 // per-recipient and are merged server-side by send-email, so they pass through untouched.
 const EM_DEFAULT_VENUE = '43A Beach Road, Evershine & Century Complex, 2nd floor (Straits Interactive), Singapore 189681';   // standing F2F venue (26 Sep 2026)
+// {venue} at Beach Road also carries the Google Maps pin on the next line — students were struggling to find it (24 Oct 2026).
+const EM_VENUE_MAP = 'https://maps.google.com/?cid=13011370814015216630';
+function emVenue(v) { return /beach road/i.test(v) ? `${v}\nGoogle Maps: ${EM_VENUE_MAP}` : v; }
 function emScopeCourse() { const v = $('em-scope').value || ''; return v.startsWith('c:') ? byCourse[v.slice(2)] : null; }
 function renderEmTemplates() {
   const c = emScopeCourse();
@@ -1733,7 +1736,7 @@ function emResolve(text, c) {
     zoomlink: c.zoom_link || '',
     zoomid: String(c.zoom_meeting_id || '').replace(/^(\d{3})(\d{4})(\d+)$/, '$1 $2 $3'),
     classlink: c.classroom_url || '',
-    venue: c.venue || EM_DEFAULT_VENUE,
+    venue: emVenue(c.venue || EM_DEFAULT_VENUE),
     doors: emDoors(c.session_time),
     walink: c.whatsapp_url || '',        // merged onto the course from course_secrets_admin
   };

@@ -1801,6 +1801,7 @@ const isRemovable = (r) =>
 // (inherited by every cohort of the course) plus per-class extras.
 const CM_FILE_BASE = SUPABASE_URL + '/storage/v1/object/public/class-materials/';
 const CM_VENUE_FALLBACK = '43A Beach Road, Evershine & Century Complex, 2nd floor (Straits Interactive), Singapore 189681';   // standing F2F venue (26 Sep 2026)
+const CM_VENUE_MAP = 'https://maps.google.com/?cid=13011370814015216630';   // Google Maps pin for Evershine & Century Complex (24 Oct 2026)
 
 async function loadClassroom() {
   const card = $('classroomcard');
@@ -1842,7 +1843,9 @@ function classroomBlock(r, tod) {
   let joinHtml = '';
   if (r.is_f2f) {
     joinHtml = '<div style="margin-top:10px;padding:11px 13px;background:#f6f7fa;border:1px solid var(--line);border-radius:11px">'
-      + '<div style="font-weight:700;font-size:13.5px">📍 ' + esc(r.venue || CM_VENUE_FALLBACK) + '</div>'
+      + '<div style="font-weight:700;font-size:13.5px">📍 ' + esc(r.venue || CM_VENUE_FALLBACK)
+      + (/beach road/i.test(r.venue || CM_VENUE_FALLBACK) ? ' <a href="' + CM_VENUE_MAP + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;white-space:nowrap">Open in Google Maps</a>' : '')
+      + '</div>'
       + '<div class="muted" style="font-size:12.5px;margin-top:3px">Face-to-face class · doors open 30 minutes before start.'
       + (r.zoom_link ? ' <a href="' + esc(r.zoom_link) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">Zoom link</a> only if you\'re asked to join online.' : '')
       + '</div></div>';
