@@ -197,7 +197,7 @@
       </div>
       <div class="card">
         <h2>How the count works</h2>
-        <p class="muted" style="line-height:1.6"><strong>Your rule (30 Oct 2026):</strong> NTUC LearningHub counts as a fixed 1,200 past learners, and that figure covers everyone in your LHUB WhatsApp groups and your Impactus WhatsApp community on 30 Oct 2026. Anyone else is organic and counts once they attend a class, whether they came from BNI, Vertical Institute, SUSS or elsewhere. New community members with no class are not counted yet.</p>
+        <p class="muted" style="line-height:1.6"><strong>Your rule (30 Oct 2026):</strong> NTUC LearningHub counts as a fixed 1,200 past learners, and that figure covers everyone in your LHUB WhatsApp groups and your Impactus WhatsApp community on 30 Oct 2026, except SUSS learners (none came from LHUB), who count under SUSS. Anyone else is organic and counts once they attend a class, whether they came from BNI, Vertical Institute, SUSS or elsewhere. New community members with no class are not counted yet.</p>
         <p class="muted" style="line-height:1.6">Each person is counted once, matched across your WhatsApp class groups and communities, the booking system and the SUSS class lists by mobile, booking account and SUSS student ID. SUSS learners who took more than one module count once. Where only a headcount exists (invoices, class lists), the extra learners are counted without names. Classes where you were a TA are left out of the learner count. Partner class lists are never stored, and SUSS learners are kept as anonymous IDs only.</p>
       </div>
       <div class="card">
@@ -419,7 +419,7 @@ function renderOverview() {
     `<tr class="tot"><td>Total, each person once</td><td class="num">${nf(L.total)}</td><td></td><td class="num">${nf(L.unnamed)}</td>
       <td class="nowrap"><button class="btn ghost sm" onclick="openOrgList('')">View</button></td></tr></tbody></table></div>
     <p class="muted" style="margin-top:10px;line-height:1.5"><strong>NTUC LearningHub is your fixed figure of ${nf(L.lhub_fixed)} past learners.</strong>
-    It covers everyone in your LHUB WhatsApp groups and your Impactus WhatsApp community on ${fdate(L.pool_cutoff)} (${nf(L.pool_named)} named people), so none of them is counted again elsewhere.
+    It covers everyone in your LHUB WhatsApp groups and your Impactus WhatsApp community on ${fdate(L.pool_cutoff)} except SUSS learners, who always count under SUSS (${nf(L.pool_named)} named people), so none of them is counted again elsewhere.
     Everyone else counts once they attend a class, under the first organisation that taught them, so “First taught at this organisation” adds up to the total.
     “All learners at this organisation” counts every class attendee there, LHUB alumni included, so a person can appear on several rows.
     ${L.not_counted_yet ? `${nf(L.not_counted_yet)} newer contacts are not counted yet because they have no class on record.` : ''}</p>
@@ -920,7 +920,7 @@ const LL_LABEL = (k) => {
 const LL_HELP = (k) => {
   const lhub = LL.org === 'LHUB', all = !LL.org;
   if (k === 'first') return all ? `Every named person behind the total: the LHUB pool (named people, counted as the fixed ${nf(LL.fixed)}) plus everyone counted under another organisation. The total also adds ${nf(LL.unnamedTotal)} learners from class lists without names (next tab).`
-    : lhub ? `NTUC LearningHub counts as a fixed ${nf(LL.fixed)}. These are the named people that figure covers: everyone in your LHUB WhatsApp groups and Impactus WhatsApp community on 30 Oct 2026.`
+    : lhub ? `NTUC LearningHub counts as a fixed ${nf(LL.fixed)}. These are the named people that figure covers: everyone in your LHUB WhatsApp groups and Impactus WhatsApp community on 30 Oct 2026, except SUSS learners.`
     : 'People counted under this organisation: not in the LHUB pool, and their first class with you was here.' + (LL.unnamedTotal ? ` The figure also adds ${nf(LL.unnamedTotal)} learners from class lists without names.` : '');
   if (k === 'all') return 'Everyone who attended a class here, including people counted under another organisation or in the LHUB 1,200.';
   if (k === 'diff') return lhub ? 'People in the LHUB pool with no LHUB class on record (for example community-only members). They are inside the fixed figure.'
