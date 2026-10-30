@@ -197,7 +197,7 @@
       </div>
       <div class="card">
         <h2>How the count works</h2>
-        <p class="muted" style="line-height:1.6"><strong>Your rule (30 Oct 2026):</strong> NTUC LearningHub counts as a fixed 1,200 past learners, and that figure covers everyone in your LHUB WhatsApp groups and your Impactus WhatsApp community on 30 Oct 2026, except SUSS learners (none came from LHUB), who count under SUSS. Anyone else is organic and counts once they attend a class, whether they came from BNI, Vertical Institute, SUSS or elsewhere. New community members with no class are not counted yet.</p>
+        <p class="muted" style="line-height:1.6"><strong>Your rule (30 Oct 2026):</strong> nobody counts without a class on record. NTUC LearningHub is counted from your records: everyone in your LHUB WhatsApp class groups and your Impactus WhatsApp community on 30 Oct 2026 who has a class on record, except SUSS learners (none came from LHUB), who count under SUSS. Community members with no class (for example from free talks) are not counted. Anyone else is organic and counts once they attend a class, whether they came from BNI, Vertical Institute, SUSS or elsewhere.</p>
         <p class="muted" style="line-height:1.6">Each person is counted once, matched across your WhatsApp class groups and communities, the booking system and the SUSS class lists by mobile, booking account and SUSS student ID. SUSS learners who took more than one module count once. Where only a headcount exists (invoices, class lists), the extra learners are counted without names. Classes where you were a TA are left out of the learner count. Partner class lists are never stored, and SUSS learners are kept as anonymous IDs only.</p>
       </div>
       <div class="card">
@@ -238,7 +238,7 @@
           <div><label>Show</label><select id="pp-filter">
             <option value="all">Everyone</option>
             <option value="learners">Counted as learners</option>
-            <option value="pool">In the LHUB 1,200 (pool on 30 Oct 2026)</option>
+            <option value="pool">Counted under NTUC LearningHub (pool on 30 Oct 2026)</option>
             <option value="outside">Counted outside the LHUB pool</option>
             <option value="not_counted">Not counted yet (no class)</option>
             <option value="excluded">Excluded</option>
@@ -387,7 +387,7 @@ function renderOverview() {
   const extra = Number(H.extra_2026_not_in_taepp || 0);
   $('kpis').innerHTML = `
     <div class="kpi big"><div class="v">${nf(L.total)}</div><div class="l">Working professionals taught</div>
-      <div class="sub2">${nf(L.lhub_fixed)} NTUC LearningHub (past) + ${nf(L.identified)} named elsewhere + ${nf(L.unnamed)} from class lists &amp; invoices</div></div>
+      <div class="sub2">${nf(L.lhub_counted)} NTUC LearningHub (past) + ${nf(L.identified)} named elsewhere + ${nf(L.unnamed)} from class lists &amp; invoices</div></div>
     <div class="kpi big"><div class="v">${nf(H.website_total)}</div><div class="l">Teaching hours</div>
       <div class="sub2">${nf(H.baseline_2024_2025)} (2024–25) + ${nf(H.website_2026)} in 2026, of which ${nf(H.taepp_2026)} are logged in TAEPP</div></div>
     <div class="kpi"><div class="v">${nf(H.logged_2026_total)}</div><div class="l">2026 hours from your classes here</div>
@@ -418,11 +418,11 @@ function renderOverview() {
     }).join('') +
     `<tr class="tot"><td>Total, each person once</td><td class="num">${nf(L.total)}</td><td></td><td class="num">${nf(L.unnamed)}</td>
       <td class="nowrap"><button class="btn ghost sm" onclick="openOrgList('')">View</button></td></tr></tbody></table></div>
-    <p class="muted" style="margin-top:10px;line-height:1.5"><strong>NTUC LearningHub is your fixed figure of ${nf(L.lhub_fixed)} past learners.</strong>
-    It covers everyone in your LHUB WhatsApp groups and your Impactus WhatsApp community on ${fdate(L.pool_cutoff)} except SUSS learners, who always count under SUSS (${nf(L.pool_named)} named people), so none of them is counted again elsewhere.
-    Everyone else counts once they attend a class, under the first organisation that taught them, so “First taught at this organisation” adds up to the total.
+    <p class="muted" style="margin-top:10px;line-height:1.5"><strong>Nobody counts without a class on record.</strong>
+    NTUC LearningHub (${nf(L.lhub_counted)}) is everyone in your LHUB WhatsApp class groups and your Impactus WhatsApp community on ${fdate(L.pool_cutoff)} who has a class on record, except SUSS learners, who always count under SUSS.
+    Everyone else counts under the first organisation that taught them, so “First taught at this organisation” adds up to the total.
     “All learners at this organisation” counts every class attendee there, LHUB alumni included, so a person can appear on several rows.
-    ${L.not_counted_yet ? `${nf(L.not_counted_yet)} newer contacts are not counted yet because they have no class on record.` : ''}</p>
+    ${L.not_counted_yet ? `${nf(L.not_counted_yet)} people in your WhatsApp communities have no class on record (for example from free talks) and are not counted; if they attend a class they count as new learners.` : ''}</p>
     <h3 style="margin:16px 0 6px;font-size:14px">New learners since ${fdate(L.pool_cutoff)}</h3>
     ${(L.new_by_source || []).length
       ? `<p style="margin:0 0 6px"><strong>${nf(L.new_since)}</strong> new ${L.new_since === 1 ? 'learner' : 'learners'} from outside the LHUB pool, by source:</p>
@@ -749,7 +749,7 @@ function personRow(p) {
   const chips = cls.slice(0, 4).map(c => `<span class="chip ${c.kind === 'community' ? 'com' : ''}" title="${esc(c.title)} · ${esc(SRC[c.source] || c.source)}">${esc(shortTitle(c))}</span>`).join('')
     + (cls.length > 4 ? `<span class="muted small">+${cls.length - 4} more</span>` : '');
   const status = !p.is_learner ? `<span class="pill miss">Excluded</span><div class="muted small">${esc(p.exclude_reason || '')}</div>`
-    : p.lhub_pool ? '<span class="pill ok">Counted</span><div class="muted small">in LHUB 1,200</div>'
+    : p.lhub_pool && p.counted ? '<span class="pill ok">Counted</span><div class="muted small">under NTUC LearningHub</div>'
     : p.counted ? '<span class="pill ok">Counted</span>'
     : '<span class="pill est">Not counted yet</span><div class="muted small">no class yet</div>';
   const source = p.source ? esc(p.source) : (p.source_default ? `<span class="muted">${esc(p.source_default)}</span>` : '<span class="muted">—</span>');
@@ -787,7 +787,7 @@ window.editPerson = (id) => {
     <label>Source (where they came from)</label>
     <input id="pe-source" list="pe-source-list" value="${esc(p.source || '')}" placeholder="${esc(p.source_default ? 'default: ' + p.source_default : 'e.g. BNI, Referral')}">
     <datalist id="pe-source-list">${SOURCES.map(s => `<option value="${esc(s)}">`).join('')}</datalist>
-    <p class="muted small" style="margin-top:4px">Leave blank to use the default: the organisation of their first class${p.lhub_pool ? ' (this person is in the LHUB 1,200)' : ''}.</p>
+    <p class="muted small" style="margin-top:4px">Leave blank to use the default: the organisation of their first class${p.lhub_pool ? ' (this person is in the LHUB pool)' : ''}.</p>
     <label>Notes</label><textarea id="pe-notes" rows="3">${esc(p.notes || '')}</textarea>
     <div class="modal-actions"><button class="btn" onclick="savePersonForm('${id}')">Save</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
 };
@@ -823,7 +823,10 @@ window.doMerge = (fromId) => guardForm(() => serial(async () => {
 // ---------- settings ----------
 function renderSettings() {
   const bl = SET.baselines || [];
-  $('baselines').innerHTML = bl.map(b => `<div class="bl"><div class="bl-l"><strong>${esc(b.label)}</strong>
+  $('baselines').innerHTML = bl.map(b => b.kind === 'lhub_estimate'
+    ? `<div class="bl"><div class="bl-l"><strong>NTUC LearningHub learners: counted from records (${nf((DASH.learners || {}).lhub_counted)} today)</strong>
+        <div class="muted small" style="margin-top:3px">Your earlier estimate was ${nf(b.learners)}; it is no longer used. ${esc(b.notes || '')}</div></div></div>`
+    : `<div class="bl"><div class="bl-l"><strong>${esc(b.label)}</strong>
       <div class="muted small" style="margin-top:3px">${esc(b.source || '')}${b.notes ? ' · ' + esc(b.notes) : ''}</div></div>
       <div class="bl-f">
         ${b.kind !== 'lhub_estimate' ? `<label>Hours<input type="number" step="0.5" min="0" id="bh-${b.id}" value="${b.hours == null ? '' : b.hours}"></label>` : ''}
@@ -912,18 +915,20 @@ const LL = { org: null, kind: 'first', q: '', rows: [], total: 0, counts: {}, ta
 const LL_LABEL = (k) => {
   const lhub = LL.org === 'LHUB', all = !LL.org, n = LL.counts[k];
   const c = n == null ? '' : ` (${nf(n)})`;
-  if (k === 'first') return all ? `Everyone counted${c}` : lhub ? `In the ${nf(LL.fixed)}${c}` : `First taught at this organisation${c}`;
+  if (k === 'first') return all ? `Everyone counted${c}` : lhub ? `Counted under NTUC LearningHub${c}` : `First taught at this organisation${c}`;
   if (k === 'all') return `All learners at this organisation${c}`;
-  if (k === 'diff') return lhub ? `In the ${nf(LL.fixed)}, no LHUB class${c}` : `Difference: counted elsewhere${c}`;
+  if (k === 'diff') return lhub ? `Counted under LHUB, no LHUB class${c}` : `Difference: counted elsewhere${c}`;
+  if (k === 'nocls') return `Not counted: no class on record${c}`;
   return `From class lists / invoices${c}`;
 };
 const LL_HELP = (k) => {
   const lhub = LL.org === 'LHUB', all = !LL.org;
-  if (k === 'first') return all ? `Every named person behind the total: the LHUB pool (named people, counted as the fixed ${nf(LL.fixed)}) plus everyone counted under another organisation. The total also adds ${nf(LL.unnamedTotal)} learners from class lists without names (next tab).`
-    : lhub ? `NTUC LearningHub counts as a fixed ${nf(LL.fixed)}. These are the named people that figure covers: everyone in your LHUB WhatsApp groups and Impactus WhatsApp community on 30 Oct 2026, except SUSS learners.`
+  if (k === 'first') return all ? `Every named person behind the total. The total also adds ${nf(LL.unnamedTotal)} learners from class lists without names (next tab).`
+    : lhub ? 'Everyone in your LHUB WhatsApp class groups and Impactus WhatsApp community on 30 Oct 2026 who has a class on record, except SUSS learners.'
     : 'People counted under this organisation: not in the LHUB pool, and their first class with you was here.' + (LL.unnamedTotal ? ` The figure also adds ${nf(LL.unnamedTotal)} learners from class lists without names.` : '');
-  if (k === 'all') return 'Everyone who attended a class here, including people counted under another organisation or in the LHUB 1,200.';
-  if (k === 'diff') return lhub ? 'People in the LHUB pool with no LHUB class on record (for example community-only members). They are inside the fixed figure.'
+  if (k === 'all') return 'Everyone who attended a class here, including people counted under another organisation or under NTUC LearningHub.';
+  if (k === 'nocls') return 'People in your WhatsApp communities with no class group or booking on record (for example from free talks). They are not counted; if they attend a class later they count as new learners.';
+  if (k === 'diff') return lhub ? 'In your Impactus WhatsApp community on 30 Oct 2026 and took an Impactus class, but no LHUB class on record. By your rule they count under NTUC LearningHub.'
     : 'People who attended a class here but are counted elsewhere. “Counted under” shows where.';
   return 'Classes where the headcount (invoice or class list) is higher than the named people. The extra learners are counted without names.';
 };
@@ -931,7 +936,7 @@ window.openOrgList = async (org) => {
   LL.org = org || null; LL.q = ''; LL.counts = {}; LL.kind = 'first';
   const o = (DASH.by_org || []).find(x => x.org === org);
   const name = org ? (o ? o.name : org) : 'All organisations';
-  LL.tabs = !org ? ['first', 'unnamed'] : org === 'LHUB' ? ['first', 'all', 'diff'] : ['first', 'all', 'diff', 'unnamed'];
+  LL.tabs = !org ? ['first', 'unnamed', 'nocls'] : org === 'LHUB' ? ['first', 'all', 'diff'] : ['first', 'all', 'diff', 'unnamed'];
   openModal(`<h2>${esc(name)}</h2><div id="ll-tabs" class="segs"></div>
     <p id="ll-help" class="muted small" style="margin:4px 0 10px;line-height:1.5"></p>
     <input id="ll-q" placeholder="Search name, mobile, email or source">
@@ -943,7 +948,7 @@ window.openOrgList = async (org) => {
   try {
     const res = await Promise.all(LL.tabs.map(k => rpc('tracker_learner_list', { p_org: LL.org, p_kind: k, p_q: null, p_limit: 1, p_offset: 0 })));
     LL.tabs.forEach((k, i) => { LL.counts[k] = k === 'unnamed' ? res[i].unnamed_total : res[i].total; });
-    LL.fixed = res[0].fixed; LL.unnamedTotal = res[0].unnamed_total;
+    LL.unnamedTotal = res[0].unnamed_total;
     if (LL.tabs.includes('unnamed') && !LL.counts.unnamed) LL.tabs = LL.tabs.filter(k => k !== 'unnamed');
     renderLLTabs();
   } catch (e) { flash(e.message, false); }
