@@ -272,7 +272,10 @@
             <div><label>Hours per run</label><input id="nr-hours" type="number" step="0.5" min="0"></div>
             <div><label>Note</label><input id="nr-note" placeholder="Where the hours come from"></div>
           </div>
-          <button class="btn sm" style="margin-top:10px" id="nr-save">Add rule</button>
+          <div style="display:flex;align-items:center;gap:14px;margin-top:10px" class="chk">
+            <label><input type="checkbox" id="nr-conf">Hours confirmed</label>
+            <button class="btn sm" id="nr-save">Add rule</button>
+          </div>
         </div>
       </div>
     </section>
@@ -803,14 +806,14 @@ function renderSettings() {
   const rules = SET.rules || [];
   const orgOpts = (cur) => ORGS.map(o => `<option value="${esc(o.code)}" ${o.code === cur ? 'selected' : ''}>${esc(o.name)}${o.active === false ? ' (past)' : ''}</option>`).join('');
   $('rules').innerHTML = `<div class="tscroll"><table class="rules"><thead><tr><th>Organisation</th><th>Title matches</th><th class="num">Hours per run</th><th>Confirmed</th><th>Note</th><th class="num">Classes using it</th><th></th></tr></thead><tbody>` +
-    rules.map(r => `<tr>
+    rules.map(r0 => { const dirty = !!RULE_EDITS[r0.id]; const r = Object.assign({}, r0, RULE_EDITS[r0.id] || {}); return `<tr>
       <td><select class="mini" id="ro-${r.id}" style="max-width:190px">${orgOpts(r.org_code)}</select></td>
       <td><input class="mini" id="rp-${r.id}" value="${esc(r.pattern)}" style="width:120px;font-family:ui-monospace,Menlo,Consolas,monospace"></td>
       <td class="num"><input type="number" step="0.5" min="0" class="mini num" id="rh-${r.id}" value="${r.hours == null ? '' : r.hours}"></td>
       <td><input type="checkbox" id="rc-${r.id}" ${r.confirmed ? 'checked' : ''}></td>
       <td style="min-width:220px"><textarea class="mini" id="rn-${r.id}" rows="2" style="width:100%;min-width:220px;resize:vertical">${esc(r.note || '')}</textarea></td>
       <td class="num">${nf(r.classes)}${r.classes_2026 ? `<div class="muted small">${nf(r.classes_2026)} in 2026</div>` : ''}</td>
-      <td class="nowrap"><button class="btn ghost sm" onclick="saveRule(${r.id})">Save</button> <button class="btn ghost sm danger" onclick="deleteRule(${r.id})">Delete</button></td></tr>`).join('') + '</tbody></table></div>';
+      <td class="nowrap"><button class="btn ${dirty ? '' : 'ghost '}sm" id="rs-${r.id}" title="${dirty ? 'Unsaved changes' : ''}" onclick="saveRule(${r.id})">Save</button> <button class="btn ghost sm danger" onclick="deleteRule(${r.id})">Delete</button></td></tr>`; }).join('') + '</tbody></table></div>';
   const dr = SET.deleted_rules || [];
   $('deleted-rules').innerHTML = !dr.length ? ''
     : `<details class="deleted-cls"><summary>Deleted rules (${dr.length}) · not used</summary>
@@ -834,11 +837,24 @@ window.saveBaseline = (id) => {
   if ($('bn-' + id)) p.learners = $('bn-' + id).value;
   saveSetting('tracker_save_baseline', p, 'Baseline saved');
 };
-window.saveRule = (id) => {
-  const pattern = rulePattern($('rp-' + id).value);
+// Unsaved edits per rule row survive a reload of the table (e.g. after saving another row); the row's Save turns amber.
+const RULE_EDITS = {};
+const readRule = (id) => ({ org_code: $('ro-' + id).value, pattern: $('rp-' + id).value, hours: $('rh-' + id).value,
+  confirmed: $('rc-' + id).checked, note: $('rn-' + id).value });
+const onRuleEdit = (ev) => {
+  const m = (ev.target.id || '').match(/^r[ophcn]-(\d+)$/); if (!m) return;
+  const id = Number(m[1]); RULE_EDITS[id] = readRule(id);
+  const b = $('rs-' + id); if (b) { b.classList.remove('ghost'); b.title = 'Unsaved changes'; }
+};
+$('rules').addEventListener('input', onRuleEdit);
+$('rules').addEventListener('change', onRuleEdit);
+window.saveRule = async (id) => {
+  const v = readRule(id), pattern = rulePattern(v.pattern);
   if (!pattern || pattern === '%%') { flash('Say which titles the rule applies to', false); return; }
-  saveSetting('tracker_save_rule', { id, org_code: $('ro-' + id).value, pattern, hours: $('rh-' + id).value,
-    confirmed: $('rc-' + id).checked, note: $('rn-' + id).value.trim() }, 'Rule saved');
+  delete RULE_EDITS[id];
+  const ok = await saveSetting('tracker_save_rule', { id, org_code: v.org_code, pattern, hours: v.hours,
+    confirmed: v.confirmed, note: v.note.trim() }, 'Rule saved');
+  if (!ok) { RULE_EDITS[id] = v; renderSettings(); }
 };
 window.deleteRule = (id) => {
   const r = (SET.rules || []).find(x => x.id === id); if (!r) return;
@@ -859,8 +875,8 @@ $('nr-save').onclick = () => {
   const words = $('nr-pattern').value.trim();
   if (!words) { flash('Say which titles the rule applies to', false); return; }
   guardForm(async () => {
-    const ok = await saveSetting('tracker_save_rule', { org_code: $('nr-org').value, pattern: '%' + words.replace(/[%_]/g, '') + '%', hours: $('nr-hours').value, note: $('nr-note').value.trim(), sort: 90 }, 'Rule added');
-    if (ok) { $('nr-pattern').value = ''; $('nr-hours').value = ''; $('nr-note').value = ''; }
+    const ok = await saveSetting('tracker_save_rule', { org_code: $('nr-org').value, pattern: '%' + words.replace(/[%_]/g, '') + '%', hours: $('nr-hours').value, confirmed: $('nr-conf').checked, note: $('nr-note').value.trim(), sort: 90 }, 'Rule added');
+    if (ok) { $('nr-pattern').value = ''; $('nr-hours').value = ''; $('nr-note').value = ''; $('nr-conf').checked = false; }
   });
 };
 
