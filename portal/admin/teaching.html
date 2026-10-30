@@ -195,6 +195,7 @@
       </div>
       <div class="card">
         <h2>How the count works</h2>
+        <p class="muted" style="line-height:1.6"><strong>Your rule (30 Oct 2026):</strong> NTUC LearningHub counts as a fixed 1,200 past learners, and that figure covers everyone in your LHUB WhatsApp groups and your Impactus WhatsApp community on 30 Oct 2026. Anyone else is organic and counts once they attend a class, whether they came from BNI, Vertical Institute, SUSS or elsewhere. New community members with no class are not counted yet.</p>
         <p class="muted" style="line-height:1.6">Each person is counted once, matched across your WhatsApp class groups and communities, the booking system and the SUSS class lists by mobile, booking account and SUSS student ID. SUSS learners who took more than one module count once. Where only a headcount exists (invoices, class lists), the extra learners are counted without names. Classes where you were a TA are left out of the learner count. Partner class lists are never stored, and SUSS learners are kept as anonymous IDs only.</p>
       </div>
       <div class="card">
@@ -231,10 +232,13 @@
     <section id="t-people" class="hidden">
       <div class="card">
         <div class="filters">
-          <div style="grid-column:span 2"><label>Search</label><input id="pp-q" placeholder="Name, mobile or email"></div>
+          <div style="grid-column:span 2"><label>Search</label><input id="pp-q" placeholder="Name, mobile, email or source"></div>
           <div><label>Show</label><select id="pp-filter">
             <option value="all">Everyone</option>
             <option value="learners">Counted as learners</option>
+            <option value="pool">In the LHUB 1,200 (pool on 30 Oct 2026)</option>
+            <option value="outside">Counted outside the LHUB pool</option>
+            <option value="not_counted">Not counted yet (no class)</option>
             <option value="excluded">Excluded</option>
             <option value="crm">In the booking system</option>
             <option value="suss">SUSS learners</option>
@@ -381,7 +385,7 @@ function renderOverview() {
   const extra = Number(H.extra_2026_not_in_taepp || 0);
   $('kpis').innerHTML = `
     <div class="kpi big"><div class="v">${nf(L.total)}</div><div class="l">Working professionals taught</div>
-      <div class="sub2">${nf(L.identified)} named · ${nf(L.unnamed)} from class lists &amp; invoices</div></div>
+      <div class="sub2">${nf(L.lhub_fixed)} NTUC LearningHub (past) + ${nf(L.identified)} named elsewhere + ${nf(L.unnamed)} from class lists &amp; invoices</div></div>
     <div class="kpi big"><div class="v">${nf(H.website_total)}</div><div class="l">Teaching hours</div>
       <div class="sub2">${nf(H.baseline_2024_2025)} (2024–25) + ${nf(H.website_2026)} in 2026, of which ${nf(H.taepp_2026)} are logged in TAEPP</div></div>
     <div class="kpi"><div class="v">${nf(H.logged_2026_total)}</div><div class="l">2026 hours from your classes here</div>
@@ -405,13 +409,22 @@ function renderOverview() {
   const rows = (DASH.by_org || []).filter(o => (o.first_source || o.any_enrolment || nextClass(o.org)) && !orgInfo(o.org).hidden);
   $('byorg').innerHTML = `<div class="tscroll"><table><thead><tr><th>Organisation</th><th class="num">First taught at this organisation</th><th class="num">All learners at this organisation</th><th class="num">From class lists / invoices</th></tr></thead><tbody>` +
     rows.map(o => {
-      const past = orgInfo(o.org).active === false ? ' <span class="pill role">past</span>' : '';
+      const past = (orgInfo(o.org).active === false ? ' <span class="pill role">past</span>' : '') + (o.fixed ? ' <span class="pill role">fixed figure</span>' : '');
       const nx = !o.first_source && !o.any_enrolment && nextClass(o.org) ? `<div class="muted small">first class ${fdate(nextClass(o.org))}</div>` : '';
       return `<tr><td>${esc(o.name)}${past}${nx}</td><td class="num"><strong>${o.first_source || !nx ? nf(o.first_source) : '—'}</strong></td><td class="num">${o.any_enrolment || !nx ? nf(o.any_enrolment) : '—'}</td><td class="num">${o.unnamed ? nf(o.unnamed) : '—'}</td></tr>`;
     }).join('') +
     `<tr class="tot"><td>Total, each person once</td><td class="num">${nf(L.total)}</td><td></td><td class="num">${nf(L.unnamed)}</td></tr></tbody></table></div>
-    <p class="muted" style="margin-top:10px;line-height:1.5">“First taught at this organisation” puts each person under the first place you taught them, so that column adds up to the total. “All learners at this organisation” counts everyone on record there, including people first taught elsewhere, so a person can appear on several rows.
-    ${nf(L.community_only)} people are only in your WhatsApp communities and are assumed to be LHUB learners. You estimated the LHUB community at ${nf(L.lhub_estimate)}; WhatsApp still lists its members by number.</p>`;
+    <p class="muted" style="margin-top:10px;line-height:1.5"><strong>NTUC LearningHub is your fixed figure of ${nf(L.lhub_fixed)} past learners.</strong>
+    It covers everyone in your LHUB WhatsApp groups and your Impactus WhatsApp community on ${fdate(L.pool_cutoff)} (${nf(L.pool_named)} named people), so none of them is counted again elsewhere.
+    Everyone else counts once they attend a class, under the first organisation that taught them, so “First taught at this organisation” adds up to the total.
+    “All learners at this organisation” counts every class attendee there, LHUB alumni included, so a person can appear on several rows.
+    ${L.not_counted_yet ? `${nf(L.not_counted_yet)} newer contacts are not counted yet because they have no class on record.` : ''}</p>
+    <h3 style="margin:16px 0 6px;font-size:14px">New learners since ${fdate(L.pool_cutoff)}</h3>
+    ${(L.new_by_source || []).length
+      ? `<p style="margin:0 0 6px"><strong>${nf(L.new_since)}</strong> new ${L.new_since === 1 ? 'learner' : 'learners'} from outside the LHUB pool, by source:</p>
+         <div class="tscroll"><table><tbody>${L.new_by_source.map(s => `<tr><td>${esc(s.source)}</td><td class="num"><strong>${nf(s.n)}</strong></td></tr>`).join('')}</tbody></table></div>`
+      : '<p class="muted" style="margin:0">None yet.</p>'}
+    <p class="muted small" style="margin-top:6px">A new learner is anyone outside the LHUB pool whose first class is after ${fdate(L.pool_cutoff)}. Their source defaults to the organisation of that class; set it to BNI, a referral or anything else on the People tab.</p>`;
 
   renderTaepp();
   $('lastsync').textContent = DASH.last_crm_sync ? 'Bookings synced ' + ftime(DASH.last_crm_sync) : 'Bookings not synced yet';
@@ -724,14 +737,18 @@ function renderPeople(r) {
   $('pp-prev').disabled = PF.offset === 0; $('pp-next').disabled = to >= r.total;
   $('merge-bar').innerHTML = MERGE_KEEP ? `<div class="warn">Merging into <strong>${esc(MERGE_KEEP.name)}</strong>: find the duplicate record, then press “Fold into this person” on it. <button class="lnk" onclick="cancelMerge()">cancel</button></div>` : '';
   $('people').innerHTML = rows.length
-    ? `<div class="tscroll"><table><thead><tr><th>Name</th><th>Mobile / email</th><th>Classes</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(personRow).join('')}</tbody></table></div>`
+    ? `<div class="tscroll"><table><thead><tr><th>Name</th><th>Mobile / email</th><th>Classes</th><th>Status</th><th>Source</th><th></th></tr></thead><tbody>${rows.map(personRow).join('')}</tbody></table></div>`
     : '<p class="muted">Nobody matches.</p>';
 }
 function personRow(p) {
   const cls = p.classes || [];
   const chips = cls.slice(0, 4).map(c => `<span class="chip ${c.kind === 'community' ? 'com' : ''}" title="${esc(c.title)} · ${esc(SRC[c.source] || c.source)}">${esc(shortTitle(c))}</span>`).join('')
     + (cls.length > 4 ? `<span class="muted small">+${cls.length - 4} more</span>` : '');
-  const status = p.is_learner ? '<span class="pill ok">Counted</span>' : `<span class="pill miss">Excluded</span><div class="muted small">${esc(p.exclude_reason || '')}</div>`;
+  const status = !p.is_learner ? `<span class="pill miss">Excluded</span><div class="muted small">${esc(p.exclude_reason || '')}</div>`
+    : p.lhub_pool ? '<span class="pill ok">Counted</span><div class="muted small">in LHUB 1,200</div>'
+    : p.counted ? '<span class="pill ok">Counted</span>'
+    : '<span class="pill est">Not counted yet</span><div class="muted small">no class yet</div>';
+  const source = p.source ? esc(p.source) : (p.source_default ? `<span class="muted">${esc(p.source_default)}</span>` : '<span class="muted">—</span>');
   const merge = MERGE_KEEP
     ? (MERGE_KEEP.id === p.id ? '<span class="muted small">keeping this one</span>' : `<button class="btn sm" onclick="mergeInto('${p.id}')">Fold into this person</button>`)
     : `<button class="lnk" onclick="startMerge('${p.id}')">merge…</button>`;
@@ -741,6 +758,7 @@ function personRow(p) {
     <td class="small nowrap">${p.mobile ? esc(fphone(p.mobile)) : '<span class="muted">—</span>'}${p.email ? `<div class="muted">${esc(p.email)}</div>` : ''}</td>
     <td class="chips">${chips || '<span class="muted small">none</span>'}</td>
     <td>${status}</td>
+    <td class="small">${source}</td>
     <td class="nowrap"><button class="lnk" onclick="${p.is_learner ? `excludePerson('${p.id}')` : `setLearner('${p.id}', true)`}">${p.is_learner ? 'exclude' : 'count again'}</button> · <button class="lnk" onclick="editPerson('${p.id}')">edit</button> · ${merge}</td></tr>`;
 }
 function savePerson(p, okMsg) {
@@ -762,11 +780,16 @@ window.editPerson = (id) => {
   openModal(`<h2>Edit ${esc(pname(p))}</h2>
     <label>Name</label><input id="pe-name" value="${esc(p.display_name || '')}">
     <label>Email</label><input id="pe-email" value="${esc(p.email || '')}">
+    <label>Source (where they came from)</label>
+    <input id="pe-source" list="pe-source-list" value="${esc(p.source || '')}" placeholder="${esc(p.source_default ? 'default: ' + p.source_default : 'e.g. BNI, Referral')}">
+    <datalist id="pe-source-list">${SOURCES.map(s => `<option value="${esc(s)}">`).join('')}</datalist>
+    <p class="muted small" style="margin-top:4px">Leave blank to use the default: the organisation of their first class${p.lhub_pool ? ' (this person is in the LHUB 1,200)' : ''}.</p>
     <label>Notes</label><textarea id="pe-notes" rows="3">${esc(p.notes || '')}</textarea>
     <div class="modal-actions"><button class="btn" onclick="savePersonForm('${id}')">Save</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
 };
+const SOURCES = ['BNI', 'Referral', 'Vertical Institute', 'SUSS', 'Tembusu Institute', 'Straits Interactive / SMU Academy', 'Corporate client', 'Social media', 'Website / Google', 'YouTube', 'Other'];
 window.savePersonForm = (id) => guardForm(async () => {
-  if (await savePerson({ id, display_name: $('pe-name').value, email: $('pe-email').value, notes: $('pe-notes').value }, 'Saved')) closeModal();
+  if (await savePerson({ id, display_name: $('pe-name').value, email: $('pe-email').value, source: $('pe-source').value, notes: $('pe-notes').value }, 'Saved')) closeModal();
 });
 window.startMerge = (id) => {
   const p = PEOPLE_ROWS.find(x => x.id === id); if (!p) return;
