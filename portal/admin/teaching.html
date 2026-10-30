@@ -125,6 +125,8 @@
   .modal-bg { position:fixed; inset:0; background:rgba(16,26,45,.45); z-index:20; display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
   .modal { background:#fff; border-radius:14px; padding:20px; max-width:560px; width:100%; box-shadow:0 18px 50px rgba(0,0,0,.25); }
   .modal.wide { max-width:760px; }
+  .modal.xwide { max-width:980px; }
+  .segs { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 6px; }
   .modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
   .formgrid { display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
   .formgrid .full { grid-column:1 / -1; }
@@ -407,13 +409,15 @@ function renderOverview() {
     .map(e => e.start_date).filter(Boolean).sort()[0];
   const orgInfo = (code) => ORGS.find(x => x.code === code) || {};
   const rows = (DASH.by_org || []).filter(o => (o.first_source || o.any_enrolment || nextClass(o.org)) && !orgInfo(o.org).hidden);
-  $('byorg').innerHTML = `<div class="tscroll"><table><thead><tr><th>Organisation</th><th class="num">First taught at this organisation</th><th class="num">All learners at this organisation</th><th class="num">From class lists / invoices</th></tr></thead><tbody>` +
+  $('byorg').innerHTML = `<div class="tscroll"><table><thead><tr><th>Organisation</th><th class="num">First taught at this organisation</th><th class="num">All learners at this organisation</th><th class="num">From class lists / invoices</th><th></th></tr></thead><tbody>` +
     rows.map(o => {
       const past = (orgInfo(o.org).active === false ? ' <span class="pill role">past</span>' : '') + (o.fixed ? ' <span class="pill role">fixed figure</span>' : '');
       const nx = !o.first_source && !o.any_enrolment && nextClass(o.org) ? `<div class="muted small">first class ${fdate(nextClass(o.org))}</div>` : '';
-      return `<tr><td>${esc(o.name)}${past}${nx}</td><td class="num"><strong>${o.first_source || !nx ? nf(o.first_source) : '—'}</strong></td><td class="num">${o.any_enrolment || !nx ? nf(o.any_enrolment) : '—'}</td><td class="num">${o.unnamed ? nf(o.unnamed) : '—'}</td></tr>`;
+      return `<tr><td>${esc(o.name)}${past}${nx}</td><td class="num"><strong>${o.first_source || !nx ? nf(o.first_source) : '—'}</strong></td><td class="num">${o.any_enrolment || !nx ? nf(o.any_enrolment) : '—'}</td><td class="num">${o.unnamed ? nf(o.unnamed) : '—'}</td>
+        <td class="nowrap">${o.first_source || o.any_enrolment ? `<button class="btn ghost sm" onclick="openOrgList('${esc(o.org)}')">View</button>` : ''}</td></tr>`;
     }).join('') +
-    `<tr class="tot"><td>Total, each person once</td><td class="num">${nf(L.total)}</td><td></td><td class="num">${nf(L.unnamed)}</td></tr></tbody></table></div>
+    `<tr class="tot"><td>Total, each person once</td><td class="num">${nf(L.total)}</td><td></td><td class="num">${nf(L.unnamed)}</td>
+      <td class="nowrap"><button class="btn ghost sm" onclick="openOrgList('')">View</button></td></tr></tbody></table></div>
     <p class="muted" style="margin-top:10px;line-height:1.5"><strong>NTUC LearningHub is your fixed figure of ${nf(L.lhub_fixed)} past learners.</strong>
     It covers everyone in your LHUB WhatsApp groups and your Impactus WhatsApp community on ${fdate(L.pool_cutoff)} (${nf(L.pool_named)} named people), so none of them is counted again elsewhere.
     Everyone else counts once they attend a class, under the first organisation that taught them, so “First taught at this organisation” adds up to the total.
@@ -903,9 +907,94 @@ $('nr-save').onclick = () => {
   });
 };
 
+// ---------- learners-by-organisation lists ----------
+const LL = { org: null, kind: 'first', q: '', rows: [], total: 0, counts: {}, tabs: [], seq: 0 };
+const LL_LABEL = (k) => {
+  const lhub = LL.org === 'LHUB', all = !LL.org, n = LL.counts[k];
+  const c = n == null ? '' : ` (${nf(n)})`;
+  if (k === 'first') return all ? `Everyone counted${c}` : lhub ? `In the ${nf(LL.fixed)}${c}` : `First taught at this organisation${c}`;
+  if (k === 'all') return `All learners at this organisation${c}`;
+  if (k === 'diff') return lhub ? `In the ${nf(LL.fixed)}, no LHUB class${c}` : `Difference: counted elsewhere${c}`;
+  return `From class lists / invoices${c}`;
+};
+const LL_HELP = (k) => {
+  const lhub = LL.org === 'LHUB', all = !LL.org;
+  if (k === 'first') return all ? `Every named person in the total: the LHUB pool plus everyone counted under another organisation. The total also adds ${nf(LL.unnamedTotal)} learners from class lists without names (see the next tab).`
+    : lhub ? `NTUC LearningHub counts as a fixed ${nf(LL.fixed)}. These are the named people that figure covers: everyone in your LHUB WhatsApp groups and Impactus WhatsApp community on 30 Oct 2026.`
+    : 'People counted under this organisation: not in the LHUB pool, and their first class with you was here.' + (LL.unnamedTotal ? ` The figure also adds ${nf(LL.unnamedTotal)} learners from class lists without names.` : '');
+  if (k === 'all') return 'Everyone who attended a class here, including people counted under another organisation or in the LHUB 1,200.';
+  if (k === 'diff') return lhub ? 'People in the LHUB pool with no LHUB class on record (for example community-only members). They are inside the fixed figure.'
+    : 'People who attended a class here but are counted elsewhere. “Counted under” shows where.';
+  return 'Classes where the headcount (invoice or class list) is higher than the named people. The extra learners are counted without names.';
+};
+window.openOrgList = async (org) => {
+  LL.org = org || null; LL.q = ''; LL.counts = {}; LL.kind = 'first';
+  const o = (DASH.by_org || []).find(x => x.org === org);
+  const name = org ? (o ? o.name : org) : 'All organisations';
+  LL.tabs = !org ? ['first', 'unnamed'] : org === 'LHUB' ? ['first', 'all', 'diff'] : ['first', 'all', 'diff', 'unnamed'];
+  openModal(`<h2>${esc(name)}</h2><div id="ll-tabs" class="segs"></div>
+    <p id="ll-help" class="muted small" style="margin:4px 0 10px;line-height:1.5"></p>
+    <input id="ll-q" placeholder="Search name, mobile, email or source">
+    <div id="ll-body" class="muted" style="margin-top:10px">Loading…</div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Close</button></div>`, true);
+  $('modal').classList.add('xwide');
+  let t; $('ll-q').oninput = () => { clearTimeout(t); t = setTimeout(() => { LL.q = $('ll-q').value.trim(); loadLL(true); }, 250); };
+  renderLLTabs(); loadLL(true);
+  try {
+    const res = await Promise.all(LL.tabs.map(k => rpc('tracker_learner_list', { p_org: LL.org, p_kind: k, p_q: null, p_limit: 1, p_offset: 0 })));
+    LL.tabs.forEach((k, i) => { LL.counts[k] = k === 'unnamed' ? res[i].unnamed_total : res[i].total; });
+    LL.fixed = res[0].fixed; LL.unnamedTotal = res[0].unnamed_total;
+    if (LL.tabs.includes('unnamed') && !LL.counts.unnamed) LL.tabs = LL.tabs.filter(k => k !== 'unnamed');
+    renderLLTabs();
+  } catch (e) { flash(e.message, false); }
+};
+function renderLLTabs() {
+  if (!$('ll-tabs')) return;
+  $('ll-tabs').innerHTML = LL.tabs.map(k => `<button class="btn ${k === LL.kind ? '' : 'ghost '}sm" onclick="setLL('${k}')">${esc(LL_LABEL(k))}</button>`).join('');
+  $('ll-help').textContent = LL_HELP(LL.kind);
+  $('ll-q').classList.toggle('hidden', LL.kind === 'unnamed');
+}
+window.setLL = (k) => { LL.kind = k; renderLLTabs(); loadLL(true); };
+async function loadLL(reset) {
+  const seq = ++LL.seq;
+  if (reset) { LL.rows = []; LL.total = 0; if ($('ll-body')) $('ll-body').innerHTML = '<span class="muted">Loading…</span>'; }
+  try {
+    const r = await rpc('tracker_learner_list', { p_org: LL.org, p_kind: LL.kind, p_q: LL.q || null, p_limit: 200, p_offset: LL.rows.length });
+    if (seq !== LL.seq || !$('ll-body')) return;
+    if (LL.kind === 'unnamed') { renderLLClasses(r.unnamed_classes || []); return; }
+    LL.rows = LL.rows.concat(r.rows || []); LL.total = r.total || 0;
+    renderLLRows();
+  } catch (e) { if ($('ll-body')) $('ll-body').innerHTML = `<p class="msg err">${esc(e.message)}</p>`; }
+}
+function renderLLRows() {
+  const showUnder = LL.kind !== 'first' || !LL.org;
+  const head = `<p class="muted small" style="margin:0 0 6px">${nf(LL.total)} ${LL.total === 1 ? 'person' : 'people'}${LL.q ? ` matching “${esc(LL.q)}”` : ''}${LL.total > LL.rows.length ? ` · showing ${nf(LL.rows.length)}` : ''}</p>`;
+  const body = LL.rows.map(p => {
+    const nm = p.name || (p.is_suss ? 'SUSS learner (anonymous ID)' : 'Unnamed contact');
+    const fc = p.first_class ? `${esc(p.first_class.title)}<div class="muted small">${fdate(p.first_class.date)} · ${esc(p.first_class.org)}</div>`
+      : `<span class="muted small">${p.communities ? esc(p.communities) + ' only' : 'no class'}</span>`;
+    return `<tr><td><strong>${esc(nm)}</strong>${p.is_suss ? '<span class="tag suss">SUSS</span>' : ''}</td>
+      <td class="small nowrap">${p.mobile ? esc(fphone(p.mobile)) : '<span class="muted">—</span>'}${p.email ? `<div class="muted">${esc(p.email)}</div>` : ''}</td>
+      ${showUnder ? `<td class="small">${esc(p.counted_under || '—')}</td>` : ''}
+      <td class="small">${fc}</td>
+      <td class="small">${p.source_set ? esc(p.source) : `<span class="muted">${esc(p.source || '—')}</span>`}</td></tr>`;
+  }).join('');
+  $('ll-body').innerHTML = !LL.rows.length ? head + '<p class="muted">Nobody here.</p>'
+    : head + `<div class="tscroll"><table><thead><tr><th>Name</th><th>Mobile / email</th>${showUnder ? '<th>Counted under</th>' : ''}<th>First class with you</th><th>Source</th></tr></thead><tbody>${body}</tbody></table></div>`
+      + (LL.total > LL.rows.length ? `<div style="margin-top:10px"><button class="btn ghost sm" onclick="loadLL(false)">Show ${nf(Math.min(200, LL.total - LL.rows.length))} more</button></div>` : '');
+}
+function renderLLClasses(list) {
+  $('ll-body').innerHTML = !list.length ? '<p class="muted">No classes with unnamed learners.</p>'
+    : `<div class="tscroll"><table><thead><tr><th>Date</th><th>Class</th><th class="num">Headcount</th><th class="num">Named</th><th class="num">Without names</th><th>Headcount from</th></tr></thead><tbody>${list.map(c => `<tr>
+        <td class="nowrap">${frange(c.start_date, c.end_date)}</td><td><strong>${esc(c.title)}</strong><div class="muted small">${esc(c.org)}</div></td>
+        <td class="num">${nf(c.headcount)}</td><td class="num">${nf(c.identified)}</td><td class="num"><strong>${nf(c.unnamed)}</strong></td>
+        <td class="small">${esc(c.source || '—')}</td></tr>`).join('')}</tbody></table></div>`;
+}
+window.loadLL = loadLL;
+
 // ---------- modal ----------
 function openModal(html, wide) { $('modal').innerHTML = html; $('modal').classList.toggle('wide', !!wide); $('modal-bg').classList.remove('hidden'); }
-function closeModal() { $('modal-bg').classList.add('hidden'); $('modal').innerHTML = ''; }
+function closeModal() { $('modal-bg').classList.add('hidden'); $('modal').innerHTML = ''; $('modal').classList.remove('xwide'); }
 window.closeModal = closeModal;
 $('modal-bg').onclick = (ev) => { if (ev.target === $('modal-bg')) closeModal(); };
 document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closeModal(); });
