@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- ═══ READ BEFORE EDITING ═══════════════════════════════════════════════
+     This file covers the Teaching Record: learners taught + teaching hours, for Andrew's website
+     and trainer profile. Data lives in the private `tracker` schema and is reached ONLY through the
+     admin-gated public.tracker_* RPCs (each checks is_admin()). Nothing here touches CRM tables
+     except tracker_sync_crm, which READS courses/bookings/students.
+     Nothing is ever erased: removals and merges are flags (removed_at / merged_into).
+     Partner class lists (SUSS, Tembusu, VI) are never stored - SUSS learners are pseudonymous IDs.
+     Rules and past incidents:  CRM Impactus\docs\admin-console.md
+     Non-negotiables + the gotcha list:  CRM Impactus\CLAUDE.md
+     Always FRESH-CLONE before editing - other sessions touch these files.
+════════════════════════════════════════════════════════════════════════ -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Teaching Record — Impactus Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --navy:#101a2d; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --red:#c93b3b; --line:#e6e9f0; --soft:#f2f5fb; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:1080px; margin:0 auto; padding:16px; }
+  header { background:var(--navy); color:#fff; position:sticky; top:0; z-index:5; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:12px; padding-bottom:12px; gap:10px; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; }
+  nav.tabs { display:flex; gap:4px; flex-wrap:wrap; }
+  .tab { color:#fff; opacity:.75; padding:6px 12px; border-radius:8px; font-size:13px; text-decoration:none; font-weight:600; }
+  .tab:hover { opacity:1; }
+  .tab.active { background:rgba(255,255,255,.12); opacity:1; color:var(--amber); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; }
+  h1 { font-size:20px; font-weight:800; }
+  h2 { font-size:15px; font-weight:700; margin-bottom:10px; }
+  .muted { color:var(--mut); font-size:13px; }
+  .small { font-size:12px; }
+  .hidden { display:none !important; }
+  .nowrap { white-space:nowrap; }
+  .btn { display:inline-block; padding:8px 15px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .btn.sm { padding:6px 11px; font-size:12.5px; }
+  .lnk { background:none; border:none; color:#2f5bd3; font:inherit; font-size:12.5px; cursor:pointer; padding:0; text-decoration:underline; }
+  input, select, textarea { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-size:13.5px; font-family:inherit; background:#fff; color:var(--ink); }
+  input[type=checkbox] { width:auto; margin-right:6px; vertical-align:-2px; }
+  label { font-size:12px; font-weight:600; color:var(--mut); display:block; margin-top:10px; margin-bottom:4px; }
+  .msg { font-size:13.5px; font-weight:600; min-height:20px; margin-top:10px; }
+  .msg.ok { color:var(--green); } .msg.err { color:var(--red); }
+
+  .pagehead { margin-top:18px; display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; }
+  .subtabs { display:flex; gap:6px; flex-wrap:wrap; margin-top:14px; border-bottom:1px solid var(--line); }
+  .subtabs button { background:none; border:none; border-bottom:3px solid transparent; padding:9px 12px 8px; font:inherit; font-size:13.5px; font-weight:700; color:var(--mut); cursor:pointer; }
+  .subtabs button.on { color:var(--ink); border-bottom-color:var(--amber); }
+  .badge { display:inline-block; min-width:20px; padding:1px 6px; border-radius:99px; background:var(--red); color:#fff; font-size:11px; font-weight:800; margin-left:4px; }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-top:16px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .kpi.big { border-color:#f1d58a; background:#fffbf0; }
+  .kpi.click { cursor:pointer; } .kpi.click:hover { border-color:var(--amber); }
+  .kpi .v { font-size:24px; font-weight:800; } .kpi .l { font-size:12px; font-weight:700; margin-top:2px; }
+  .kpi .sub2 { font-size:11.5px; color:var(--mut); margin-top:4px; line-height:1.4; }
+  .copyline { display:flex; gap:10px; align-items:center; flex-wrap:wrap; background:var(--soft); border-radius:10px; padding:12px 14px; font-weight:700; font-size:15px; }
+  .copyline span { flex:1; min-width:220px; }
+  .warn { background:#fff7e6; border:1px solid #f3dca5; border-radius:10px; padding:11px 13px; font-size:13px; line-height:1.5; margin-top:12px; }
+  .act { font-size:12.5px; padding:5px 0; border-bottom:1px solid var(--line); }
+  .act:last-child { border-bottom:none; }
+
+  .tscroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); padding:8px 10px 6px 0; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:9px 10px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  .num { text-align:right; }
+  tr.tot td { border-top:2px solid var(--line); font-weight:700; }
+  table.cls td:first-child { min-width:96px; }
+
+  .pill { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:99px; vertical-align:1px; }
+  .pill.ok { background:#e3f4ea; color:var(--green); }
+  .pill.est { background:#fdf3d7; color:var(--amber-d); }
+  .pill.miss { background:#fde8e8; color:var(--red); }
+  .pill.planned { background:#e6eefc; color:#2f5bd3; }
+  .pill.cancelled { background:#eee; color:#888; }
+  .pill.role { background:#eef0f4; color:#5b6474; }
+  .pill.hi { background:#e3f4ea; color:var(--green); }
+  .pill.md { background:#fdf3d7; color:var(--amber-d); }
+  .pill.lo { background:#eef0f4; color:#5b6474; }
+  .tag { display:inline-block; font-size:10px; font-weight:800; padding:1px 6px; border-radius:6px; margin-left:5px; vertical-align:1px; background:#eef0f4; color:#5b6474; }
+  .tag.crm { background:#e6eefc; color:#2f5bd3; }
+  .tag.suss { background:#f1e8fb; color:#7a3fb8; }
+  .chips { max-width:340px; }
+  .chip { display:inline-block; font-size:11px; background:var(--soft); border-radius:6px; padding:2px 6px; margin:0 3px 3px 0; white-space:nowrap; }
+  .chip.com { background:#eef7f1; color:#2c7a50; }
+  select.mini, input.mini { width:auto; padding:5px 7px; font-size:12.5px; border-radius:7px; }
+  input.mini.num { width:76px; text-align:right; }
+
+  .filters { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; align-items:end; }
+  .filters label { margin-top:0; }
+  .chk label { display:inline-flex; align-items:center; color:var(--ink); font-weight:600; font-size:13px; margin-right:14px; }
+
+  .sug h2 { margin:6px 0 6px; font-size:15px; }
+  .sug .detail { font-size:13.5px; line-height:1.5; color:#3a4254; }
+  .sug-top { display:flex; gap:8px; align-items:center; }
+  .kind { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); }
+  .ctxs { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:8px; margin-top:10px; }
+  .ctx { background:var(--soft); border-radius:10px; padding:10px 12px; font-size:13px; line-height:1.45; }
+  .ctx-h { font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); margin-bottom:3px; }
+  .sug-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+  .sug-actions .note { flex:1; min-width:180px; }
+  .sug.busy { opacity:.45; pointer-events:none; }
+
+  .bl { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:12px 0; border-bottom:1px solid var(--line); }
+  .bl:last-child { border-bottom:none; }
+  .bl-l { flex:1; min-width:240px; }
+  .bl-f { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; }
+  .bl-f label { margin:0; } .bl-f input { width:130px; margin-top:3px; }
+  code { font-size:12px; background:var(--soft); padding:1px 5px; border-radius:5px; }
+
+  .modal-bg { position:fixed; inset:0; background:rgba(16,26,45,.45); z-index:20; display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
+  .modal { background:#fff; border-radius:14px; padding:20px; max-width:560px; width:100%; box-shadow:0 18px 50px rgba(0,0,0,.25); }
+  .modal.wide { max-width:760px; }
+  .modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+  .formgrid { display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
+  .formgrid .full { grid-column:1 / -1; }
+  .addp { margin-top:14px; background:var(--soft); border-radius:10px; padding:10px 12px; }
+  .addp .row { display:flex; gap:8px; }
+  @media (max-width:640px) { .formgrid { grid-template-columns:1fr; } .kpi .v { font-size:21px; } .pagehead > div:last-child { text-align:left !important; } }
+  footer { text-align:center; padding:26px 0 34px; }
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
+  <nav class="tabs hidden" id="navtabs">
+    <a class="tab" href="./" target="_blank">Dashboard ↗</a>
+    <a class="tab" href="classroom" target="_blank">Classroom ↗</a>
+    <a class="tab" href="students" target="_blank">Students ↗</a>
+    <a class="tab" href="signups" target="_blank">Signups ↗</a>
+    <a class="tab" href="earnings" target="_blank">Earnings ↗</a>
+    <a class="tab" href="payments" target="_blank">Payments ↗</a>
+    <a class="tab" href="referrals" target="_blank">Referrals ↗</a>
+    <a class="tab" href="coupons" target="_blank">Discounts ↗</a>
+    <a class="tab" href="draw" target="_blank">Lucky draw ↗</a>
+    <a class="tab active" href="teaching">Teaching</a>
+  </nav>
+  <button class="btn ghost sm hidden" id="signout" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff">Sign out</button>
+</div></header>
+
+<div class="wrap">
+  <div id="view-login" class="card hidden" style="max-width:460px;margin:40px auto">
+    <h1>Sign in required</h1>
+    <p class="muted" style="margin-top:6px">Please sign in from the <a href="./" target="_blank">admin dashboard</a> first, then refresh this page.</p>
+    <button class="btn ghost" style="margin-top:14px" onclick="location.reload()">Refresh</button>
+  </div>
+  <div id="view-noauth" class="card hidden" style="max-width:420px;margin:40px auto">
+    <h1>Not authorized</h1>
+    <button class="btn ghost" id="noauth-out" style="margin-top:14px">Sign out</button>
+  </div>
+
+  <div id="view-app" class="hidden">
+    <div class="pagehead">
+      <div><h1>Teaching Record</h1><p class="muted">Learners taught and teaching hours: the numbers for your website and trainer profile.</p></div>
+      <div style="text-align:right"><button class="btn ghost sm" id="sync-btn">Sync bookings</button><div class="muted small" id="lastsync" style="margin-top:4px"></div></div>
+    </div>
+    <nav class="subtabs" id="subtabs">
+      <button data-t="overview">Overview</button>
+      <button data-t="review">Review<span class="badge hidden" id="rev-badge"></span></button>
+      <button data-t="classes">Classes &amp; hours</button>
+      <button data-t="people">People</button>
+      <button data-t="settings">Settings</button>
+    </nav>
+    <div id="msg" class="msg"></div>
+
+    <section id="t-overview">
+      <div class="kpis" id="kpis"></div>
+      <div id="gap"></div>
+      <div class="card">
+        <h2>For your website and profile</h2>
+        <div id="webline"></div>
+      </div>
+      <div class="card">
+        <h2>Learners by organisation</h2>
+        <div id="byorg"></div>
+      </div>
+      <div class="card">
+        <h2>How the count works</h2>
+        <p class="muted" style="line-height:1.6">Each person is counted once, matched across your WhatsApp class groups and communities, the booking system and the SUSS class lists by mobile, booking account and SUSS student ID. SUSS learners who took more than one module count once. Where only a headcount exists (invoices, class lists), the extra learners are counted without names. NTU undergraduates and classes where you were a TA are left out of the learner count. Partner class lists are never stored, and SUSS learners are kept as anonymous IDs only.</p>
+      </div>
+      <div class="card">
+        <h2>Recent activity</h2>
+        <div id="activity"></div>
+      </div>
+    </section>
+
+    <section id="t-review" class="hidden">
+      <p class="muted" style="margin-top:14px">Claude's suggestions. Nothing changes until you decide. Every decision is logged and can be undone from the People or Classes tab.</p>
+      <div id="review"></div>
+    </section>
+
+    <section id="t-classes" class="hidden">
+      <div class="card">
+        <div class="filters">
+          <div><label>Organisation</label><select id="cf-org"></select></div>
+          <div><label>Year</label><select id="cf-year"></select></div>
+          <div><label>Status</label><select id="cf-status"><option value="">Any status</option><option value="delivered">Delivered</option><option value="planned">Coming up</option><option value="cancelled">Cancelled</option></select></div>
+          <div><label>Search</label><input id="cf-q" placeholder="Title, client, code"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px">
+          <label style="margin:0;color:var(--ink);font-weight:600;font-size:13px"><input type="checkbox" id="cf-need">Only classes whose hours still need confirming</label>
+          <button class="btn sm" id="add-class">+ Add a class</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="muted" id="cls-sum" style="margin-bottom:8px"></div>
+        <div id="classes"></div>
+      </div>
+    </section>
+
+    <section id="t-people" class="hidden">
+      <div class="card">
+        <div class="filters">
+          <div style="grid-column:span 2"><label>Search</label><input id="pp-q" placeholder="Name, mobile or email"></div>
+          <div><label>Show</label><select id="pp-filter">
+            <option value="all">Everyone</option>
+            <option value="learners">Counted as learners</option>
+            <option value="excluded">Excluded</option>
+            <option value="crm">In the booking system</option>
+            <option value="suss">SUSS learners</option>
+            <option value="community_only">Community only (no class)</option>
+            <option value="unlinked">No class on record</option>
+          </select></div>
+        </div>
+        <div id="merge-bar"></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+          <div class="muted" id="pp-count"></div>
+          <div><button class="btn ghost sm" id="pp-prev">‹ Prev</button> <button class="btn ghost sm" id="pp-next">Next ›</button></div>
+        </div>
+        <div id="people"></div>
+      </div>
+    </section>
+
+    <section id="t-settings" class="hidden">
+      <div class="card">
+        <h2>Baselines</h2>
+        <p class="muted" style="margin-bottom:6px">The figures you gave that the totals build on. When TAEPP moves, update its hours and the “as at” date. Classes after that date are then added on top automatically.</p>
+        <div id="baselines"></div>
+      </div>
+      <div class="card">
+        <h2>Default hours per class</h2>
+        <p class="muted" style="margin-bottom:10px">Used for any class without its own hours, matched on organisation and title. Ticking “confirmed” confirms the hours of every class that relies on the rule.</p>
+        <div id="rules"></div>
+        <div class="addp">
+          <strong style="font-size:13px">Add a rule</strong>
+          <div class="filters" style="margin-top:6px">
+            <div><label>Organisation</label><select id="nr-org"></select></div>
+            <div><label>Title contains</label><input id="nr-pattern" placeholder="e.g. Copilot"></div>
+            <div><label>Hours per run</label><input id="nr-hours" type="number" step="0.5" min="0"></div>
+            <div><label>Note</label><input id="nr-note" placeholder="Where the hours come from"></div>
+          </div>
+          <button class="btn sm" style="margin-top:10px" id="nr-save">Add rule</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="modal-bg" class="modal-bg hidden"><div class="modal" id="modal"></div></div>
+<footer class="muted">Impactus Learning Pte Ltd · Admin console</footer>
+
+<script>
+const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+// Who is admin is decided server-side only: public.is_admin(), asked via rpc after sign-in.
+// Every tracker_* RPC re-checks is_admin() itself, so this page holds no allow-list.
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nf = (n) => Number(n || 0).toLocaleString('en-SG', { maximumFractionDigits: 1 });
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fdate(d) { if (!d) return '—'; const [y, m, dd] = String(d).slice(0, 10).split('-').map(Number); return `${dd} ${MON[m - 1]} ${y}`; }
+function frange(a, b) {
+  if (!a) return '—';
+  if (!b || b === a) return fdate(a);
+  const [y1, m1, d1] = a.split('-').map(Number), [y2, m2, d2] = b.split('-').map(Number);
+  if (y1 === y2 && m1 === m2) return `${d1}–${d2} ${MON[m2 - 1]} ${y2}`;
+  if (y1 === y2) return `${d1} ${MON[m1 - 1]} – ${d2} ${MON[m2 - 1]} ${y2}`;
+  return `${fdate(a)} – ${fdate(b)}`;
+}
+function ftime(ts) { if (!ts) return ''; return new Date(ts).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); }
+function fphone(m) { if (!m) return ''; const s = String(m); return /^65\d{8}$/.test(s) ? `+65 ${s.slice(2, 6)} ${s.slice(6)}` : '+' + s; }
+const SRC = { 'whatsapp-group': 'WhatsApp group', 'crm-booking': 'Booking', 'suss-roster': 'SUSS class list', 'class-list-link': 'Class list', 'manual': 'Added by you' };
+function pname(p) { return p.display_name || p.saved_name || p.wa_name || (p.is_suss ? 'SUSS learner (anonymous ID)' : 'Unnamed contact'); }
+function badges(p) { return (p.has_crm ? '<span class="tag crm">booking</span>' : '') + (p.is_suss ? '<span class="tag suss">SUSS</span>' : '') + (p.is_learner === false ? '<span class="tag">excluded</span>' : ''); }
+
+function show(id) {
+  ['view-login', 'view-app', 'view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  // Tabs and Sign out exist only for a confirmed admin — a stranger on this URL sees a bare card.
+  $('navtabs').classList.toggle('hidden', id !== 'view-app'); $('signout').classList.toggle('hidden', id !== 'view-app');
+}
+function flash(text, ok = true) {
+  const m = $('msg'); m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err');
+  clearTimeout(flash.t); flash.t = setTimeout(() => { m.textContent = ''; }, ok ? 4000 : 10000);
+}
+async function rpc(fn, args) {
+  const { data, error } = await sb.rpc(fn, args || {});
+  if (error) throw new Error(error.message || String(error));
+  return data;
+}
+
+let DASH = null, ENG = [], SUG = [], SET = { orgs: [], rules: [], baselines: [] }, ORGS = [];
+let PEOPLE_LOADED = false;
+// Every edit goes through one queue, so quick successive changes are applied in order and never dropped.
+// Forms that CREATE something also carry a module flag against double-submits.
+let Q = Promise.resolve();
+function serial(fn) { const r = Q.then(fn); Q = r.catch(() => {}); return r; }
+let formSaving = false;
+async function guardForm(fn) { if (formSaving) return; formSaving = true; try { await fn(); } finally { formSaving = false; } }
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  route(session);
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') setTimeout(() => route(s), 0); });
+}
+async function route(session) {
+  if (!session) { location.replace('./'); return; }   // sign-in lives on the Dashboard
+  const { data: isAdmin, error: adminErr } = await sb.rpc('is_admin');
+  if (adminErr || !isAdmin) { show('view-noauth'); return; }
+  show('view-app');
+  setTab((location.hash || '#overview').slice(1));
+  loadAll();
+}
+$('signout').onclick = () => sb.auth.signOut();
+$('noauth-out').onclick = () => sb.auth.signOut();
+
+// ---------- sub-tabs ----------
+const TABS = ['overview', 'review', 'classes', 'people', 'settings'];
+function setTab(t) {
+  if (!TABS.includes(t)) t = 'overview';
+  TABS.forEach(x => $('t-' + x).classList.toggle('hidden', x !== t));
+  document.querySelectorAll('#subtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  if (location.hash !== '#' + t) history.replaceState(null, '', '#' + t);
+  if (t === 'people' && !PEOPLE_LOADED) loadPeople();
+}
+window.setTab = setTab;
+document.querySelectorAll('#subtabs button').forEach(b => { b.onclick = () => setTab(b.dataset.t); });
+
+async function loadAll() {
+  try {
+    const [d, e, s, st] = await Promise.all([
+      rpc('tracker_dashboard'), rpc('tracker_engagements'), rpc('tracker_suggestions', { p_status: 'pending' }), rpc('tracker_settings'),
+    ]);
+    DASH = d; ENG = e || []; SUG = s || []; SET = st || SET; ORGS = SET.orgs || [];
+    renderOverview(); renderReview(); renderClassFilters(); renderClasses(); renderSettings();
+  } catch (err) { flash('Could not load: ' + err.message, false); }
+}
+function orgShort(code) { const o = ORGS.find(x => x.code === code); return o ? o.name : code; }
+
+// ---------- overview ----------
+function roundDown(n, step) { return Math.floor(Number(n || 0) / step) * step; }
+function renderOverview() {
+  const L = DASH.learners || {}, H = DASH.hours || {};
+  const extra = Number(H.extra_2026_not_in_taepp || 0);
+  $('kpis').innerHTML = `
+    <div class="kpi big"><div class="v">${nf(L.total)}</div><div class="l">Working professionals taught</div>
+      <div class="sub2">${nf(L.identified)} named · ${nf(L.unnamed)} from class lists &amp; invoices</div></div>
+    <div class="kpi big"><div class="v">${nf(H.website_total)}</div><div class="l">Teaching hours</div>
+      <div class="sub2">${nf(H.baseline_2024_2025)} (2024–25) + ${nf(H.taepp_2026)} TAEPP 2026 + ${nf(extra)} not yet in TAEPP</div></div>
+    <div class="kpi"><div class="v">${nf(H.logged_2026_total)}</div><div class="l">2026 hours from your classes here</div>
+      <div class="sub2">${nf(H.logged_2026_confirmed)} confirmed · ${nf(H.logged_2026_estimate)} estimated · ${nf(H.classes_2026_missing_hours)} classes missing hours</div></div>
+    <div class="kpi"><div class="v">${nf(H.planned_classes)}</div><div class="l">Classes coming up</div><div class="sub2">${nf(H.planned_hours)} h scheduled</div></div>
+    <div class="kpi click" onclick="setTab('review')"><div class="v">${nf(DASH.pending_suggestions)}</div><div class="l">Suggestions to review</div><div class="sub2">Approve or reject →</div></div>`;
+
+  const taeppBased = Number(H.website_2026 || 0), logged = Number(H.logged_2026_total || 0);
+  $('gap').innerHTML = logged > taeppBased + 20 ? `<div class="warn"><strong>Your 2026 classes add up to ${nf(logged)} h, but the website total uses ${nf(taeppBased)} h for 2026</strong>
+    (TAEPP ${nf(H.taepp_2026)} h + ${nf(extra)} h not yet in TAEPP). If TAEPP is behind, set “In TAEPP 218” to “No” on the missing classes in
+    <a href="#classes" onclick="setTab('classes');return false">Classes &amp; hours</a>, or update the TAEPP figure in <a href="#settings" onclick="setTab('settings');return false">Settings</a>.</div>` : '';
+
+  const lp = roundDown(L.total, Number(L.total) >= 1000 ? 50 : 10), hp = roundDown(H.website_total, 50);
+  $('webline').innerHTML = `<div class="copyline"><span id="webline-text">${esc(`${nf(lp)}+ working professionals trained · ${nf(hp)}+ teaching hours`)}</span>
+      <button class="btn sm" onclick="copyText('webline-text')">Copy</button></div>
+    <p class="muted" style="margin-top:8px">Rounded down from ${nf(L.total)} learners and ${nf(H.website_total)} hours. NTU undergraduates (${nf(L.undergrads_ntu)}) are not included.</p>`;
+
+  const rows = (DASH.by_org || []).filter(o => o.first_source || o.any_enrolment);
+  $('byorg').innerHTML = `<div class="tscroll"><table><thead><tr><th>Organisation</th><th class="num">Counted here first</th><th class="num">Linked here (incl. counted elsewhere)</th><th class="num">From class lists / invoices</th></tr></thead><tbody>` +
+    rows.map(o => `<tr><td>${esc(o.name)}</td><td class="num"><strong>${nf(o.first_source)}</strong></td><td class="num">${nf(o.any_enrolment)}</td><td class="num">${o.unnamed ? nf(o.unnamed) : '—'}</td></tr>`).join('') +
+    `<tr class="tot"><td>Total, each person once</td><td class="num">${nf(L.total)}</td><td></td><td class="num">${nf(L.unnamed)}</td></tr></tbody></table></div>
+    <p class="muted" style="margin-top:10px;line-height:1.5">“Counted here first” puts each person under the first place you taught them, so the column adds up to the total.
+    ${nf(L.community_only)} people are only in your WhatsApp communities and are assumed to be LHUB learners. You estimated the LHUB community at ${nf(L.lhub_estimate)}; WhatsApp still lists its members by number.</p>`;
+
+  $('lastsync').textContent = DASH.last_crm_sync ? 'Bookings synced ' + ftime(DASH.last_crm_sync) : 'Bookings not synced yet';
+  $('activity').innerHTML = (DASH.activity || []).map(a => `<div class="act"><span class="muted">${esc(ftime(a.at))}</span> · ${esc(actText(a))}</div>`).join('') || '<span class="muted">Nothing yet.</span>';
+}
+function actText(a) {
+  const d = a.detail || {};
+  switch (a.action) {
+    case 'sync_crm': return `Bookings synced: ${d.enrolments_added || 0} class seats added, ${d.people_created || 0} new learners`;
+    case 'approve': return `Approved: ${d.title || ''}`;
+    case 'reject': return `Rejected: ${d.title || ''}`;
+    case 'save_class': return `Class saved: ${d.title || (ENG.find(e => e.id === d.id) || {}).title || ''}`;
+    case 'edit_person': return 'Person edited';
+    case 'merge_people': return 'Two records merged into one';
+    case 'add_enrolment': return 'Person added to a class';
+    case 'remove_enrolment': return 'Person removed from a class';
+    case 'save_hour_rule': return 'Default hours updated';
+    case 'save_baseline': return 'Baseline updated';
+    case 'initial_load': return `Initial load: ${d.people || 0} people, ${d.classes || 0} classes`;
+    default: return a.action;
+  }
+}
+window.copyText = async function (id) {
+  try { await navigator.clipboard.writeText($(id).textContent); flash('Copied'); }
+  catch (e) { flash('Copy failed: select the text and copy it by hand', false); }
+};
+
+let syncing = false;
+$('sync-btn').onclick = async () => {
+  if (syncing) return; syncing = true; $('sync-btn').textContent = 'Syncing…';
+  try {
+    const r = await rpc('tracker_sync_crm');
+    await loadAll(); if (PEOPLE_LOADED) loadPeople();
+    flash(`Synced: ${r.enrolments_added} class seats added, ${r.people_created} new learners, ${r.people_linked_by_mobile} matched by mobile`);
+  } catch (e) { flash(e.message, false); }
+  finally { syncing = false; $('sync-btn').textContent = 'Sync bookings'; }
+};
+
+// ---------- review queue ----------
+const KIND = {
+  confirm_exclude: { label: 'Not a learner?', yes: 'Keep excluded', no: 'Count as learner' },
+  exclude_person: { label: 'Exclude?', yes: 'Exclude', no: 'Keep counting' },
+  merge_crm: { label: 'Possible duplicate', yes: 'Same person: merge', no: 'Different people' },
+  set_headcount: { label: 'Headcount', yes: 'Use this number', no: 'Keep as is' },
+  set_rule_hours: { label: 'Class hours', yes: 'Confirm', no: 'Not right' },
+  set_hours: { label: 'Class hours', yes: 'Confirm', no: 'Not right' },
+  enrol_people: { label: 'Missing learners', yes: 'Add them', no: 'Leave out' },
+  add_engagement: { label: 'New class', yes: 'Add it', no: 'Skip' },
+  confirm_taepp: { label: 'Hours check', yes: 'Got it', no: null },
+};
+function confPill(c) {
+  if (c == null) return '';
+  return c >= 0.75 ? '<span class="pill hi">Likely</span>' : c >= 0.5 ? '<span class="pill md">Possible</span>' : '<span class="pill lo">Check</span>';
+}
+function classesLine(list) { const n = list.length; return n > 3 ? list.slice(0, 3).join(' · ') + ` +${n - 3} more` : list.join(' · '); }
+function renderReview() {
+  $('rev-badge').textContent = SUG.length || '';
+  $('rev-badge').classList.toggle('hidden', !SUG.length);
+  $('review').innerHTML = SUG.length ? SUG.map(sugCard).join('') : '<div class="card"><strong>All caught up.</strong> <span class="muted">Nothing to review.</span></div>';
+}
+function sugCard(s) {
+  const k = KIND[s.kind] || { label: s.kind, yes: 'Approve', no: 'Reject' };
+  const p = s.person, c = s.crm;
+  let ctx = '';
+  if (p) ctx += `<div class="ctx"><div class="ctx-h">WhatsApp record</div><strong>${esc(pname(p))}</strong>
+      ${p.saved_name && p.saved_name !== p.display_name ? `<div class="muted small">saved as “${esc(p.saved_name)}”</div>` : ''}
+      <div class="muted">${esc(fphone(p.mobile))}${p.email ? ' · ' + esc(p.email) : ''}</div>
+      ${(p.classes || []).length ? `<div class="muted small" style="margin-top:3px">${esc(classesLine(p.classes))}</div>` : ''}</div>`;
+  if (c) ctx += `<div class="ctx"><div class="ctx-h">Booking system</div><strong>${esc(c.name || '—')}</strong>
+      <div class="muted">${esc(c.email || '')}${c.mobile ? ' · ' + esc(c.mobile) : ''}</div>
+      <div class="muted small" style="margin-top:3px">${nf(c.bookings)} booking${Number(c.bookings) === 1 ? '' : 's'}</div></div>`;
+  return `<div class="card sug" id="sug-${esc(s.id)}">
+    <div class="sug-top"><span class="kind">${esc(k.label)}</span>${confPill(s.confidence)}</div>
+    <h2>${esc(s.title)}</h2>
+    <p class="detail">${esc(s.detail || '')}</p>
+    ${ctx ? `<div class="ctxs">${ctx}</div>` : ''}
+    <div class="sug-actions">
+      <input class="note" id="note-${esc(s.id)}" placeholder="Note (optional)">
+      <button class="btn sm" onclick="decide('${esc(s.id)}', true)">${esc(k.yes)}</button>
+      ${k.no ? `<button class="btn ghost sm" onclick="decide('${esc(s.id)}', false)">${esc(k.no)}</button>` : ''}
+    </div></div>`;
+}
+let deciding = false;   // module flag, backed by the server's "Already decided" check
+window.decide = async function (id, approve) {
+  if (deciding) return; deciding = true;
+  const card = $('sug-' + id); if (card) card.classList.add('busy');
+  try {
+    const note = ($('note-' + id) || {}).value || null;
+    const r = await rpc('tracker_decide', { p_id: id, p_approve: approve, p_note: note });
+    await loadAll(); if (PEOPLE_LOADED) loadPeople();
+    flash('Saved: ' + r.result);
+  } catch (e) { flash(e.message, false); if (card) card.classList.remove('busy'); }
+  finally { deciding = false; }
+};
+
+// ---------- classes & hours ----------
+const CF = { org: '', year: String(new Date().getFullYear()), status: '', need: false, q: '' };
+function renderClassFilters() {
+  const years = [...new Set(ENG.map(e => (e.start_date || '').slice(0, 4)).filter(Boolean))].sort().reverse();
+  if (CF.year && !years.includes(CF.year)) CF.year = '';
+  $('cf-org').innerHTML = '<option value="">All organisations</option>' + ORGS.map(o => `<option value="${esc(o.code)}">${esc(o.name)}</option>`).join('');
+  $('cf-year').innerHTML = '<option value="">All years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+  $('cf-org').value = CF.org; $('cf-year').value = CF.year; $('cf-status').value = CF.status; $('cf-need').checked = CF.need; $('cf-q').value = CF.q;
+  $('nr-org').innerHTML = ORGS.map(o => `<option value="${esc(o.code)}">${esc(o.name)}</option>`).join('');
+}
+['cf-org', 'cf-year', 'cf-status'].forEach(id => { $(id).onchange = () => { CF[id.slice(3)] = $(id).value; renderClasses(); }; });
+$('cf-need').onchange = () => { CF.need = $('cf-need').checked; renderClasses(); };
+$('cf-q').oninput = () => { CF.q = $('cf-q').value.trim(); renderClasses(); };
+function engFiltered() {
+  const q = CF.q.toLowerCase();
+  return ENG.filter(e => (!CF.org || e.org_code === CF.org)
+    && (!CF.year || (e.start_date || '').startsWith(CF.year))
+    && (!CF.status || e.eff_status === CF.status)
+    && (!CF.need || (e.count_hours && e.hours_status !== 'confirmed' && e.eff_status !== 'cancelled'))
+    && (!q || `${e.title} ${e.client || ''} ${e.code}`.toLowerCase().includes(q)));
+}
+function renderClasses() {
+  const list = engFiltered();
+  const hrs = list.filter(e => e.count_hours && e.eff_status === 'delivered').reduce((t, e) => t + Number(e.eff_hours || 0), 0);
+  $('cls-sum').textContent = `${list.length} class${list.length === 1 ? '' : 'es'} · ${nf(hrs)} h delivered (including estimates)`;
+  $('classes').innerHTML = list.length
+    ? `<div class="tscroll"><table class="cls"><thead><tr><th>Date</th><th>Class</th><th class="num">Learners</th><th class="num">Hours</th><th>In TAEPP 218</th><th></th></tr></thead><tbody>${list.map(classRow).join('')}</tbody></table></div>`
+    : '<p class="muted">No classes match.</p>';
+}
+function classRow(e) {
+  const learners = e.count_learners
+    ? `${nf(e.learners)}${e.unnamed ? `<div class="muted small nowrap">${nf(e.identified)} named + ${nf(e.unnamed)}</div>` : ''}`
+    : `<span class="muted small">${e.audience === 'undergraduate' ? 'undergrads' : 'not counted'}</span>`;
+  let hours = '<span class="muted">—</span>';
+  if (e.count_hours) {
+    if (e.eff_hours == null) hours = '<span class="pill miss">missing</span>';
+    else hours = `${nf(e.eff_hours)} <span class="pill ${e.hours_status === 'confirmed' ? 'ok' : 'est'}" title="${esc(e.hours_source || e.rule_note || '')}">${e.hours_status === 'confirmed' ? '✓' : 'est.'}</span>`
+      + (e.hours_status === 'estimate' ? `<div><button class="lnk" onclick="confirmHours('${e.id}')">confirm ${nf(e.eff_hours)} h</button></div>` : '');
+  }
+  const is26 = (e.start_date || '').startsWith('2026') && e.count_hours && e.kind === 'class';
+  const taepp = !is26 ? '<span class="muted">—</span>'
+    : `<select class="mini" onchange="setTaepp('${e.id}', this.value)">
+        <option value="" ${e.in_taepp_baseline == null ? 'selected' : ''}>Auto (${e.in_taepp_eff ? 'yes' : 'no'})</option>
+        <option value="true" ${e.in_taepp_baseline === true ? 'selected' : ''}>Yes</option>
+        <option value="false" ${e.in_taepp_baseline === false ? 'selected' : ''}>No: add on top</option></select>`;
+  const st = e.eff_status !== 'delivered' ? ` <span class="pill ${esc(e.eff_status)}">${e.eff_status === 'planned' ? 'coming up' : esc(e.eff_status)}</span>` : '';
+  const role = e.role !== 'lead' ? ` <span class="pill role">${esc(e.role)}</span>` : '';
+  return `<tr><td class="nowrap">${frange(e.start_date, e.end_date)}</td>
+    <td><strong>${esc(e.title)}</strong>${st}${role}<div class="muted small">${esc(orgShort(e.org_code))}${e.client ? ' · ' + esc(e.client) : ''}${e.kind === 'community' ? ' · community' : ''}</div></td>
+    <td class="num">${learners}</td><td class="num nowrap">${hours}</td><td>${taepp}</td>
+    <td class="nowrap"><button class="btn ghost sm" onclick="openRoster('${e.id}')">People</button> <button class="btn ghost sm" onclick="editClass('${e.id}')">Edit</button></td></tr>`;
+}
+function saveEng(p, okMsg) {
+  return serial(async () => {
+    try { await rpc('tracker_save_engagement', { p }); await loadAll(); flash(okMsg || 'Saved'); return true; }
+    catch (e) { flash(e.message, false); await loadAll(); return false; }
+  });
+}
+window.confirmHours = (id) => {
+  const e = ENG.find(x => x.id === id); if (!e) return;
+  saveEng({ id, hours: String(e.eff_hours), hours_confirmed: true, hours_source: e.hours_source && e.hours_source !== 'to confirm' ? e.hours_source : (e.rule_note || 'Confirmed by Andrew') }, `Confirmed ${nf(e.eff_hours)} h`);
+};
+window.setTaepp = (id, v) => saveEng({ id, in_taepp_baseline: v }, 'Saved');
+$('add-class').onclick = () => openModal(classForm(null));
+window.editClass = (id) => openModal(classForm(ENG.find(x => x.id === id)));
+function classForm(e) {
+  const isNew = !e;
+  e = e || { org_code: CF.org || 'TEMBUSU', role: 'lead', status: 'planned', count_learners: true, count_hours: true };
+  const opt = (vals, cur, labels) => vals.map((v, i) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${labels ? labels[i] : v}</option>`).join('');
+  const taeppVal = e.in_taepp_baseline == null ? '' : String(e.in_taepp_baseline);
+  return `<h2>${isNew ? 'Add a class' : 'Edit class'}</h2>
+    ${isNew ? '' : `<p class="muted small">${esc(e.code)}</p>`}
+    <div class="formgrid">
+      <div class="full"><label>Title</label><input id="ef-title" value="${esc(e.title || '')}"></div>
+      <div><label>Organisation</label><select id="ef-org">${ORGS.map(o => `<option value="${esc(o.code)}" ${o.code === e.org_code ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></div>
+      <div><label>Client (optional)</label><input id="ef-client" value="${esc(e.client || '')}"></div>
+      <div><label>Start date</label><input type="date" id="ef-start" value="${esc(e.start_date || '')}"></div>
+      <div><label>End date</label><input type="date" id="ef-end" value="${esc(e.end_date || '')}"></div>
+      <div><label>Your role</label><select id="ef-role">${opt(['lead', 'co-trainer', 'ta', 'marker'], e.role, ['Lead trainer', 'Co-trainer', 'TA', 'Marker'])}</select></div>
+      <div><label>Status</label><select id="ef-status">${opt(['planned', 'delivered', 'cancelled'], e.status, ['Coming up', 'Delivered', 'Cancelled'])}</select></div>
+      <div><label>Contact hours</label><input type="number" step="0.5" min="0" id="ef-hours" value="${e.hours == null ? '' : e.hours}" placeholder="${e.rule_hours != null ? 'default ' + e.rule_hours + ' h' : 'e.g. 8'}"></div>
+      <div><label>Where the hours come from</label><input id="ef-hsrc" value="${esc(e.hours_source || '')}" placeholder="invoice, timetable…"></div>
+      <div class="full chk"><label><input type="checkbox" id="ef-hconf" ${e.hours_confirmed ? 'checked' : ''}>Hours confirmed</label></div>
+      <div><label>Headcount (class list / invoice)</label><input type="number" min="0" id="ef-head" value="${e.headcount == null ? '' : e.headcount}" placeholder="blank = named people only"></div>
+      <div><label>Headcount source</label><input id="ef-hcsrc" value="${esc(e.headcount_source || '')}"></div>
+      <div><label>Already inside TAEPP 218 h?</label><select id="ef-taepp">${opt(['', 'true', 'false'], taeppVal, ['Auto (by date)', 'Yes', 'No: add on top'])}</select></div>
+      <div class="chk" style="padding-top:28px"><label><input type="checkbox" id="ef-cl" ${e.count_learners !== false ? 'checked' : ''}>Count learners</label><label><input type="checkbox" id="ef-ch" ${e.count_hours !== false ? 'checked' : ''}>Count hours</label></div>
+      <div class="full"><label>Notes</label><textarea id="ef-notes" rows="2">${esc(e.notes || '')}</textarea></div>
+    </div>
+    <div class="modal-actions"><button class="btn" onclick="saveClassForm('${isNew ? '' : e.id}')">Save</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`;
+}
+window.saveClassForm = async (id) => {
+  const v = (x) => $(x).value.trim();
+  const p = { title: v('ef-title'), org_code: v('ef-org'), client: v('ef-client'), start_date: v('ef-start'), end_date: v('ef-end'),
+    role: v('ef-role'), status: v('ef-status'), hours: v('ef-hours'), hours_source: v('ef-hsrc'), hours_confirmed: $('ef-hconf').checked,
+    headcount: v('ef-head'), headcount_source: v('ef-hcsrc'), in_taepp_baseline: v('ef-taepp'),
+    count_learners: $('ef-cl').checked, count_hours: $('ef-ch').checked, notes: v('ef-notes') };
+  if (!p.title) { flash('Give the class a title', false); return; }
+  if (id) p.id = id;
+  await guardForm(async () => { if (await saveEng(p, id ? 'Class saved' : 'Class added')) closeModal(); });
+};
+
+// roster
+window.openRoster = async (id) => {
+  const e = ENG.find(x => x.id === id); if (!e) return;
+  openModal(`<h2>${esc(e.title)}</h2><p class="muted">${frange(e.start_date, e.end_date)} · ${esc(orgShort(e.org_code))}</p>
+    <div id="roster" class="muted" style="margin-top:10px">Loading…</div>
+    <div class="addp"><label style="margin-top:0">Add someone to this class</label>
+      <div class="row"><input id="ap-q" placeholder="Name or mobile"><button class="btn ghost sm" onclick="findForRoster('${id}')">Search</button></div>
+      <div id="ap-res"></div></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Close</button></div>`, true);
+  $('ap-q').onkeydown = (ev) => { if (ev.key === 'Enter') findForRoster(id); };
+  await loadRoster(id);
+};
+async function loadRoster(id) {
+  try {
+    const list = await rpc('tracker_engagement_people', { p_id: id });
+    const e = ENG.find(x => x.id === id) || {};
+    $('roster').innerHTML = list.length
+      ? `<p class="muted small">${list.length} named${e.unnamed ? ` + ${e.unnamed} from the class list or invoice` : ''}</p><div class="tscroll"><table><tbody>` +
+        list.map(p => `<tr><td><strong>${esc(pname(p))}</strong>${badges(p)}<div class="muted small">${esc(fphone(p.mobile))}${p.email ? ' · ' + esc(p.email) : ''}</div></td>
+          <td class="muted small">${esc(SRC[p.source] || p.source)}</td><td class="num"><button class="lnk" onclick="rosterSet('${p.id}','${id}',false)">remove</button></td></tr>`).join('') + '</tbody></table></div>'
+      : `<p class="muted">No named people in this class${e.unnamed ? ` (${e.unnamed} counted from the class list or invoice)` : ''}.</p>`;
+  } catch (err) { $('roster').textContent = err.message; }
+}
+window.findForRoster = async (id) => {
+  const q = $('ap-q').value.trim(); if (!q) return;
+  try {
+    const r = await rpc('tracker_people', { p_q: q, p_filter: 'all', p_limit: 8, p_offset: 0 });
+    $('ap-res').innerHTML = (r.rows || []).map(p => `<div class="act">${esc(pname(p))}${badges(p)} <span class="muted small">${esc(fphone(p.mobile))}</span>
+      <button class="lnk" style="float:right" onclick="rosterSet('${p.id}','${id}',true)">add</button></div>`).join('') || '<p class="muted small" style="margin-top:6px">Nobody found.</p>';
+  } catch (e) { $('ap-res').textContent = e.message; }
+};
+window.rosterSet = (personId, engId, on) => serial(async () => {
+  try {
+    await rpc('tracker_set_enrolment', { p_person: personId, p_engagement: engId, p_on: on });
+    await loadAll(); await loadRoster(engId); if ($('ap-res')) $('ap-res').innerHTML = '';
+    flash(on ? 'Added to the class' : 'Removed from the class (kept in the history)');
+  } catch (e) { flash(e.message, false); }
+});
+
+// ---------- people ----------
+const PF = { q: '', filter: 'all', offset: 0 };
+let MERGE_KEEP = null, PEOPLE_ROWS = [], PEOPLE_TOTAL = 0;
+let ppTimer = null;
+$('pp-q').oninput = () => { clearTimeout(ppTimer); ppTimer = setTimeout(() => { PF.q = $('pp-q').value.trim(); PF.offset = 0; loadPeople(); }, 300); };
+$('pp-filter').onchange = () => { PF.filter = $('pp-filter').value; PF.offset = 0; loadPeople(); };
+$('pp-prev').onclick = () => { PF.offset = Math.max(0, PF.offset - 50); loadPeople(); };
+$('pp-next').onclick = () => { PF.offset += 50; loadPeople(); };
+async function loadPeople() {
+  PEOPLE_LOADED = true;
+  $('people').innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    const r = await rpc('tracker_people', { p_q: PF.q || null, p_filter: PF.filter, p_limit: 50, p_offset: PF.offset });
+    renderPeople(r);
+  } catch (e) { $('people').textContent = e.message; }
+}
+function shortTitle(c) {
+  if (c.kind === 'community') return c.org === 'LHUB' ? 'LHUB community' : 'Impactus community';
+  const t = String(c.title || '');
+  return t.length > 34 ? t.slice(0, 32) + '…' : t;
+}
+function renderPeople(r) {
+  const rows = r.rows || []; PEOPLE_ROWS = rows; PEOPLE_TOTAL = r.total || 0;
+  const from = r.total ? PF.offset + 1 : 0, to = PF.offset + rows.length;
+  $('pp-count').textContent = `${nf(r.total)} ${r.total === 1 ? 'person' : 'people'}${r.total > rows.length ? ` · showing ${nf(from)}–${nf(to)}` : ''}`;
+  $('pp-prev').disabled = PF.offset === 0; $('pp-next').disabled = to >= r.total;
+  $('merge-bar').innerHTML = MERGE_KEEP ? `<div class="warn">Merging into <strong>${esc(MERGE_KEEP.name)}</strong>: find the duplicate record, then press “Fold into this person” on it. <button class="lnk" onclick="cancelMerge()">cancel</button></div>` : '';
+  $('people').innerHTML = rows.length
+    ? `<div class="tscroll"><table><thead><tr><th>Name</th><th>Mobile / email</th><th>Classes</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(personRow).join('')}</tbody></table></div>`
+    : '<p class="muted">Nobody matches.</p>';
+}
+function personRow(p) {
+  const cls = p.classes || [];
+  const chips = cls.slice(0, 4).map(c => `<span class="chip ${c.kind === 'community' ? 'com' : ''}" title="${esc(c.title)} · ${esc(SRC[c.source] || c.source)}">${esc(shortTitle(c))}</span>`).join('')
+    + (cls.length > 4 ? `<span class="muted small">+${cls.length - 4} more</span>` : '');
+  const status = p.is_learner ? '<span class="pill ok">Counted</span>' : `<span class="pill miss">Excluded</span><div class="muted small">${esc(p.exclude_reason || '')}</div>`;
+  const merge = MERGE_KEEP
+    ? (MERGE_KEEP.id === p.id ? '<span class="muted small">keeping this one</span>' : `<button class="btn sm" onclick="mergeInto('${p.id}')">Fold into this person</button>`)
+    : `<button class="lnk" onclick="startMerge('${p.id}')">merge…</button>`;
+  return `<tr><td><strong>${esc(pname(p))}</strong>${badges(p)}
+      ${p.saved_name && p.saved_name !== p.display_name ? `<div class="muted small">saved as “${esc(p.saved_name)}”</div>` : ''}
+      ${p.notes ? `<div class="muted small">Note: ${esc(p.notes)}</div>` : ''}</td>
+    <td class="small nowrap">${p.mobile ? esc(fphone(p.mobile)) : '<span class="muted">—</span>'}${p.email ? `<div class="muted">${esc(p.email)}</div>` : ''}</td>
+    <td class="chips">${chips || '<span class="muted small">none</span>'}</td>
+    <td>${status}</td>
+    <td class="nowrap"><button class="lnk" onclick="${p.is_learner ? `excludePerson('${p.id}')` : `setLearner('${p.id}', true)`}">${p.is_learner ? 'exclude' : 'count again'}</button> · <button class="lnk" onclick="editPerson('${p.id}')">edit</button> · ${merge}</td></tr>`;
+}
+function savePerson(p, okMsg) {
+  return serial(async () => {
+    try { await rpc('tracker_set_person', { p }); await Promise.all([loadPeople(), loadAll()]); flash(okMsg); return true; }
+    catch (e) { flash(e.message, false); return false; }
+  });
+}
+window.setLearner = (id, on) => savePerson({ id, is_learner: on }, on ? 'Counted as a learner again' : 'Excluded');
+window.excludePerson = (id) => {
+  const p = PEOPLE_ROWS.find(x => x.id === id); if (!p) return;
+  openModal(`<h2>Exclude ${esc(pname(p))}?</h2><p class="muted">They stay in the records but stop counting as a learner. You can count them again at any time.</p>
+    <label>Reason (optional)</label><input id="ex-reason" placeholder="e.g. LHUB staff, family, partner contact">
+    <div class="modal-actions"><button class="btn" onclick="confirmExclude('${id}')">Exclude</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+};
+window.confirmExclude = (id) => guardForm(async () => { if (await savePerson({ id, is_learner: false, exclude_reason: $('ex-reason').value.trim() || 'Excluded by Andrew' }, 'Excluded')) closeModal(); });
+window.editPerson = (id) => {
+  const p = PEOPLE_ROWS.find(x => x.id === id); if (!p) return;
+  openModal(`<h2>Edit ${esc(pname(p))}</h2>
+    <label>Name</label><input id="pe-name" value="${esc(p.display_name || '')}">
+    <label>Email</label><input id="pe-email" value="${esc(p.email || '')}">
+    <label>Notes</label><textarea id="pe-notes" rows="3">${esc(p.notes || '')}</textarea>
+    <div class="modal-actions"><button class="btn" onclick="savePersonForm('${id}')">Save</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+};
+window.savePersonForm = (id) => guardForm(async () => {
+  if (await savePerson({ id, display_name: $('pe-name').value, email: $('pe-email').value, notes: $('pe-notes').value }, 'Saved')) closeModal();
+});
+window.startMerge = (id) => {
+  const p = PEOPLE_ROWS.find(x => x.id === id); if (!p) return;
+  MERGE_KEEP = { id, name: pname(p) };
+  renderPeople({ rows: PEOPLE_ROWS, total: PEOPLE_TOTAL });
+  flash('Now search for the duplicate record');
+  $('pp-q').focus();
+};
+window.cancelMerge = () => { MERGE_KEEP = null; loadPeople(); };
+window.mergeInto = (fromId) => {
+  const from = PEOPLE_ROWS.find(x => x.id === fromId); if (!from || !MERGE_KEEP) return;
+  openModal(`<h2>Merge two records?</h2>
+    <p style="line-height:1.55;font-size:14px"><strong>${esc(pname(from))}</strong> will be folded into <strong>${esc(MERGE_KEEP.name)}</strong>.
+    Their classes, mobile, booking account and SUSS ID move across, and the learner counts once. The old record is kept as “merged” for the history.</p>
+    <div class="modal-actions"><button class="btn" onclick="doMerge('${fromId}')">Merge</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+};
+window.doMerge = (fromId) => guardForm(() => serial(async () => {
+  if (!MERGE_KEEP) return;
+  try {
+    await rpc('tracker_merge_people', { p_keep: MERGE_KEEP.id, p_from: fromId });
+    MERGE_KEEP = null; closeModal();
+    await Promise.all([loadPeople(), loadAll()]);
+    flash('Merged');
+  } catch (e) { flash(e.message, false); }
+}));
+
+// ---------- settings ----------
+function renderSettings() {
+  const bl = SET.baselines || [];
+  $('baselines').innerHTML = bl.map(b => `<div class="bl"><div class="bl-l"><strong>${esc(b.label)}</strong>
+      <div class="muted small" style="margin-top:3px">${esc(b.source || '')}${b.notes ? ' · ' + esc(b.notes) : ''}</div></div>
+      <div class="bl-f">
+        ${b.kind !== 'lhub_estimate' ? `<label>Hours<input type="number" step="0.5" min="0" id="bh-${b.id}" value="${b.hours == null ? '' : b.hours}"></label>` : ''}
+        ${b.kind === 'lhub_estimate' ? `<label>Learners<input type="number" min="0" id="bn-${b.id}" value="${b.learners == null ? '' : b.learners}"></label>` : ''}
+        <label>As at<input type="date" id="be-${b.id}" value="${esc(b.period_end || '')}"></label>
+        <button class="btn ghost sm" onclick="saveBaseline(${b.id})">Save</button></div></div>`).join('') || '<p class="muted">No baselines.</p>';
+  const rules = SET.rules || [];
+  $('rules').innerHTML = `<div class="tscroll"><table><thead><tr><th>Organisation</th><th>Title matches</th><th class="num">Hours per run</th><th>Confirmed</th><th>Note</th><th class="num">Classes using it</th><th></th></tr></thead><tbody>` +
+    rules.map(r => `<tr><td class="nowrap">${esc(orgShort(r.org_code))}</td><td><code>${esc(r.pattern)}</code></td>
+      <td class="num"><input type="number" step="0.5" min="0" class="mini num" id="rh-${r.id}" value="${r.hours == null ? '' : r.hours}"></td>
+      <td><input type="checkbox" id="rc-${r.id}" ${r.confirmed ? 'checked' : ''}></td>
+      <td class="small" style="min-width:200px">${esc(r.note || '')}</td>
+      <td class="num">${nf(r.classes)}${r.classes_2026 ? `<div class="muted small">${nf(r.classes_2026)} in 2026</div>` : ''}</td>
+      <td><button class="btn ghost sm" onclick="saveRule(${r.id})">Save</button></td></tr>`).join('') + '</tbody></table></div>';
+}
+function saveSetting(fn, p, okMsg) {
+  return serial(async () => {
+    try { await rpc(fn, { p }); await loadAll(); flash(okMsg); return true; }
+    catch (e) { flash(e.message, false); return false; }
+  });
+}
+window.saveBaseline = (id) => {
+  const p = { id, period_end: $('be-' + id).value };
+  if ($('bh-' + id)) p.hours = $('bh-' + id).value;
+  if ($('bn-' + id)) p.learners = $('bn-' + id).value;
+  saveSetting('tracker_save_baseline', p, 'Baseline saved');
+};
+window.saveRule = (id) => saveSetting('tracker_save_rule', { id, hours: $('rh-' + id).value, confirmed: $('rc-' + id).checked }, 'Default hours saved');
+$('nr-save').onclick = () => {
+  const words = $('nr-pattern').value.trim();
+  if (!words) { flash('Say which titles the rule applies to', false); return; }
+  guardForm(async () => {
+    const ok = await saveSetting('tracker_save_rule', { org_code: $('nr-org').value, pattern: '%' + words.replace(/[%_]/g, '') + '%', hours: $('nr-hours').value, note: $('nr-note').value.trim(), sort: 90 }, 'Rule added');
+    if (ok) { $('nr-pattern').value = ''; $('nr-hours').value = ''; $('nr-note').value = ''; }
+  });
+};
+
+// ---------- modal ----------
+function openModal(html, wide) { $('modal').innerHTML = html; $('modal').classList.toggle('wide', !!wide); $('modal-bg').classList.remove('hidden'); }
+function closeModal() { $('modal-bg').classList.add('hidden'); $('modal').innerHTML = ''; }
+window.closeModal = closeModal;
+$('modal-bg').onclick = (ev) => { if (ev.target === $('modal-bg')) closeModal(); };
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closeModal(); });
+
+init();
+</script>
+</body>
+</html>
