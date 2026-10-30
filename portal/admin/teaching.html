@@ -42,6 +42,10 @@
   .btn:disabled { opacity:.5; cursor:default; }
   .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
   .btn.sm { padding:6px 11px; font-size:12.5px; }
+  .btn.ghost.danger { color:#b42318; border-color:#f1c4c0; }
+  .btn.danger:not(.ghost) { background:#b42318; color:#fff; }
+  .deleted-cls { margin-top:14px; border-top:1px solid var(--line); padding-top:10px; }
+  .deleted-cls summary { cursor:pointer; font-size:13px; color:var(--muted, #667); }
   .lnk { background:none; border:none; color:#2f5bd3; font:inherit; font-size:12.5px; cursor:pointer; padding:0; text-decoration:underline; }
   input, select, textarea { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-size:13.5px; font-family:inherit; background:#fff; color:var(--ink); }
   input[type=checkbox] { width:auto; margin-right:6px; vertical-align:-2px; }
@@ -220,6 +224,7 @@
       <div class="card">
         <div class="muted" id="cls-sum" style="margin-bottom:8px"></div>
         <div id="classes"></div>
+        <div id="deleted-cls"></div>
       </div>
     </section>
 
@@ -316,7 +321,7 @@ async function rpc(fn, args) {
   return data;
 }
 
-let DASH = null, ENG = [], SUG = [], SET = { orgs: [], rules: [], baselines: [] }, ORGS = [];
+let DASH = null, ENG = [], SUG = [], SET = { orgs: [], rules: [], baselines: [] }, ORGS = [], DELETED = [];
 let PEOPLE_LOADED = false;
 // Every edit goes through one queue, so quick successive changes are applied in order and never dropped.
 // Forms that CREATE something also carry a module flag against double-submits.
@@ -355,10 +360,11 @@ document.querySelectorAll('#subtabs button').forEach(b => { b.onclick = () => se
 
 async function loadAll() {
   try {
-    const [d, e, s, st] = await Promise.all([
+    const [d, e, s, st, del] = await Promise.all([
       rpc('tracker_dashboard'), rpc('tracker_engagements'), rpc('tracker_suggestions', { p_status: 'pending' }), rpc('tracker_settings'),
+      rpc('tracker_deleted_engagements'),
     ]);
-    DASH = d; ENG = e || []; SUG = s || []; SET = st || SET; ORGS = SET.orgs || [];
+    DASH = d; ENG = e || []; SUG = s || []; SET = st || SET; ORGS = SET.orgs || []; DELETED = del || [];
     renderOverview(); renderReview(); renderClassFilters(); renderClasses(); renderSettings();
   } catch (err) { flash('Could not load: ' + err.message, false); }
 }
@@ -432,6 +438,8 @@ function actText(a) {
     case 'approve': return `Approved: ${d.title || ''}`;
     case 'reject': return `Rejected: ${d.title || ''}`;
     case 'save_class': return `Class saved: ${d.title || (ENG.find(e => e.id === d.id) || {}).title || ''}`;
+    case 'delete_class': return `Class deleted: ${d.title || ''}${d.start_date ? ' (' + fdate(d.start_date) + ')' : ''}`;
+    case 'restore_class': return `Class restored: ${d.title || ''}${d.start_date ? ' (' + fdate(d.start_date) + ')' : ''}`;
     case 'edit_person': return 'Person edited';
     case 'merge_people': return 'Two records merged into one';
     case 'add_enrolment': return 'Person added to a class';
@@ -545,6 +553,12 @@ function renderClasses() {
   $('classes').innerHTML = list.length
     ? `<div class="tscroll"><table class="cls"><thead><tr><th>Date</th><th>Class</th><th class="num">Learners</th><th class="num">Hours</th><th>In TAEPP</th><th></th></tr></thead><tbody>${list.map(classRow).join('')}</tbody></table></div>`
     : '<p class="muted">No classes match.</p>';
+  $('deleted-cls').innerHTML = !DELETED.length ? ''
+    : `<details class="deleted-cls"><summary>Deleted classes (${DELETED.length}) · not counted anywhere</summary>
+        <div class="tscroll"><table class="cls"><tbody>${DELETED.map(x => `<tr>
+          <td class="nowrap">${frange(x.start_date, x.end_date)}</td>
+          <td><strong>${esc(x.title)}</strong><div class="muted small">${esc(orgShort(x.org_code))} · deleted ${esc(ftime(x.deleted_at))}</div></td>
+          <td class="nowrap"><button class="btn ghost sm" onclick="restoreClass('${x.id}')">Restore</button></td></tr>`).join('')}</tbody></table></div></details>`;
 }
 function classRow(e) {
   const learners = e.count_learners
@@ -567,8 +581,27 @@ function classRow(e) {
   return `<tr><td class="nowrap">${frange(e.start_date, e.end_date)}</td>
     <td><strong>${esc(e.title)}</strong>${st}${role}<div class="muted small">${esc(orgShort(e.org_code))}${e.client ? ' · ' + esc(e.client) : ''}${e.kind === 'community' ? ' · community' : ''}</div></td>
     <td class="num">${learners}</td><td class="num nowrap">${hours}</td><td>${taepp}</td>
-    <td class="nowrap"><button class="btn ghost sm" onclick="openRoster('${e.id}')">People</button> <button class="btn ghost sm" onclick="editClass('${e.id}')">Edit</button></td></tr>`;
+    <td class="nowrap"><button class="btn ghost sm" onclick="openRoster('${e.id}')">People</button> <button class="btn ghost sm" onclick="editClass('${e.id}')">Edit</button> <button class="btn ghost sm danger" onclick="deleteClass('${e.id}')">Delete</button></td></tr>`;
 }
+window.deleteClass = (id) => {
+  const e = ENG.find(x => x.id === id); if (!e) return;
+  const seats = e.identified ? `<p class="muted small">${nf(e.identified)} named learner${e.identified === 1 ? '' : 's'} on this class will no longer be counted from it.</p>` : '';
+  openModal(`<h2>Delete this class?</h2>
+    <p><strong>${esc(e.title)}</strong><br><span class="muted">${frange(e.start_date, e.end_date)} · ${esc(orgShort(e.org_code))}</span></p>
+    <p class="muted small">It disappears from this list and from every learner and hours total. You can restore it under “Deleted classes” at the bottom of this tab.</p>${seats}
+    <div class="modal-actions"><button class="btn danger" id="del-go" onclick="doDeleteClass('${id}')">Delete</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+};
+window.doDeleteClass = (id) => guardForm(async () => {
+  const b = $('del-go'); if (b) { b.disabled = true; b.textContent = 'Deleting…'; }
+  await serial(async () => {
+    try { const r = await rpc('tracker_delete_engagement', { p_id: id, p_restore: false }); closeModal(); await loadAll(); flash('Deleted: ' + (r.title || 'class')); }
+    catch (e) { flash(e.message, false); if (b) { b.disabled = false; b.textContent = 'Delete'; } }
+  });
+});
+window.restoreClass = (id) => serial(async () => {
+  try { const r = await rpc('tracker_delete_engagement', { p_id: id, p_restore: true }); await loadAll(); flash('Restored: ' + (r.title || 'class')); }
+  catch (e) { flash(e.message, false); }
+});
 function saveEng(p, okMsg) {
   return serial(async () => {
     try { await rpc('tracker_save_engagement', { p }); await loadAll(); flash(okMsg || 'Saved'); return true; }
