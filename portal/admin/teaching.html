@@ -403,14 +403,14 @@ function renderOverview() {
     .map(e => e.start_date).filter(Boolean).sort()[0];
   const orgInfo = (code) => ORGS.find(x => x.code === code) || {};
   const rows = (DASH.by_org || []).filter(o => (o.first_source || o.any_enrolment || nextClass(o.org)) && !orgInfo(o.org).hidden);
-  $('byorg').innerHTML = `<div class="tscroll"><table><thead><tr><th>Organisation</th><th class="num">Counted here first</th><th class="num">Linked here (incl. counted elsewhere)</th><th class="num">From class lists / invoices</th></tr></thead><tbody>` +
+  $('byorg').innerHTML = `<div class="tscroll"><table><thead><tr><th>Organisation</th><th class="num">First taught at this organisation</th><th class="num">All learners at this organisation</th><th class="num">From class lists / invoices</th></tr></thead><tbody>` +
     rows.map(o => {
       const past = orgInfo(o.org).active === false ? ' <span class="pill role">past</span>' : '';
       const nx = !o.first_source && !o.any_enrolment && nextClass(o.org) ? `<div class="muted small">first class ${fdate(nextClass(o.org))}</div>` : '';
       return `<tr><td>${esc(o.name)}${past}${nx}</td><td class="num"><strong>${o.first_source || !nx ? nf(o.first_source) : '—'}</strong></td><td class="num">${o.any_enrolment || !nx ? nf(o.any_enrolment) : '—'}</td><td class="num">${o.unnamed ? nf(o.unnamed) : '—'}</td></tr>`;
     }).join('') +
     `<tr class="tot"><td>Total, each person once</td><td class="num">${nf(L.total)}</td><td></td><td class="num">${nf(L.unnamed)}</td></tr></tbody></table></div>
-    <p class="muted" style="margin-top:10px;line-height:1.5">“Counted here first” puts each person under the first place you taught them, so the column adds up to the total.
+    <p class="muted" style="margin-top:10px;line-height:1.5">“First taught at this organisation” puts each person under the first place you taught them, so that column adds up to the total. “All learners at this organisation” counts everyone on record there, including people first taught elsewhere, so a person can appear on several rows.
     ${nf(L.community_only)} people are only in your WhatsApp communities and are assumed to be LHUB learners. You estimated the LHUB community at ${nf(L.lhub_estimate)}; WhatsApp still lists its members by number.</p>`;
 
   renderTaepp();
