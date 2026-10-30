@@ -59,6 +59,7 @@
   .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
   .kpi.big { border-color:#f1d58a; background:#fffbf0; }
   .kpi.click { cursor:pointer; } .kpi.click:hover { border-color:var(--amber); }
+  .kpi.todo { border-color:#f3c4c4; background:#fff8f8; }
   .kpi .v { font-size:24px; font-weight:800; } .kpi .l { font-size:12px; font-weight:700; margin-top:2px; }
   .kpi .sub2 { font-size:11.5px; color:var(--mut); margin-top:4px; line-height:1.4; }
   .copyline { display:flex; gap:10px; align-items:center; flex-wrap:wrap; background:var(--soft); border-radius:10px; padding:12px 14px; font-weight:700; font-size:15px; }
@@ -179,6 +180,10 @@
       <div class="card">
         <h2>For your website and profile</h2>
         <div id="webline"></div>
+      </div>
+      <div class="card">
+        <h2>TAEPP (Adult Educator Registry)</h2>
+        <div id="taepp"></div>
       </div>
       <div class="card">
         <h2>Learners by organisation</h2>
@@ -368,7 +373,7 @@ function renderOverview() {
     <div class="kpi big"><div class="v">${nf(L.total)}</div><div class="l">Working professionals taught</div>
       <div class="sub2">${nf(L.identified)} named · ${nf(L.unnamed)} from class lists &amp; invoices</div></div>
     <div class="kpi big"><div class="v">${nf(H.website_total)}</div><div class="l">Teaching hours</div>
-      <div class="sub2">${nf(H.baseline_2024_2025)} (2024–25) + ${nf(H.taepp_2026)} TAEPP 2026 + ${nf(extra)} not yet in TAEPP</div></div>
+      <div class="sub2">${nf(H.baseline_2024_2025)} (2024–25) + ${nf(H.website_2026)} in 2026, of which ${nf(H.taepp_2026)} are logged in TAEPP</div></div>
     <div class="kpi"><div class="v">${nf(H.logged_2026_total)}</div><div class="l">2026 hours from your classes here</div>
       <div class="sub2">${nf(H.logged_2026_confirmed)} confirmed · ${nf(H.logged_2026_estimate)} estimated · ${nf(H.classes_2026_missing_hours)} classes missing hours</div></div>
     <div class="kpi"><div class="v">${nf(H.planned_classes)}</div><div class="l">Classes coming up</div><div class="sub2">${nf(H.planned_hours)} h scheduled</div></div>
@@ -398,8 +403,27 @@ function renderOverview() {
     <p class="muted" style="margin-top:10px;line-height:1.5">“Counted here first” puts each person under the first place you taught them, so the column adds up to the total.
     ${nf(L.community_only)} people are only in your WhatsApp communities and are assumed to be LHUB learners. You estimated the LHUB community at ${nf(L.lhub_estimate)}; WhatsApp still lists its members by number.</p>`;
 
+  renderTaepp();
   $('lastsync').textContent = DASH.last_crm_sync ? 'Bookings synced ' + ftime(DASH.last_crm_sync) : 'Bookings not synced yet';
   $('activity').innerHTML = (DASH.activity || []).map(a => `<div class="act"><span class="muted">${esc(ftime(a.at))}</span> · ${esc(actText(a))}</div>`).join('') || '<span class="muted">Nothing yet.</span>';
+}
+function renderTaepp() {
+  const T = DASH.taepp;
+  if (!T) { $('taepp').innerHTML = '<p class="muted">Not checked yet.</p>'; return; }
+  const practiceMet = Number(T.practice_hours) >= Number(T.practice_required);
+  const cpdLeft = Math.max(0, Number(T.cpd_required) - Number(T.cpd_hours));
+  const ialLeft = Math.max(0, Number(T.ial_cpd_required) - Number(T.ial_cpd_hours));
+  const notLogged = ENG.filter(e => e.kind === 'class' && e.count_hours && e.eff_status === 'delivered'
+    && (e.start_date || '') >= T.counts_from && e.in_taepp_eff === false);
+  const nlHours = notLogged.reduce((t, e) => t + Number(e.eff_hours || 0), 0);
+  $('taepp').innerHTML = `<p class="muted">${esc(T.level)} · cycle ${fdate(T.cycle_start)} – ${fdate(T.cycle_end)} · checked ${fdate(T.checked_at)}</p>
+    <div class="kpis" style="margin-top:10px">
+      <div class="kpi"><div class="v">${nf(T.practice_hours)} / ${nf(T.practice_required)} h</div><div class="l">Practice hours</div>
+        <div class="sub2">${practiceMet ? 'Requirement met' : `${nf(Number(T.practice_required) - Number(T.practice_hours))} h to go`}${T.practice_submissions_open === false ? '. The portal no longer accepts practice hours from you.' : ''}</div></div>
+      <div class="kpi ${cpdLeft ? 'todo' : ''}"><div class="v">${nf(T.cpd_hours)} / ${nf(T.cpd_required)} h</div><div class="l">CPD hours (courses you attend)</div>
+        <div class="sub2">${cpdLeft ? `${nf(cpdLeft)} h to go by ${fdate(T.cycle_end)}, including at least ${nf(ialLeft)} h from IAL` : 'Requirement met'}</div></div>
+    </div>
+    <p class="muted" style="margin-top:10px;line-height:1.5">${notLogged.length} class${notLogged.length === 1 ? '' : 'es'} since ${fdate(T.counts_from)} (${nf(nlHours)} h) ${notLogged.length === 1 ? 'is' : 'are'} not in TAEPP${T.practice_submissions_open === false ? ' and no longer need to be' : ''}. They still count in your teaching hours. TAEPP counts hours from ${fdate(T.counts_from)} only.</p>`;
 }
 function actText(a) {
   const d = a.detail || {};
@@ -416,6 +440,7 @@ function actText(a) {
     case 'save_baseline': return 'Baseline updated';
     case 'initial_load': return `Initial load: ${d.people || 0} people, ${d.classes || 0} classes`;
     case 'org_status': return d.summary || 'Organisations updated';
+    case 'taepp_sync': return d.summary || 'TAEPP checked';
     default: return a.action;
   }
 }
@@ -518,7 +543,7 @@ function renderClasses() {
   const hrs = list.filter(e => e.count_hours && e.eff_status === 'delivered').reduce((t, e) => t + Number(e.eff_hours || 0), 0);
   $('cls-sum').textContent = `${list.length} class${list.length === 1 ? '' : 'es'} · ${nf(hrs)} h delivered (including estimates)`;
   $('classes').innerHTML = list.length
-    ? `<div class="tscroll"><table class="cls"><thead><tr><th>Date</th><th>Class</th><th class="num">Learners</th><th class="num">Hours</th><th>In TAEPP 218</th><th></th></tr></thead><tbody>${list.map(classRow).join('')}</tbody></table></div>`
+    ? `<div class="tscroll"><table class="cls"><thead><tr><th>Date</th><th>Class</th><th class="num">Learners</th><th class="num">Hours</th><th>In TAEPP</th><th></th></tr></thead><tbody>${list.map(classRow).join('')}</tbody></table></div>`
     : '<p class="muted">No classes match.</p>';
 }
 function classRow(e) {
@@ -534,9 +559,9 @@ function classRow(e) {
   const is26 = (e.start_date || '').startsWith('2026') && e.count_hours && e.kind === 'class';
   const taepp = !is26 ? '<span class="muted">—</span>'
     : `<select class="mini" onchange="setTaepp('${e.id}', this.value)">
-        <option value="" ${e.in_taepp_baseline == null ? 'selected' : ''}>Auto (${e.in_taepp_eff ? 'yes' : 'no'})</option>
-        <option value="true" ${e.in_taepp_baseline === true ? 'selected' : ''}>Yes</option>
-        <option value="false" ${e.in_taepp_baseline === false ? 'selected' : ''}>No: add on top</option></select>`;
+        <option value="" ${e.in_taepp_baseline == null ? 'selected' : ''}>Auto (${e.in_taepp_eff ? 'logged' : 'not logged'})</option>
+        <option value="true" ${e.in_taepp_baseline === true ? 'selected' : ''}>Logged</option>
+        <option value="false" ${e.in_taepp_baseline === false ? 'selected' : ''}>Not logged</option></select>`;
   const st = e.eff_status !== 'delivered' ? ` <span class="pill ${esc(e.eff_status)}">${e.eff_status === 'planned' ? 'coming up' : esc(e.eff_status)}</span>` : '';
   const role = e.role !== 'lead' ? ` <span class="pill role">${esc(e.role)}</span>` : '';
   return `<tr><td class="nowrap">${frange(e.start_date, e.end_date)}</td>
@@ -578,7 +603,7 @@ function classForm(e) {
       <div class="full chk"><label><input type="checkbox" id="ef-hconf" ${e.hours_confirmed ? 'checked' : ''}>Hours confirmed</label></div>
       <div><label>Headcount (class list / invoice)</label><input type="number" min="0" id="ef-head" value="${e.headcount == null ? '' : e.headcount}" placeholder="blank = named people only"></div>
       <div><label>Headcount source</label><input id="ef-hcsrc" value="${esc(e.headcount_source || '')}"></div>
-      <div><label>Already inside TAEPP 218 h?</label><select id="ef-taepp">${opt(['', 'true', 'false'], taeppVal, ['Auto (by date)', 'Yes', 'No: add on top'])}</select></div>
+      <div><label>Logged in TAEPP?</label><select id="ef-taepp">${opt(['', 'true', 'false'], taeppVal, ['Auto (by date)', 'Logged', 'Not logged'])}</select></div>
       <div class="chk" style="padding-top:28px"><label><input type="checkbox" id="ef-cl" ${e.count_learners !== false ? 'checked' : ''}>Count learners</label><label><input type="checkbox" id="ef-ch" ${e.count_hours !== false ? 'checked' : ''}>Count hours</label></div>
       <div class="full"><label>Notes</label><textarea id="ef-notes" rows="2">${esc(e.notes || '')}</textarea></div>
     </div>
