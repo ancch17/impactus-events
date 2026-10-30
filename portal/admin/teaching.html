@@ -97,7 +97,7 @@
   .chips { max-width:340px; }
   .chip { display:inline-block; font-size:11px; background:var(--soft); border-radius:6px; padding:2px 6px; margin:0 3px 3px 0; white-space:nowrap; }
   .chip.com { background:#eef7f1; color:#2c7a50; }
-  select.mini, input.mini { width:auto; padding:5px 7px; font-size:12.5px; border-radius:7px; }
+  select.mini, input.mini, textarea.mini { width:auto; padding:5px 7px; font-size:12.5px; border-radius:7px; }
   input.mini.num { width:76px; text-align:right; }
 
   .filters { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; align-items:end; }
@@ -261,8 +261,9 @@
       </div>
       <div class="card">
         <h2>Default hours per class</h2>
-        <p class="muted" style="margin-bottom:10px">Used for any class without its own hours, matched on organisation and title. Ticking “confirmed” confirms the hours of every class that relies on the rule.</p>
+        <p class="muted" style="margin-bottom:10px">Used for any class without its own hours, matched on organisation and title. Ticking “confirmed” confirms the hours of every class that relies on the rule. Edit any field and press Save. In “Title matches”, % stands for any text (MKT542% = starts with MKT542); plain words match anywhere in the title.</p>
         <div id="rules"></div>
+        <div id="deleted-rules"></div>
         <div class="addp">
           <strong style="font-size:13px">Add a rule</strong>
           <div class="filters" style="margin-top:6px">
@@ -444,7 +445,7 @@ function actText(a) {
     case 'merge_people': return 'Two records merged into one';
     case 'add_enrolment': return 'Person added to a class';
     case 'remove_enrolment': return 'Person removed from a class';
-    case 'save_hour_rule': return 'Default hours updated';
+    case 'save_hour_rule': return d.active === false ? 'Default-hours rule deleted' : d.active === true ? 'Default-hours rule restored' : `Default hours updated${d.pattern ? ': ' + d.pattern.replace(/%/g, '') : ''}`;
     case 'save_baseline': return 'Baseline updated';
     case 'initial_load': return `Initial load: ${d.people || 0} people, ${d.classes || 0} classes`;
     case 'org_status': return d.summary || 'Organisations updated';
@@ -800,13 +801,26 @@ function renderSettings() {
         <label>As at<input type="date" id="be-${b.id}" value="${esc(b.period_end || '')}"></label>
         <button class="btn ghost sm" onclick="saveBaseline(${b.id})">Save</button></div></div>`).join('') || '<p class="muted">No baselines.</p>';
   const rules = SET.rules || [];
-  $('rules').innerHTML = `<div class="tscroll"><table><thead><tr><th>Organisation</th><th>Title matches</th><th class="num">Hours per run</th><th>Confirmed</th><th>Note</th><th class="num">Classes using it</th><th></th></tr></thead><tbody>` +
-    rules.map(r => `<tr><td class="nowrap">${esc(orgShort(r.org_code))}</td><td><code>${esc(r.pattern)}</code></td>
+  const orgOpts = (cur) => ORGS.map(o => `<option value="${esc(o.code)}" ${o.code === cur ? 'selected' : ''}>${esc(o.name)}${o.active === false ? ' (past)' : ''}</option>`).join('');
+  $('rules').innerHTML = `<div class="tscroll"><table class="rules"><thead><tr><th>Organisation</th><th>Title matches</th><th class="num">Hours per run</th><th>Confirmed</th><th>Note</th><th class="num">Classes using it</th><th></th></tr></thead><tbody>` +
+    rules.map(r => `<tr>
+      <td><select class="mini" id="ro-${r.id}" style="max-width:190px">${orgOpts(r.org_code)}</select></td>
+      <td><input class="mini" id="rp-${r.id}" value="${esc(r.pattern)}" style="width:120px;font-family:ui-monospace,Menlo,Consolas,monospace"></td>
       <td class="num"><input type="number" step="0.5" min="0" class="mini num" id="rh-${r.id}" value="${r.hours == null ? '' : r.hours}"></td>
       <td><input type="checkbox" id="rc-${r.id}" ${r.confirmed ? 'checked' : ''}></td>
-      <td class="small" style="min-width:200px">${esc(r.note || '')}</td>
+      <td style="min-width:220px"><textarea class="mini" id="rn-${r.id}" rows="2" style="width:100%;min-width:220px;resize:vertical">${esc(r.note || '')}</textarea></td>
       <td class="num">${nf(r.classes)}${r.classes_2026 ? `<div class="muted small">${nf(r.classes_2026)} in 2026</div>` : ''}</td>
-      <td><button class="btn ghost sm" onclick="saveRule(${r.id})">Save</button></td></tr>`).join('') + '</tbody></table></div>';
+      <td class="nowrap"><button class="btn ghost sm" onclick="saveRule(${r.id})">Save</button> <button class="btn ghost sm danger" onclick="deleteRule(${r.id})">Delete</button></td></tr>`).join('') + '</tbody></table></div>';
+  const dr = SET.deleted_rules || [];
+  $('deleted-rules').innerHTML = !dr.length ? ''
+    : `<details class="deleted-cls"><summary>Deleted rules (${dr.length}) · not used</summary>
+        <div class="tscroll"><table><tbody>${dr.map(r => `<tr><td class="nowrap">${esc(orgShort(r.org_code))}</td><td><code>${esc(r.pattern)}</code></td>
+          <td class="num">${r.hours == null ? '—' : nf(r.hours) + ' h'}</td><td class="small">${esc(r.note || '')}</td>
+          <td><button class="btn ghost sm" onclick="restoreRule(${r.id})">Restore</button></td></tr>`).join('')}</tbody></table></div></details>`;
+}
+function rulePattern(v) {
+  v = String(v || '').trim();
+  return !v ? '' : (v.includes('%') || v.includes('_') ? v : '%' + v + '%');
 }
 function saveSetting(fn, p, okMsg) {
   return serial(async () => {
@@ -820,7 +834,27 @@ window.saveBaseline = (id) => {
   if ($('bn-' + id)) p.learners = $('bn-' + id).value;
   saveSetting('tracker_save_baseline', p, 'Baseline saved');
 };
-window.saveRule = (id) => saveSetting('tracker_save_rule', { id, hours: $('rh-' + id).value, confirmed: $('rc-' + id).checked }, 'Default hours saved');
+window.saveRule = (id) => {
+  const pattern = rulePattern($('rp-' + id).value);
+  if (!pattern || pattern === '%%') { flash('Say which titles the rule applies to', false); return; }
+  saveSetting('tracker_save_rule', { id, org_code: $('ro-' + id).value, pattern, hours: $('rh-' + id).value,
+    confirmed: $('rc-' + id).checked, note: $('rn-' + id).value.trim() }, 'Rule saved');
+};
+window.deleteRule = (id) => {
+  const r = (SET.rules || []).find(x => x.id === id); if (!r) return;
+  const n = Number(r.classes || 0);
+  openModal(`<h2>Delete this rule?</h2>
+    <p><strong>${esc(orgShort(r.org_code))}</strong> · <code>${esc(r.pattern)}</code> · ${r.hours == null ? 'no hours' : nf(r.hours) + ' h'}</p>
+    <p class="muted small">${n ? `${nf(n)} class${n === 1 ? '' : 'es'} use this rule. They will fall back to another matching rule, or show “missing” hours until you give them hours.` : 'No classes use this rule right now.'}
+    You can restore it under “Deleted rules”.</p>
+    <div class="modal-actions"><button class="btn danger" id="rdel-go" onclick="doDeleteRule(${id})">Delete</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+};
+window.doDeleteRule = (id) => guardForm(async () => {
+  const b = $('rdel-go'); if (b) { b.disabled = true; b.textContent = 'Deleting…'; }
+  const ok = await saveSetting('tracker_save_rule', { id, active: false }, 'Rule deleted');
+  if (ok) closeModal(); else if (b) { b.disabled = false; b.textContent = 'Delete'; }
+});
+window.restoreRule = (id) => saveSetting('tracker_save_rule', { id, active: true }, 'Rule restored');
 $('nr-save').onclick = () => {
   const words = $('nr-pattern').value.trim();
   if (!words) { flash('Say which titles the rule applies to', false); return; }
