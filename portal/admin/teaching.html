@@ -919,7 +919,7 @@ const LL_LABEL = (k) => {
 };
 const LL_HELP = (k) => {
   const lhub = LL.org === 'LHUB', all = !LL.org;
-  if (k === 'first') return all ? `Every named person in the total: the LHUB pool plus everyone counted under another organisation. The total also adds ${nf(LL.unnamedTotal)} learners from class lists without names (see the next tab).`
+  if (k === 'first') return all ? `Every named person behind the total: the LHUB pool (named people, counted as the fixed ${nf(LL.fixed)}) plus everyone counted under another organisation. The total also adds ${nf(LL.unnamedTotal)} learners from class lists without names (next tab).`
     : lhub ? `NTUC LearningHub counts as a fixed ${nf(LL.fixed)}. These are the named people that figure covers: everyone in your LHUB WhatsApp groups and Impactus WhatsApp community on 30 Oct 2026.`
     : 'People counted under this organisation: not in the LHUB pool, and their first class with you was here.' + (LL.unnamedTotal ? ` The figure also adds ${nf(LL.unnamedTotal)} learners from class lists without names.` : '');
   if (k === 'all') return 'Everyone who attended a class here, including people counted under another organisation or in the LHUB 1,200.';
