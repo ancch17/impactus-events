@@ -186,7 +186,7 @@
       </div>
       <div class="card">
         <h2>How the count works</h2>
-        <p class="muted" style="line-height:1.6">Each person is counted once, matched across your WhatsApp class groups and communities, the booking system and the SUSS class lists by mobile, booking account and SUSS student ID. SUSS learners who took more than one module count once. Where only a headcount exists (invoices, class lists), the extra learners are counted without names. NTU undergraduates and classes where you were a TA are left out of the learner count. Partner class lists are never stored, and SUSS learners are kept as anonymous IDs only.</p>
+        <p class="muted" style="line-height:1.6">Each person is counted once, matched across your WhatsApp class groups and communities, the booking system and the SUSS class lists by mobile, booking account and SUSS student ID. SUSS learners who took more than one module count once. Where only a headcount exists (invoices, class lists), the extra learners are counted without names. Classes where you were a TA are left out of the learner count. Partner class lists are never stored, and SUSS learners are kept as anonymous IDs only.</p>
       </div>
       <div class="card">
         <h2>Recent activity</h2>
@@ -382,11 +382,18 @@ function renderOverview() {
   const lp = roundDown(L.total, Number(L.total) >= 1000 ? 50 : 10), hp = roundDown(H.website_total, 50);
   $('webline').innerHTML = `<div class="copyline"><span id="webline-text">${esc(`${nf(lp)}+ working professionals trained · ${nf(hp)}+ teaching hours`)}</span>
       <button class="btn sm" onclick="copyText('webline-text')">Copy</button></div>
-    <p class="muted" style="margin-top:8px">Rounded down from ${nf(L.total)} learners and ${nf(H.website_total)} hours. NTU undergraduates (${nf(L.undergrads_ntu)}) are not included.</p>`;
+    <p class="muted" style="margin-top:8px">Rounded down from ${nf(L.total)} learners and ${nf(H.website_total)} hours.</p>`;
 
-  const rows = (DASH.by_org || []).filter(o => o.first_source || o.any_enrolment);
+  const nextClass = (code) => ENG.filter(e => e.org_code === code && e.eff_status === 'planned' && e.count_learners)
+    .map(e => e.start_date).filter(Boolean).sort()[0];
+  const orgInfo = (code) => ORGS.find(x => x.code === code) || {};
+  const rows = (DASH.by_org || []).filter(o => (o.first_source || o.any_enrolment || nextClass(o.org)) && !orgInfo(o.org).hidden);
   $('byorg').innerHTML = `<div class="tscroll"><table><thead><tr><th>Organisation</th><th class="num">Counted here first</th><th class="num">Linked here (incl. counted elsewhere)</th><th class="num">From class lists / invoices</th></tr></thead><tbody>` +
-    rows.map(o => `<tr><td>${esc(o.name)}</td><td class="num"><strong>${nf(o.first_source)}</strong></td><td class="num">${nf(o.any_enrolment)}</td><td class="num">${o.unnamed ? nf(o.unnamed) : '—'}</td></tr>`).join('') +
+    rows.map(o => {
+      const past = orgInfo(o.org).active === false ? ' <span class="pill role">past</span>' : '';
+      const nx = !o.first_source && !o.any_enrolment && nextClass(o.org) ? `<div class="muted small">first class ${fdate(nextClass(o.org))}</div>` : '';
+      return `<tr><td>${esc(o.name)}${past}${nx}</td><td class="num"><strong>${o.first_source || !nx ? nf(o.first_source) : '—'}</strong></td><td class="num">${o.any_enrolment || !nx ? nf(o.any_enrolment) : '—'}</td><td class="num">${o.unnamed ? nf(o.unnamed) : '—'}</td></tr>`;
+    }).join('') +
     `<tr class="tot"><td>Total, each person once</td><td class="num">${nf(L.total)}</td><td></td><td class="num">${nf(L.unnamed)}</td></tr></tbody></table></div>
     <p class="muted" style="margin-top:10px;line-height:1.5">“Counted here first” puts each person under the first place you taught them, so the column adds up to the total.
     ${nf(L.community_only)} people are only in your WhatsApp communities and are assumed to be LHUB learners. You estimated the LHUB community at ${nf(L.lhub_estimate)}; WhatsApp still lists its members by number.</p>`;
@@ -408,6 +415,7 @@ function actText(a) {
     case 'save_hour_rule': return 'Default hours updated';
     case 'save_baseline': return 'Baseline updated';
     case 'initial_load': return `Initial load: ${d.people || 0} people, ${d.classes || 0} classes`;
+    case 'org_status': return d.summary || 'Organisations updated';
     default: return a.action;
   }
 }
@@ -489,10 +497,10 @@ const CF = { org: '', year: String(new Date().getFullYear()), status: '', need: 
 function renderClassFilters() {
   const years = [...new Set(ENG.map(e => (e.start_date || '').slice(0, 4)).filter(Boolean))].sort().reverse();
   if (CF.year && !years.includes(CF.year)) CF.year = '';
-  $('cf-org').innerHTML = '<option value="">All organisations</option>' + ORGS.map(o => `<option value="${esc(o.code)}">${esc(o.name)}</option>`).join('');
+  $('cf-org').innerHTML = '<option value="">All organisations</option>' + ORGS.map(o => `<option value="${esc(o.code)}">${esc(o.name)}${o.active === false ? ' (past)' : ''}</option>`).join('');
   $('cf-year').innerHTML = '<option value="">All years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
   $('cf-org').value = CF.org; $('cf-year').value = CF.year; $('cf-status').value = CF.status; $('cf-need').checked = CF.need; $('cf-q').value = CF.q;
-  $('nr-org').innerHTML = ORGS.map(o => `<option value="${esc(o.code)}">${esc(o.name)}</option>`).join('');
+  $('nr-org').innerHTML = ORGS.filter(o => o.active !== false).map(o => `<option value="${esc(o.code)}">${esc(o.name)}</option>`).join('');
 }
 ['cf-org', 'cf-year', 'cf-status'].forEach(id => { $(id).onchange = () => { CF[id.slice(3)] = $(id).value; renderClasses(); }; });
 $('cf-need').onchange = () => { CF.need = $('cf-need').checked; renderClasses(); };
@@ -551,14 +559,15 @@ $('add-class').onclick = () => openModal(classForm(null));
 window.editClass = (id) => openModal(classForm(ENG.find(x => x.id === id)));
 function classForm(e) {
   const isNew = !e;
-  e = e || { org_code: CF.org || 'TEMBUSU', role: 'lead', status: 'planned', count_learners: true, count_hours: true };
+  const firstActive = (ORGS.find(o => o.code === CF.org && o.active !== false) || ORGS.find(o => o.code === 'TEMBUSU') || {}).code;
+  e = e || { org_code: firstActive, role: 'lead', status: 'planned', count_learners: true, count_hours: true };
   const opt = (vals, cur, labels) => vals.map((v, i) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${labels ? labels[i] : v}</option>`).join('');
   const taeppVal = e.in_taepp_baseline == null ? '' : String(e.in_taepp_baseline);
   return `<h2>${isNew ? 'Add a class' : 'Edit class'}</h2>
     ${isNew ? '' : `<p class="muted small">${esc(e.code)}</p>`}
     <div class="formgrid">
       <div class="full"><label>Title</label><input id="ef-title" value="${esc(e.title || '')}"></div>
-      <div><label>Organisation</label><select id="ef-org">${ORGS.map(o => `<option value="${esc(o.code)}" ${o.code === e.org_code ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></div>
+      <div><label>Organisation</label><select id="ef-org">${ORGS.filter(o => o.active !== false || o.code === e.org_code).map(o => `<option value="${esc(o.code)}" ${o.code === e.org_code ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></div>
       <div><label>Client (optional)</label><input id="ef-client" value="${esc(e.client || '')}"></div>
       <div><label>Start date</label><input type="date" id="ef-start" value="${esc(e.start_date || '')}"></div>
       <div><label>End date</label><input type="date" id="ef-end" value="${esc(e.end_date || '')}"></div>
