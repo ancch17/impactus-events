@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- ═══ READ BEFORE EDITING ═══════════════════════════════════════════════
+     All earnings: every teaching income stream by year and month (from 2026).
+     - Impactus's own classes are computed LIVE from bookings with the SAME corp/free rule as
+       earnings.html and index.html's KPI tile (cash + corp invoiced, confirmed seats only,
+       cash_paid_sgd is already net of refunds). Change one, change all three.
+     - Everything else (LHUB, SUSS, NTU, Vertical Institute, Tembusu, Straits, corporate) is one
+       row per payment line in tracker.earnings, read and written only through the admin-gated
+       RPCs tracker_earnings / tracker_save_earning / tracker_mark_earnings_paid /
+       tracker_delete_earning. Nothing is hard-deleted.
+     - Rental income is deliberately out of scope (Andrew, 3 Nov 2026).
+     - This repo is PUBLIC: never hard-code an amount, invoice number or name in this file.
+     Rules: CRM Impactus\docs\admin-console.md · guide: claude/earnings-tracker.md (project doc)
+════════════════════════════════════════════════════════════════════════ -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>All earnings — Impactus Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root { --navy:#101a2d; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --red:#c93b3b; --line:#e6e9f0; --soft:#f2f4f8; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:1180px; margin:0 auto; padding:16px; }
+  header { background:var(--navy); color:#fff; position:sticky; top:0; z-index:5; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:12px; padding-bottom:12px; gap:10px; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; }
+  nav.tabs { display:flex; gap:4px; flex-wrap:wrap; }
+  .tab { color:#fff; opacity:.75; padding:6px 12px; border-radius:8px; font-size:13px; text-decoration:none; font-weight:600; }
+  .tab:hover { opacity:1; }
+  .tab.active { background:rgba(255,255,255,.12); opacity:1; color:var(--amber); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; scroll-margin-top:72px; }
+  h1 { font-size:20px; font-weight:800; }
+  h2 { font-size:15px; font-weight:700; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  h3 { font-size:13px; font-weight:700; margin:14px 0 6px; }
+  .muted { color:var(--mut); font-size:13px; }
+  .small { font-size:12px; }
+  .hidden { display:none !important; }
+  select, input, textarea { padding:8px 10px; border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; background:#fff; color:var(--ink); }
+  textarea { resize:vertical; min-height:60px; }
+  .btn { display:inline-block; padding:8px 15px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; }
+  .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .btn.sm { padding:5px 10px; font-size:12px; }
+  .btn.on { background:var(--navy); color:#fff; border-color:var(--navy); }
+  .btn.danger { background:#fff; border:1px solid #f1c6c6; color:var(--red); }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:16px; }
+  .toolbar .grow { flex:1; }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; background:#fff; }
+  .seg button { border:none; background:#fff; padding:7px 12px; font:600 13px Inter,system-ui,sans-serif; color:var(--ink); cursor:pointer; }
+  .seg button + button { border-left:1px solid var(--line); }
+  .seg button.on { background:var(--navy); color:#fff; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:10px; margin-top:16px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .kpi .v { font-size:21px; font-weight:800; } .kpi .l { font-size:11.5px; color:var(--mut); margin-top:2px; }
+  .kpi .sub { font-size:11.5px; color:var(--mut); margin-top:4px; line-height:1.45; }
+  .kpi.red .v { color:var(--red); } .kpi.amber .v { color:var(--amber-d); } .kpi.green .v { color:var(--green); }
+  .tbl { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); padding:8px 8px 6px 0; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:8px 8px 8px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  tr.total td { font-weight:800; border-top:2px solid var(--ink); }
+  .num { text-align:right; white-space:nowrap; } th.num { text-align:right; }
+  th.sortable { cursor:pointer; user-select:none; } th.sortable:hover { color:var(--ink); }
+  th .arr { color:var(--amber-d); margin-left:2px; }
+  table.grid td.cell { cursor:pointer; } table.grid td.cell:hover { background:var(--soft); }
+  table.grid td.cell.sel { background:#fff3cf; }
+  table.grid td.zero { color:#c3c8d3; }
+  .pill { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:99px; background:#e8edfb; color:#3c5bd2; white-space:nowrap; }
+  .pill.paid { background:#e3f5ec; color:var(--green); }
+  .pill.invoiced { background:#fdecec; color:var(--red); }
+  .pill.expected { background:#fff3cf; color:#9a6b00; }
+  .pill.auto { background:#eef0f4; color:var(--mut); }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:middle; }
+  .note { color:var(--mut); font-size:11.5px; margin-top:3px; line-height:1.4; }
+  .warn { background:#fff7e0; border:1px solid #f3dfa2; border-radius:10px; padding:10px 12px; font-size:13px; margin-top:8px; }
+  .bulk { display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:#fff7e0; border:1px solid #f3dfa2; border-radius:10px; padding:8px 12px; margin-bottom:10px; font-size:13px; }
+  .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; align-items:center; }
+  .chip { display:inline-flex; gap:6px; align-items:center; background:var(--soft); border-radius:99px; padding:4px 10px; font-size:12px; font-weight:600; }
+  .chip button { border:none; background:none; cursor:pointer; color:var(--mut); font-size:14px; line-height:1; }
+  .acts { display:flex; gap:6px; flex-wrap:wrap; }
+  #msg { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--navy); color:#fff; padding:10px 16px; border-radius:10px; font-size:13px; z-index:30; max-width:92vw; }
+  #msg.err { background:var(--red); }
+  .overlay { position:fixed; inset:0; background:rgba(16,26,45,.45); z-index:20; display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
+  .modal { background:#fff; border-radius:14px; padding:20px; width:100%; max-width:640px; }
+  .form { display:grid; grid-template-columns:1fr 1fr; gap:12px 14px; margin-top:12px; }
+  .form label { display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:600; color:var(--mut); }
+  .form label.full { grid-column:1 / -1; }
+  .form .hint { font-weight:400; font-size:11.5px; }
+  @media (max-width:640px) { .form { grid-template-columns:1fr; } .kpi .v { font-size:19px; } }
+  details summary { cursor:pointer; font-weight:700; font-size:14px; }
+  footer { text-align:center; padding:26px 0 34px; }
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
+  <nav class="tabs hidden" id="navtabs">
+    <a class="tab" href="./" target="_blank">Dashboard ↗</a>
+    <a class="tab" href="classroom" target="_blank">Classroom ↗</a>
+    <a class="tab" href="students" target="_blank">Students ↗</a>
+    <a class="tab" href="signups" target="_blank">Signups ↗</a>
+    <a class="tab" href="earnings" target="_blank">Earnings ↗</a>
+    <a class="tab active" href="all-earnings">All earnings</a>
+    <a class="tab" href="payments" target="_blank">Payments ↗</a>
+    <a class="tab" href="referrals" target="_blank">Referrals ↗</a>
+    <a class="tab" href="coupons" target="_blank">Discounts ↗</a>
+    <a class="tab" href="draw" target="_blank">Lucky draw ↗</a>
+    <a class="tab" href="teaching" target="_blank">Teaching ↗</a>
+  </nav>
+  <button class="btn ghost sm hidden" id="signout" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff">Sign out</button>
+</div></header>
+
+<div class="wrap">
+
+  <div id="view-login" class="card hidden" style="max-width:460px;margin:40px auto">
+    <h1>Sign in required</h1>
+    <p class="muted" style="margin-top:6px">Please sign in from the <a href="./" target="_blank">admin dashboard</a> first, then refresh this page.</p>
+    <button class="btn ghost" style="margin-top:14px" onclick="location.reload()">Refresh</button>
+  </div>
+
+  <div id="view-noauth" class="card hidden" style="max-width:420px;margin:40px auto">
+    <h1>Not authorized</h1>
+    <button class="btn ghost" id="noauth-out" style="margin-top:14px">Sign out</button>
+  </div>
+
+  <div id="view-app" class="hidden">
+
+    <div class="toolbar">
+      <h1 style="margin-right:6px">Teaching earnings</h1>
+      <select id="f-year" aria-label="Year"></select>
+      <span class="seg" id="seg-basis" aria-label="Which month an amount counts in">
+        <button data-v="taught" class="on">Month taught</button><button data-v="paid">Month paid</button>
+      </span>
+      <select id="f-payee" aria-label="Paid to">
+        <option value="all">Paid to: everyone</option>
+        <option value="impactus">Paid to: Impactus Learning Pte Ltd</option>
+        <option value="ac_eduworks">Paid to: AC-Eduworks LLP</option>
+        <option value="personal">Paid to: you personally</option>
+      </select>
+      <span class="grow"></span>
+      <button class="btn ghost" id="btn-xlsx">⬇ Download Excel</button>
+      <button class="btn" id="btn-add">+ Add entry</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card" id="card-attn">
+      <h2>Needs attention</h2>
+      <div id="attn">Loading…</div>
+    </div>
+
+    <div class="card" id="card-grid">
+      <h2><span>By month <span class="muted" id="grid-basis-note"></span></span></h2>
+      <div style="position:relative;height:280px"><canvas id="chart"></canvas></div>
+      <div class="tbl" style="margin-top:14px" id="grid"></div>
+      <h3>Who was paid</h3>
+      <div class="tbl" id="grid-payee"></div>
+      <p class="note">Click any amount to see the entries behind it. Impactus classes come straight from the booking system (cash paid, net of refunds, plus seats a company paid for by invoice), dated by class. Under <b>Month paid</b>, a student's payment counts on the day they booked; an invoice counts on its paid date.</p>
+    </div>
+
+    <div class="card">
+      <h2>By organisation</h2>
+      <div class="tbl" id="byorg"></div>
+      <p class="note">Hours come from the Teaching Record. S$ per hour uses earnings by month taught, counted only against the classes those entries are linked to (for Impactus, every class), so modules with no amount entered yet don't pull the rate down.</p>
+    </div>
+
+    <div class="card" id="card-entries">
+      <h2><span>Entries</span>
+        <span class="acts"><input id="f-q" type="search" placeholder="Search…" style="width:180px"><select id="f-status"><option value="">All statuses</option><option value="paid">Paid</option><option value="invoiced">Invoiced, not paid</option><option value="expected">Not invoiced yet</option></select><select id="f-org"><option value="">All organisations</option></select></span>
+      </h2>
+      <div class="filters" id="chips"></div>
+      <div class="bulk hidden" id="bulk">
+        <span id="bulk-n"></span>
+        <span>Mark as paid on</span><input type="date" id="bulk-date">
+        <button class="btn sm" id="bulk-go">Mark paid</button>
+        <button class="btn ghost sm" id="bulk-clear">Clear selection</button>
+      </div>
+      <div class="tbl" id="entries">Loading…</div>
+    </div>
+
+    <div class="card">
+      <details id="deleted-box"><summary>Deleted entries (<span id="del-n">0</span>)</summary><div class="tbl" id="deleted" style="margin-top:10px"></div></details>
+    </div>
+
+  </div>
+</div>
+
+<div class="overlay hidden" id="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="ov-title">
+  <h2 id="ov-title">Add entry</h2>
+  <div class="form">
+    <label>Organisation<select id="e-org"></select></label>
+    <label>Class (from the Teaching Record)<select id="e-class"></select></label>
+    <label class="full">What it's for<input id="e-title" placeholder="e.g. MKT542 Digital Marketing Analytics – Jul 2026 semester"></label>
+    <label>Who pays you<input id="e-payer" list="payers" placeholder="e.g. Vertical Institute Pte Ltd"></label>
+    <label>Paid to<select id="e-payee"><option value="impactus">Impactus Learning Pte Ltd</option><option value="ac_eduworks">AC-Eduworks LLP</option><option value="personal">You personally</option></select></label>
+    <label>Date taught<input type="date" id="e-earned"><span class="hint">Last teaching day covered. Its month is the month taught.</span></label>
+    <label>Amount (SGD)<input type="number" step="0.01" id="e-amount" inputmode="decimal"></label>
+    <label>Status<select id="e-status"><option value="expected">Not invoiced yet</option><option value="invoiced">Invoiced, not paid</option><option value="paid">Paid</option></select></label>
+    <label>Paid on<input type="date" id="e-paid"></label>
+    <label>Invoice no.<input id="e-inv"></label>
+    <label>Invoice date<input type="date" id="e-invdate"></label>
+    <label class="full">Source file<input id="e-src" placeholder="Where the invoice or pay advice lives"></label>
+    <label class="full">Notes<textarea id="e-notes"></textarea></label>
+  </div>
+  <datalist id="payers"></datalist>
+  <div id="e-warn"></div>
+  <div class="acts" style="margin-top:16px;justify-content:flex-end">
+    <button class="btn danger hidden" id="e-del">Delete</button>
+    <span style="flex:1"></span>
+    <button class="btn ghost" id="e-cancel">Cancel</button>
+    <button class="btn" id="e-save">Save</button>
+  </div>
+</div></div>
+
+<div id="msg" class="hidden"></div>
+
+<footer class="muted">Impactus Learning Pte Ltd · Admin console</footer>
+
+<script>
+const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+// Who is admin is decided server-side only (public.is_admin()); every RPC below re-checks it.
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt0 = (n) => 'S$' + Math.round(Number(n) || 0).toLocaleString('en-SG');
+const fmt2 = (n) => 'S$' + (Number(n) || 0).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Asia/Singapore, never UTC — the UTC date lags SGT by 8h and mislabels month boundaries.
+const sgDate = (d) => new Date(d).toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+const today = () => sgDate(Date.now());
+const fdate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+const daysSince = (d) => Math.round((new Date(today() + 'T00:00:00') - new Date(d + 'T00:00:00')) / 86400000);
+const PAYEE = { impactus: 'Impactus', ac_eduworks: 'AC-Eduworks', personal: 'Personal' };
+const PAYEE_LONG = { impactus: 'Impactus Learning Pte Ltd', ac_eduworks: 'AC-Eduworks LLP', personal: 'You personally' };
+const STATUS = { paid: 'Paid', invoiced: 'Invoiced', expected: 'Not invoiced' };
+const ORG_COLORS = { IMPACTUS: '#c78d0a', LHUB: '#3c5bd2', SUSS: '#1a9a5c', VI: '#7c3aed', TEMBUSU: '#0f766e', STRAITS: '#c93b3b', NTU: '#6b7486', CORP: '#101a2d' };
+function orgColor(c) { if (ORG_COLORS[c]) return ORG_COLORS[c]; let h = 0; for (const ch of c) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},50%,45%)`; }
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+
+function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  $('navtabs').classList.toggle('hidden', id !== 'view-app'); $('signout').classList.toggle('hidden', id !== 'view-app'); }
+let msgT = null;
+function msg(t, err) { const m = $('msg'); m.textContent = t; m.className = err ? 'err' : ''; clearTimeout(msgT); msgT = setTimeout(() => m.className = 'hidden', err ? 6000 : 2600); }
+
+let orgs = [], orgBy = {}, rows = [], deleted = [], classes = [], classBy = {}, corpInvoices = new Set(), items = [];
+let year = String(new Date().getFullYear()), basis = store('ilAllEarnBasis') || 'taught', payee = store('ilAllEarnPayee') || 'all';
+let filt = { org: '', month: '' }, chart = null, selected = new Set();
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  route(session);
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') setTimeout(() => route(s), 0); });
+}
+async function route(session) {
+  if (!session) { location.replace('./'); return; }   // sign-in lives on the Dashboard
+  const { data: isAdmin, error: adminErr } = await sb.rpc('is_admin');
+  if (adminErr || !isAdmin) { show('view-noauth'); return; }
+  show('view-app');
+  loadAll();
+}
+$('signout').onclick = () => sb.auth.signOut();
+$('noauth-out').onclick = () => sb.auth.signOut();
+
+async function loadAll() {
+  const [t, c, b, s] = await Promise.all([
+    sb.rpc('tracker_earnings'),
+    sb.from('courses').select('id,name,cohort_date,cancelled'),
+    sb.from('bookings').select('id,student_id,course_id,price_sgd,cash_paid_sgd,status,free_reason,created_at'),
+    sb.from('students').select('id,corp_name,corp_invoice_ref,corp_invoice_status,corp_seat_price_sgd'),
+  ]);
+  const err = t.error || c.error || b.error || s.error;
+  if (err) { $('entries').textContent = 'Could not load: ' + err.message; msg('Could not load: ' + err.message, true); return; }
+  const d = t.data;
+  orgs = d.orgs || []; orgBy = Object.fromEntries(orgs.map(o => [o.code, o]));
+  rows = d.rows || []; deleted = d.deleted || []; classes = d.classes || [];
+  classBy = Object.fromEntries(classes.map(x => [x.id, x]));
+  corpInvoices = new Set((d.corp_invoices || []).map(x => String(x).trim().toLowerCase()));
+
+  items = rows.map(r => ({
+    src: 'manual', id: r.id, org: r.org_code, title: r.title, payer: r.payer || '', amount: Number(r.amount_sgd) || 0,
+    earned: r.earned_on, status: r.status, payee: r.payee, invoice: r.invoice_no || '', invDate: r.invoice_date || '',
+    paidOn: r.paid_on || '', paid: r.status === 'paid' ? (r.paid_on || r.invoice_date || r.earned_on) : null,
+    classId: r.engagement_id, notes: r.notes || '', source: r.source_file || '', row: r,
+  }));
+
+  // ---- Impactus's own classes: SAME rule as earnings.html loadAll() and index.html renderKPIs() ----
+  const byCourse = Object.fromEntries((c.data || []).map(x => [x.id, x]));
+  const byStudent = Object.fromEntries((s.data || []).map(x => [x.id, x]));
+  (b.data || []).filter(bk => bk.status === 'confirmed' && byCourse[bk.course_id]).forEach(bk => {
+    const st = byStudent[bk.student_id], crs = byCourse[bk.course_id];
+    const cash = Number(bk.cash_paid_sgd || 0);
+    const reason = cash > 0 ? null : (bk.free_reason || (st && st.corp_name ? 'corp' : null));
+    const corp = reason === 'corp' ? Number((st && st.corp_seat_price_sgd) || bk.price_sgd || 0) : 0;
+    const base = { src: 'booking', org: 'IMPACTUS', title: crs.name, payer: '', earned: crs.cohort_date, payee: 'impactus', courseId: crs.id };
+    if (cash > 0) items.push({ ...base, kind: 'cash', amount: cash, status: 'paid', paid: bk.created_at ? sgDate(bk.created_at) : crs.cohort_date, invoice: '' });
+    if (corp > 0) {
+      const ok = st && st.corp_invoice_status === 'paid';
+      items.push({ ...base, kind: 'corp', amount: corp, status: ok ? 'paid' : 'invoiced', paid: ok ? crs.cohort_date : null,
+        invoice: (st && st.corp_invoice_ref) || '', payer: (st && st.corp_name) || '' });
+    }
+  });
+
+  const years = new Set([String(new Date().getFullYear())]);
+  items.forEach(i => { if (i.earned >= '2026') years.add(i.earned.slice(0, 4)); if (i.paid && i.paid >= '2026') years.add(i.paid.slice(0, 4)); });
+  const ys = [...years].sort();
+  if (!ys.includes(year)) year = ys[ys.length - 1];
+  $('f-year').innerHTML = ys.map(y => `<option value="${y}"${y === year ? ' selected' : ''}>${y}</option>`).join('');
+  $('f-payee').value = payee;
+  [...$('seg-basis').children].forEach(x => x.classList.toggle('on', x.dataset.v === basis));
+  $('f-org').innerHTML = '<option value="">All organisations</option>' + orgs.map(o => `<option value="${esc(o.code)}">${esc(o.name)}</option>`).join('');
+  $('f-org').value = filt.org;
+  $('payers').innerHTML = [...new Set(rows.map(r => r.payer).filter(Boolean))].sort().map(p => `<option value="${esc(p)}">`).join('');
+  selected = new Set([...selected].filter(id => rows.some(r => r.id === id)));
+  renderAll();
+}
+
+// ---- selection helpers ----
+const keyOf = (i) => basis === 'taught' ? i.earned : i.paid;
+const payeeOk = (i) => payee === 'all' || i.payee === payee;
+const inYear = (i) => { const k = keyOf(i); return !!k && k.slice(0, 4) === year; };
+const yearItems = () => items.filter(i => payeeOk(i) && inYear(i));
+const sum = (list) => list.reduce((s, i) => s + i.amount, 0);
+const orgName = (c) => (orgBy[c] && orgBy[c].name) || c;
+const shortOrg = (c) => ({ IMPACTUS: 'Impactus classes', LHUB: 'NTUC LearningHub', SUSS: 'SUSS', VI: 'Vertical Institute', TEMBUSU: 'Tembusu Institute', STRAITS: 'Straits Interactive / SMU', NTU: 'NTU', CORP: 'Direct corporate' }[c] || orgName(c));
+const classHours = (orgCode) => classes.filter(x => x.org_code === orgCode && (x.end_date || '').slice(0, 4) === year).reduce((s, x) => s + (Number(x.hours) || 0), 0);
+// Hours behind the S$/hour rate: Impactus = every class (bookings cover them all); everyone else =
+// only classes that have an entry linked, so a module with no amount yet doesn't dilute the rate.
+const rateHours = (orgCode) => { if (orgCode === 'IMPACTUS') return classHours(orgCode); const linked = new Set(rows.filter(r => r.org_code === orgCode && Number(r.amount_sgd) > 0).map(r => r.engagement_id));
+  return classes.filter(x => x.org_code === orgCode && (x.end_date || '').slice(0, 4) === year && linked.has(x.id)).reduce((s, x) => s + (Number(x.hours) || 0), 0); };
+
+function renderAll() { renderKPIs(); renderAttention(); renderGrid(); renderByOrg(); renderEntries(); renderDeleted(); }
+
+function renderKPIs() {
+  const list = yearItems();
+  const tot = sum(list);
+  const t = today(), mo = t.slice(0, 7);
+  const thisMonth = year === t.slice(0, 4) ? sum(list.filter(i => keyOf(i).slice(0, 7) === mo)) : null;
+  const all = items.filter(payeeOk);
+  const waiting = all.filter(i => i.status === 'invoiced'), expected = all.filter(i => i.status === 'expected');
+  const waitInv = new Set(waiting.map(i => i.invoice || i.id || i.title)).size;
+  // S$/hour: month-taught earnings over Teaching Record hours, orgs that have amounts only
+  const taughtYear = items.filter(i => payeeOk(i) && i.earned && i.earned.slice(0, 4) === year);
+  let num = 0, hrs = 0;
+  [...new Set(taughtYear.map(i => i.org))].forEach(o => { const h = rateHours(o); const e = sum(taughtYear.filter(i => i.org === o && (o === 'IMPACTUS' || (i.classId && classBy[i.classId] && Number(classBy[i.classId].hours) > 0)))); if (h > 0 && e > 0) { num += e; hrs += h; } });
+  const byPayee = (p) => sum(items.filter(i => i.payee === p && inYear(i)));
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="v">${fmt0(tot)}</div><div class="l">${year} total · by month ${basis === 'taught' ? 'taught' : 'paid'}</div><div class="sub">${list.length} line${list.length === 1 ? '' : 's'}${payee !== 'all' ? ' · paid to ' + PAYEE[payee] : ''}</div></div>
+    ${thisMonth !== null ? `<div class="kpi"><div class="v">${fmt0(thisMonth)}</div><div class="l">This month (${MONTHS[Number(mo.slice(5)) - 1]})</div></div>` : ''}
+    <div class="kpi ${waiting.length ? 'red' : 'green'}"><div class="v">${fmt0(sum(waiting))}</div><div class="l">Invoiced, not paid yet</div><div class="sub">${waiting.length ? `${waitInv} invoice${waitInv === 1 ? '' : 's'} · all years` : 'nothing outstanding'}</div></div>
+    <div class="kpi ${expected.length ? 'amber' : ''}"><div class="v">${fmt0(sum(expected))}</div><div class="l">Taught, not invoiced yet</div><div class="sub">${expected.length} line${expected.length === 1 ? '' : 's'} · all years</div></div>
+    <div class="kpi"><div class="v">${hrs ? fmt0(num / hrs) : '—'}</div><div class="l">Per teaching hour (${year})</div><div class="sub">${hrs ? `${fmt0(num)} over ${Math.round(hrs)} h` : 'no hours on record yet'}</div></div>
+    <div class="kpi"><div class="l" style="margin:0 0 6px">${year} by who was paid</div><div class="sub" style="color:var(--ink);font-size:12.5px">
+      Impactus <b style="float:right">${fmt0(byPayee('impactus'))}</b><br>AC-Eduworks <b style="float:right">${fmt0(byPayee('ac_eduworks'))}</b><br>Personal <b style="float:right">${fmt0(byPayee('personal'))}</b></div></div>`;
+}
+
+function renderAttention() {
+  const t = today();
+  const linked = new Set(rows.map(r => r.engagement_id).filter(Boolean));
+  const unbilled = classes.filter(x => x.org_code !== 'IMPACTUS' && x.start_date <= t && !linked.has(x.id));
+  const waitMap = {};
+  rows.filter(r => r.status === 'invoiced').forEach(r => { const k = r.invoice_no || ('row:' + r.id); (waitMap[k] = waitMap[k] || []).push(r); });
+  const waiting = Object.entries(waitMap).map(([k, rs]) => ({ k, inv: rs[0].invoice_no, org: rs[0].org_code, date: rs[0].invoice_date || rs[0].earned_on, amt: rs.reduce((s, r) => s + Number(r.amount_sgd), 0), ids: rs.map(r => r.id), payee: rs[0].payee }))
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const expected = rows.filter(r => r.status === 'expected');
+  const corpUnpaid = items.filter(i => i.src === 'booking' && i.kind === 'corp' && i.status === 'invoiced');
+  const dupes = rows.filter(r => r.invoice_no && corpInvoices.has(r.invoice_no.trim().toLowerCase()));
+  let h = '';
+  if (dupes.length) h += `<div class="warn">⚠ ${dupes.length} entr${dupes.length === 1 ? 'y uses' : 'ies use'} an invoice number that is already a corporate seat invoice in the booking system (${dupes.map(r => esc(r.invoice_no)).join(', ')}). Those seats are counted automatically under Impactus classes, so this entry double-counts. Delete it.</div>`;
+  if (waiting.length || corpUnpaid.length) {
+    h += `<h3>Invoiced, waiting for payment</h3><div class="tbl"><table><thead><tr><th>Invoice</th><th>Organisation</th><th>Invoice date</th><th class="num">Days</th><th class="num">Amount</th><th>Paid to</th><th></th></tr></thead><tbody>` +
+      waiting.map((w, wi) => `<tr><td>${esc(w.inv || '(no number)')}</td><td>${esc(shortOrg(w.org))}</td><td>${fdate(w.date)}</td><td class="num">${w.date ? daysSince(w.date) : ''}</td><td class="num"><b>${fmt2(w.amt)}</b></td><td>${PAYEE[w.payee]}</td>
+        <td><span class="acts"><input type="date" value="${t}" id="pd-${wi}" style="padding:4px 6px;font-size:12px" aria-label="Date paid"><button class="btn sm" onclick="markPaid(${esc(JSON.stringify(w.ids))}, 'pd-${wi}')">Mark paid</button></span></td></tr>`).join('') +
+      corpUnpaid.reduce((acc, i) => { const k = i.invoice || i.payer; if (!acc.seen.has(k)) { acc.seen.add(k); const amt = sum(corpUnpaid.filter(j => (j.invoice || j.payer) === k)); acc.html += `<tr><td>${esc(i.invoice || '(no number)')}</td><td>Impactus classes · ${esc(i.payer)}</td><td>${fdate(i.earned)}</td><td class="num">${daysSince(i.earned)}</td><td class="num"><b>${fmt2(amt)}</b></td><td>Impactus</td><td class="muted small">Mark paid on the Students tab</td></tr>`; } return acc; }, { seen: new Set(), html: '' }).html +
+      `</tbody></table></div>`;
+  }
+  if (expected.length) {
+    h += `<h3>Taught, not invoiced yet</h3><div class="tbl"><table><tbody>` + expected.map(r => `<tr><td>${fdate(r.earned_on)}</td><td>${esc(shortOrg(r.org_code))}</td><td>${esc(r.title)}${r.notes ? `<div class="note">${esc(r.notes)}</div>` : ''}</td><td class="num"><b>${fmt2(r.amount_sgd)}</b></td><td><button class="btn ghost sm" onclick="openForm('${r.id}')">Edit</button></td></tr>`).join('') + `</tbody></table></div>`;
+  }
+  if (unbilled.length) {
+    h += `<h3>Classes with no earnings entered (${unbilled.length})</h3><p class="muted small" style="margin-bottom:6px">Taught since 1 Jan 2026 and in the Teaching Record, with nothing recorded against them yet. Add what you were paid, or mark <b>No fee</b> if it was unpaid or is covered by another entry.</p>
+      <div class="tbl"><table><thead><tr><th>Date</th><th>Organisation</th><th>Class</th><th>Role</th><th class="num">Hours</th><th></th></tr></thead><tbody>` +
+      unbilled.map(x => `<tr><td>${fdate(x.end_date)}</td><td>${esc(shortOrg(x.org_code))}</td><td>${esc(x.title)}</td><td>${esc(x.role || '')}</td><td class="num">${x.hours ? Number(x.hours) : '—'}</td>
+        <td><span class="acts"><button class="btn sm" onclick="openForm(null, '${x.id}')">+ Add</button><button class="btn ghost sm" onclick="noFee('${x.id}')">No fee</button></span></td></tr>`).join('') + `</tbody></table></div>`;
+  }
+  $('attn').innerHTML = h || '<p class="muted">All clear: every class has an entry and nothing is waiting for payment.</p>';
+}
+
+function gridData(list) {
+  const map = {};
+  list.forEach(i => { const m = Number(keyOf(i).slice(5, 7)) - 1; (map[i.org] = map[i.org] || Array(12).fill(0))[m] += i.amount; });
+  return map;
+}
+function renderGrid() {
+  const list = yearItems();
+  const map = gridData(list);
+  const activeOrgs = orgs.filter(o => map[o.code] || classes.some(x => x.org_code === o.code && (x.end_date || '').slice(0, 4) === year)).map(o => o.code);
+  Object.keys(map).forEach(c => { if (!activeOrgs.includes(c)) activeOrgs.push(c); });
+  const colTot = Array(12).fill(0); activeOrgs.forEach(o => (map[o] || []).forEach((v, m) => colTot[m] += v));
+  const cell = (o, m, v) => `<td class="num cell${v ? '' : ' zero'}${filt.org === o && filt.month === String(m) ? ' sel' : ''}" onclick="setFilter('${o}','${m}')">${v ? fmt0(v) : '–'}</td>`;
+  $('grid-basis-note').textContent = `· ${year} · by month ${basis === 'taught' ? 'taught' : 'paid'}`;
+  $('grid').innerHTML = `<table class="grid"><thead><tr><th>Organisation</th>${MONTHS.map(m => `<th class="num">${m}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>` +
+    activeOrgs.map(o => { const r = map[o] || Array(12).fill(0); return `<tr><td style="white-space:nowrap"><span class="dot" style="background:${orgColor(o)}"></span>${esc(shortOrg(o))}</td>${r.map((v, m) => cell(o, m, v)).join('')}<td class="num cell" onclick="setFilter('${o}','')"><b>${fmt0(r.reduce((a, b) => a + b, 0))}</b></td></tr>`; }).join('') +
+    `<tr class="total"><td>Total</td>${colTot.map((v, m) => `<td class="num cell" onclick="setFilter('','${m}')">${v ? fmt0(v) : '–'}</td>`).join('')}<td class="num">${fmt0(colTot.reduce((a, b) => a + b, 0))}</td></tr></tbody></table>`;
+  const pmap = {}; items.filter(inYear).forEach(i => { const m = Number(keyOf(i).slice(5, 7)) - 1; (pmap[i.payee] = pmap[i.payee] || Array(12).fill(0))[m] += i.amount; });
+  $('grid-payee').innerHTML = `<table class="grid"><thead><tr><th>Paid to</th>${MONTHS.map(m => `<th class="num">${m}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>` +
+    Object.keys(PAYEE).map(p => { const r = pmap[p] || Array(12).fill(0); return `<tr><td style="white-space:nowrap">${PAYEE_LONG[p]}</td>${r.map(v => `<td class="num${v ? '' : ' zero'}">${v ? fmt0(v) : '–'}</td>`).join('')}<td class="num"><b>${fmt0(r.reduce((a, b) => a + b, 0))}</b></td></tr>`; }).join('') + `</tbody></table>`;
+  try {
+    if (typeof Chart === 'undefined') throw new Error('Chart.js did not load');
+    if (chart) chart.destroy();
+    chart = new Chart($('chart'), {
+      type: 'bar',
+      data: { labels: MONTHS, datasets: activeOrgs.filter(o => map[o]).map(o => ({ label: shortOrg(o), data: map[o], backgroundColor: orgColor(o), stack: 's' })) },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: (c) => c.dataset.label + ': ' + fmt0(c.parsed.y) } } },
+        scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: (v) => 'S$' + Number(v).toLocaleString('en-SG') } } } },
+    });
+  } catch (e) { console.warn('Earnings chart skipped:', e.message || e); }
+}
+
+let orgSort = 'earned', orgDir = -1;
+window.setOrgSort = (k) => { if (orgSort === k) orgDir = -orgDir; else { orgSort = k; orgDir = k === 'name' ? 1 : -1; } renderByOrg(); };
+function sortRows(list, key, dir, val) { return list.slice().sort((a, b) => { const va = val(a, key), vb = val(b, key); return (typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb))) * dir; }); }
+function headings(cols, key, dir, setter) { return cols.map(c => c.k ? `<th class="sortable${c.num ? ' num' : ''}" onclick="${setter}('${c.k}')">${c.label}${key === c.k ? `<span class="arr">${dir === 1 ? '▲' : '▼'}</span>` : ''}</th>` : `<th>${c.label}</th>`).join(''); }
+
+function renderByOrg() {
+  const list = yearItems();
+  const taught = items.filter(i => payeeOk(i) && i.earned && i.earned.slice(0, 4) === year);
+  const codes = [...new Set([...list.map(i => i.org), ...classes.filter(x => (x.end_date || '').slice(0, 4) === year).map(x => x.org_code)])];
+  const all = sum(list);
+  let data = codes.map(o => {
+    const mine = list.filter(i => i.org === o), tmine = taught.filter(i => i.org === o), h = classHours(o), rh = rateHours(o),
+      te = sum(tmine.filter(i => o === 'IMPACTUS' || (i.classId && classBy[i.classId] && Number(classBy[i.classId].hours) > 0)));
+    return { o, name: shortOrg(o), earned: sum(mine), share: all ? sum(mine) / all : 0, waiting: sum(tmine.filter(i => i.status === 'invoiced')),
+      expected: sum(tmine.filter(i => i.status === 'expected')), hours: h, rate: rh && te ? te / rh : 0, n: mine.length };
+  });
+  data = sortRows(data, orgSort, orgDir, (d, k) => d[k]);
+  const cols = [{ k: 'name', label: 'Organisation' }, { k: 'earned', label: 'Earned', num: 1 }, { k: 'share', label: 'Share', num: 1 }, { k: 'waiting', label: 'Not paid yet', num: 1 },
+    { k: 'expected', label: 'Not invoiced', num: 1 }, { k: 'hours', label: 'Hours', num: 1 }, { k: 'rate', label: 'S$ / hour', num: 1 }, { k: 'n', label: 'Lines', num: 1 }];
+  const tot = (k) => data.reduce((s, d) => s + d[k], 0);
+  $('byorg').innerHTML = `<table><thead><tr>${headings(cols, orgSort, orgDir, 'setOrgSort')}</tr></thead><tbody>` +
+    data.map(d => `<tr><td style="white-space:nowrap"><span class="dot" style="background:${orgColor(d.o)}"></span><a href="#card-entries" onclick="setFilter('${d.o}','')">${esc(d.name)}</a></td>
+      <td class="num"><b>${fmt0(d.earned)}</b></td><td class="num muted">${(d.share * 100).toFixed(1)}%</td><td class="num${d.waiting ? '' : ' muted'}">${d.waiting ? fmt0(d.waiting) : '—'}</td>
+      <td class="num${d.expected ? '' : ' muted'}">${d.expected ? fmt0(d.expected) : '—'}</td><td class="num">${d.hours ? Math.round(d.hours) : '—'}</td><td class="num">${d.rate ? fmt0(d.rate) : '—'}</td><td class="num muted">${d.n}</td></tr>`).join('') +
+    `<tr class="total"><td>All</td><td class="num">${fmt0(all)}</td><td class="num">100%</td><td class="num">${fmt0(tot('waiting'))}</td><td class="num">${fmt0(tot('expected'))}</td><td class="num">${Math.round(tot('hours'))}</td><td></td><td class="num">${tot('n')}</td></tr></tbody></table>`;
+}
+
+window.setFilter = (o, m) => { filt = { org: o, month: m }; $('f-org').value = o; renderGrid(); renderEntries(); $('card-entries').scrollIntoView({ behavior: 'smooth' }); };
+
+let entSort = 'date', entDir = -1;
+window.setEntSort = (k) => { if (entSort === k) entDir = -entDir; else { entSort = k; entDir = (k === 'date' || k === 'amount') ? -1 : 1; } renderEntries(); };
+function entryList() {
+  const q = $('f-q').value.trim().toLowerCase(), st = $('f-status').value;
+  let list = yearItems().filter(i => (!filt.org || i.org === filt.org) && (filt.month === '' || Number(keyOf(i).slice(5, 7)) - 1 === Number(filt.month)) && (!st || i.status === st));
+  // Impactus bookings shown one line per class and payment type, not per seat
+  const out = [], agg = {};
+  list.forEach(i => {
+    if (i.src === 'manual') { out.push(i); return; }
+    const k = [i.courseId, i.kind, i.status, basis === 'paid' ? keyOf(i).slice(0, 7) : ''].join('|');
+    if (!agg[k]) { agg[k] = { ...i, seats: 0, amount: 0 }; out.push(agg[k]); }
+    agg[k].seats++; agg[k].amount += i.amount;
+  });
+  return out.filter(i => !q || [i.title, i.payer, i.invoice, i.notes, shortOrg(i.org)].join(' ').toLowerCase().includes(q));
+}
+function renderEntries() {
+  const chips = [];
+  if (filt.org) chips.push(`<span class="chip">${esc(shortOrg(filt.org))}<button onclick="setFilter('', '${filt.month}')" aria-label="Clear">×</button></span>`);
+  if (filt.month !== '') chips.push(`<span class="chip">${MONTHS[Number(filt.month)]} ${year}<button onclick="setFilter('${filt.org}', '')" aria-label="Clear">×</button></span>`);
+  $('chips').innerHTML = chips.join('');
+  const val = (i, k) => k === 'date' ? (keyOf(i) || '') : k === 'org' ? shortOrg(i.org) : k === 'amount' ? i.amount : k === 'status' ? i.status : k === 'payee' ? i.payee : k === 'title' ? i.title.toLowerCase() : '';
+  const list = sortRows(entryList(), entSort, entDir, val);
+  if (!list.length) { $('entries').innerHTML = '<p class="muted">No entries match.</p>'; updateBulk(); return; }
+  const cols = [{ label: '<input type="checkbox" id="sel-all" aria-label="Select all">' }, { k: 'date', label: basis === 'taught' ? 'Taught' : 'Paid' }, { k: 'org', label: 'Organisation' }, { k: 'title', label: 'What' },
+    { k: 'amount', label: 'Amount', num: 1 }, { k: 'status', label: 'Status' }, { k: 'payee', label: 'Paid to' }, { label: 'Invoice' }, { label: '' }];
+  $('entries').innerHTML = `<table><thead><tr>${headings(cols, entSort, entDir, 'setEntSort')}</tr></thead><tbody>` +
+    list.map(i => {
+      const m = i.src === 'manual';
+      const cls = m && i.classId && classBy[i.classId] ? `<div class="note">Class: ${esc(classBy[i.classId].title)}</div>` : '';
+      const sub = m ? `${i.payer ? `<div class="note">${esc(i.payer)}</div>` : ''}${cls}${i.notes ? `<div class="note">${esc(i.notes)}</div>` : ''}`
+        : `<div class="note">${i.kind === 'corp' ? `${i.seats} seat${i.seats === 1 ? '' : 's'} invoiced to ${esc(i.payer)}` : `${i.seats} paid seat${i.seats === 1 ? '' : 's'}`} · from bookings</div>`;
+      const date = keyOf(i);
+      const dateNote = basis === 'paid' && !m ? '' : (basis === 'taught' && i.paid && m ? `<div class="note">paid ${fdate(i.paid)}</div>` : '');
+      return `<tr><td>${m && i.status !== 'paid' ? `<input type="checkbox" class="sel" data-id="${i.id}"${selected.has(i.id) ? ' checked' : ''} aria-label="Select">` : ''}</td>
+        <td style="white-space:nowrap">${fdate(date)}${dateNote}</td><td>${esc(shortOrg(i.org))}</td><td>${esc(i.title)}${sub}</td>
+        <td class="num"><b>${fmt2(i.amount)}</b></td><td><span class="pill ${i.status}">${STATUS[i.status]}</span></td><td>${PAYEE[i.payee]}</td>
+        <td class="small">${esc(i.invoice)}${i.invDate ? `<div class="note">${fdate(i.invDate)}</div>` : ''}</td>
+        <td>${m ? `<button class="btn ghost sm" onclick="openForm('${i.id}')">Edit</button>` : '<span class="pill auto">auto</span>'}</td></tr>`;
+    }).join('') +
+    `<tr class="total"><td></td><td colspan="3">${list.length} line${list.length === 1 ? '' : 's'}</td><td class="num">${fmt2(sum(list))}</td><td colspan="4"></td></tr></tbody></table>`;
+  document.querySelectorAll('#entries .sel').forEach(cb => cb.onchange = () => { cb.checked ? selected.add(cb.dataset.id) : selected.delete(cb.dataset.id); updateBulk(); });
+  const all = $('sel-all');
+  if (all) all.onchange = () => { document.querySelectorAll('#entries .sel').forEach(cb => { cb.checked = all.checked; all.checked ? selected.add(cb.dataset.id) : selected.delete(cb.dataset.id); }); updateBulk(); };
+  updateBulk();
+}
+function updateBulk() {
+  $('bulk').classList.toggle('hidden', !selected.size);
+  const amt = rows.filter(r => selected.has(r.id)).reduce((s, r) => s + Number(r.amount_sgd), 0);
+  $('bulk-n').innerHTML = `<b>${selected.size}</b> selected (${fmt2(amt)})`;
+  if (!$('bulk-date').value) $('bulk-date').value = today();
+}
+$('bulk-clear').onclick = () => { selected.clear(); renderEntries(); };
+$('bulk-go').onclick = () => markPaid([...selected], 'bulk-date');
+let busy = false;
+window.markPaid = async (ids, dateId) => {
+  if (busy) return;
+  const d = $(dateId).value;
+  if (!d) { msg('Pick the date it was paid', true); return; }
+  busy = true;
+  const { data, error } = await sb.rpc('tracker_mark_earnings_paid', { p_ids: ids, p_paid_on: d });
+  busy = false;
+  if (error) { msg(error.message, true); return; }
+  ids.forEach(id => selected.delete(id));
+  msg(`Marked ${data.updated} line${data.updated === 1 ? '' : 's'} paid`);
+  loadAll();
+};
+
+function renderDeleted() {
+  $('del-n').textContent = deleted.length;
+  $('deleted').innerHTML = deleted.length ? `<table><tbody>` + deleted.map(r => `<tr><td>${fdate(r.earned_on)}</td><td>${esc(shortOrg(r.org_code))}</td><td>${esc(r.title)}</td><td class="num">${fmt2(r.amount_sgd)}</td><td class="muted small">deleted ${r.deleted_at ? fdate(sgDate(r.deleted_at)) : ''}</td><td><button class="btn ghost sm" onclick="restore('${r.id}')">Restore</button></td></tr>`).join('') + `</tbody></table>` : '<p class="muted">None.</p>';
+}
+window.restore = async (id) => {
+  const { error } = await sb.rpc('tracker_delete_earning', { p_id: id, p_restore: true });
+  if (error) { msg(error.message, true); return; }
+  msg('Restored'); loadAll();
+};
+
+// ---- add / edit form ----
+let editId = null;
+function classOptions(org, keep) {
+  const list = classes.filter(x => x.org_code === org);
+  return '<option value="">— none —</option>' + list.map(x => `<option value="${x.id}"${x.id === keep ? ' selected' : ''}>${fdate(x.end_date)} · ${esc(x.title)}${x.role && x.role !== 'lead' ? ' (' + esc(x.role) + ')' : ''}</option>`).join('');
+}
+function lastPayee(org) { const r = rows.filter(x => x.org_code === org).sort((a, b) => (b.earned_on || '').localeCompare(a.earned_on || ''))[0]; return r ? r.payee : (org === 'SUSS' || org === 'NTU' ? 'personal' : 'impactus'); }
+function lastPayer(org) { const r = rows.filter(x => x.org_code === org && x.payer).sort((a, b) => (b.earned_on || '').localeCompare(a.earned_on || ''))[0]; return r ? r.payer : ''; }
+window.openForm = (id, classId) => {
+  editId = id || null;
+  const r = id ? rows.find(x => x.id === id) : null;
+  const cl = classId ? classBy[classId] : null;
+  const org = r ? r.org_code : cl ? cl.org_code : (filt.org && filt.org !== 'IMPACTUS' ? filt.org : (orgs.find(o => o.active && o.code !== 'IMPACTUS') || orgs[0]).code);
+  $('ov-title').textContent = r ? 'Edit entry' : 'Add entry';
+  $('e-org').innerHTML = orgs.map(o => `<option value="${esc(o.code)}">${esc(o.name)}${o.active ? '' : ' (past)'}</option>`).join('');
+  $('e-org').value = org;
+  $('e-class').innerHTML = classOptions(org, r ? r.engagement_id : classId);
+  $('e-title').value = r ? r.title : cl ? cl.title : '';
+  $('e-payer').value = r ? (r.payer || '') : lastPayer(org);
+  $('e-payee').value = r ? r.payee : lastPayee(org);
+  $('e-earned').value = r ? r.earned_on : cl ? cl.end_date : '';
+  $('e-amount').value = r ? Number(r.amount_sgd) : '';
+  $('e-status').value = r ? r.status : 'invoiced';
+  $('e-paid').value = r ? (r.paid_on || '') : '';
+  $('e-inv').value = r ? (r.invoice_no || '') : '';
+  $('e-invdate').value = r ? (r.invoice_date || '') : '';
+  $('e-src').value = r ? (r.source_file || '') : '';
+  $('e-notes').value = r ? (r.notes || '') : '';
+  $('e-del').classList.toggle('hidden', !r);
+  formWarn();
+  $('ov').classList.remove('hidden');
+  setTimeout(() => (r ? $('e-amount') : cl ? $('e-amount') : $('e-title')).focus(), 30);
+};
+$('e-org').onchange = () => { const o = $('e-org').value; $('e-class').innerHTML = classOptions(o, ''); if (!editId) { $('e-payee').value = lastPayee(o); $('e-payer').value = lastPayer(o); } formWarn(); };
+$('e-class').onchange = () => { const cl = classBy[$('e-class').value]; if (cl) { if (!$('e-title').value.trim()) $('e-title').value = cl.title; if (!$('e-earned').value) $('e-earned').value = cl.end_date; } };
+$('e-status').onchange = () => { if ($('e-status').value === 'paid' && !$('e-paid').value) $('e-paid').value = today(); formWarn(); };
+$('e-inv').oninput = formWarn; $('e-amount').oninput = formWarn;
+function formWarn() {
+  const w = [];
+  const inv = $('e-inv').value.trim().toLowerCase();
+  if ($('e-org').value === 'IMPACTUS') w.push('Impactus public classes are counted automatically from bookings. Only add an Impactus entry for income the booking system does not hold (for example an in-house class invoiced outside the portal).');
+  if (inv && corpInvoices.has(inv)) w.push('This invoice number is already a corporate seat invoice in the booking system, so it is counted automatically. Saving it here would double-count.');
+  if ($('e-status').value === 'paid' && !$('e-paid').value) w.push('Add the date it was paid so it lands in the right month under “Month paid”.');
+  $('e-warn').innerHTML = w.map(x => `<div class="warn">${esc(x)}</div>`).join('');
+}
+function closeForm() { $('ov').classList.add('hidden'); editId = null; }
+$('e-cancel').onclick = closeForm;
+$('ov').onclick = (e) => { if (e.target === $('ov')) closeForm(); };
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('ov').classList.contains('hidden')) closeForm(); });
+let saving = false;
+$('e-save').onclick = async () => {
+  if (saving) return;
+  const p = { id: editId, org_code: $('e-org').value, engagement_id: $('e-class').value || null, title: $('e-title').value.trim(), payer: $('e-payer').value.trim(),
+    earned_on: $('e-earned').value, amount_sgd: $('e-amount').value, status: $('e-status').value, paid_on: $('e-paid').value || null,
+    invoice_no: $('e-inv').value.trim(), invoice_date: $('e-invdate').value || null, payee: $('e-payee').value, source_file: $('e-src').value.trim(), notes: $('e-notes').value.trim() };
+  if (!p.title) { msg('Say what the payment is for', true); return; }
+  if (!p.earned_on) { msg('Give the date taught', true); return; }
+  if (p.amount_sgd === '' || isNaN(Number(p.amount_sgd))) { msg('Give the amount', true); return; }
+  saving = true; $('e-save').disabled = true;
+  const { error } = await sb.rpc('tracker_save_earning', { p });
+  saving = false; $('e-save').disabled = false;
+  if (error) { msg(error.message, true); return; }
+  closeForm(); msg('Saved'); loadAll();
+};
+$('e-del').onclick = async () => {
+  if (!editId || !confirm('Delete this entry? You can restore it from “Deleted entries”.')) return;
+  const { error } = await sb.rpc('tracker_delete_earning', { p_id: editId, p_restore: false });
+  if (error) { msg(error.message, true); return; }
+  closeForm(); msg('Deleted'); loadAll();
+};
+window.noFee = async (classId) => {
+  const cl = classBy[classId]; if (!cl || busy) return;
+  if (!confirm(`Record “${cl.title}” as no separate fee (S$0)? Use this for unpaid work or a class already covered by another entry.`)) return;
+  busy = true;
+  const { error } = await sb.rpc('tracker_save_earning', { p: { org_code: cl.org_code, engagement_id: cl.id, title: cl.title, earned_on: cl.end_date, amount_sgd: 0,
+    status: 'paid', paid_on: cl.end_date, payee: lastPayee(cl.org_code), notes: 'No separate fee' } });
+  busy = false;
+  if (error) { msg(error.message, true); return; }
+  msg('Recorded as no fee'); loadAll();
+};
+
+// ---- toolbar ----
+$('f-year').onchange = () => { year = $('f-year').value; filt.month = ''; renderAll(); };
+$('f-payee').onchange = () => { payee = $('f-payee').value; store('ilAllEarnPayee', payee); renderAll(); };
+[...$('seg-basis').children].forEach(b => b.onclick = () => { basis = b.dataset.v; store('ilAllEarnBasis', basis); [...$('seg-basis').children].forEach(x => x.classList.toggle('on', x === b)); renderAll(); });
+$('f-org').onchange = () => setFilter($('f-org').value, filt.month);
+$('f-status').onchange = renderEntries;
+$('f-q').oninput = renderEntries;
+$('btn-add').onclick = () => openForm();
+
+$('btn-xlsx').onclick = () => {
+  if (typeof XLSX === 'undefined') { msg('The Excel library did not load. Refresh and try again.', true); return; }
+  const list = yearItems();
+  const map = gridData(list);
+  const codes = orgs.map(o => o.code).filter(c => map[c]);
+  const sheet1 = [[`Teaching earnings ${year} · by month ${basis === 'taught' ? 'taught' : 'paid'}${payee !== 'all' ? ' · paid to ' + PAYEE_LONG[payee] : ''}`], [],
+    ['Organisation', ...MONTHS, 'Total'],
+    ...codes.map(c => [shortOrg(c), ...map[c].map(v => Math.round(v * 100) / 100), Math.round(map[c].reduce((a, b) => a + b, 0) * 100) / 100])];
+  const colTot = MONTHS.map((_, m) => Math.round(codes.reduce((s, c) => s + map[c][m], 0) * 100) / 100);
+  sheet1.push(['Total', ...colTot, Math.round(colTot.reduce((a, b) => a + b, 0) * 100) / 100], [], ['Paid to', ...MONTHS, 'Total']);
+  Object.keys(PAYEE).forEach(p => { const r = MONTHS.map((_, m) => Math.round(sum(list.filter(i => i.payee === p && Number(keyOf(i).slice(5, 7)) - 1 === m)) * 100) / 100); sheet1.push([PAYEE_LONG[p], ...r, Math.round(r.reduce((a, b) => a + b, 0) * 100) / 100]); });
+  sheet1.push([], ['Impactus classes = cash paid (net of refunds) + seats invoiced to companies, from the booking system. Rental income excluded.']);
+  const ent = entryList().sort((a, b) => (keyOf(a) || '').localeCompare(keyOf(b) || '')).map(i => ({
+    'Date taught': i.earned, 'Month taught': i.earned ? MONTHS[Number(i.earned.slice(5, 7)) - 1] + ' ' + i.earned.slice(0, 4) : '',
+    'Paid on': i.paid || '', 'Organisation': shortOrg(i.org), 'What': i.title + (i.src === 'booking' ? ` (${i.seats} seat${i.seats === 1 ? '' : 's'}${i.kind === 'corp' ? ', company invoice' : ''})` : ''),
+    'Who pays': i.payer || '', 'Amount SGD': Math.round(i.amount * 100) / 100, 'Status': STATUS[i.status], 'Paid to': PAYEE_LONG[i.payee],
+    'Invoice no.': i.invoice || '', 'Invoice date': i.invDate || '', 'Source': i.src === 'booking' ? 'Booking system' : (i.source || ''), 'Notes': i.notes || '' }));
+  const open = items.filter(i => payeeOk(i) && i.status !== 'paid').map(i => ({ 'Date taught': i.earned, 'Organisation': shortOrg(i.org), 'What': i.title, 'Who pays': i.payer || '',
+    'Amount SGD': Math.round(i.amount * 100) / 100, 'Status': STATUS[i.status], 'Paid to': PAYEE_LONG[i.payee], 'Invoice no.': i.invoice || '', 'Invoice date': i.invDate || '' }));
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(sheet1); ws1['!cols'] = [{ wch: 28 }, ...MONTHS.map(() => ({ wch: 10 })), { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, ws1, `Summary ${year}`);
+  const ws2 = XLSX.utils.json_to_sheet(ent); ws2['!cols'] = [{ wch: 11 }, { wch: 10 }, { wch: 11 }, { wch: 24 }, { wch: 60 }, { wch: 26 }, { wch: 11 }, { wch: 12 }, { wch: 24 }, { wch: 26 }, { wch: 11 }, { wch: 40 }, { wch: 50 }];
+  XLSX.utils.book_append_sheet(wb, ws2, `Entries ${year}`);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(open.length ? open : [{ 'Date taught': 'Nothing outstanding' }]), 'Not paid yet');
+  const stamp = today();
+  XLSX.writeFile(wb, `impactus-teaching-earnings-${year}-${basis === 'taught' ? 'by-month-taught' : 'by-month-paid'}${payee !== 'all' ? '-' + payee : ''}-${stamp}.xlsx`);
+};
+
+init();
+</script>
+</body>
+</html>
