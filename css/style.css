@@ -165,6 +165,11 @@ h1, h2, h3, h4, h5, h6 { line-height: 1.2; font-weight: 700; }
   font-weight: 500; color: var(--color-text-muted);
   border-radius: var(--radius-md); transition: color 0.2s, background 0.2s;
 }
+/* Synced from impactuslearning.com: keep nav labels on one line */
+.nav__links a { white-space: nowrap; }
+@media (min-width: 769px) and (max-width: 1200px) {
+  .nav__links a { padding: 8px 9px; }
+}
 .nav__links a:hover { color: var(--color-text); background: var(--color-brand-subtle); }
 .nav__links a.active { color: var(--color-brand); font-weight: 600; }
 
@@ -1604,4 +1609,23 @@ h1, h2, h3, h4, h5, h6 { line-height: 1.2; font-weight: 700; }
   .rvws__badge, .rvws__badge::after, .rvws__stars .rvst, .rvws__count strong,
   .rvws__track--a, .rvws__track--b { animation: none !important; }
   .review-card { transition: none; }
+}
+
+
+/* ---------- Reserve Seat in header (synced from impactuslearning.com) ---------- */
+.nav__portal { padding: 10px 20px; white-space: nowrap; }
+.nav__portal svg { opacity: 0.75; }
+@media (min-width: 769px) { .nav__links li.nav__portal-item { display: none; } }
+@media (max-width: 768px) {
+  .nav__portal { display: none; }
+  .nav__links li.nav__portal-item { padding: 16px 20px; }
+  .nav__links li.nav__portal-item a {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 15px 20px; border-radius: var(--radius-full);
+    background-color: #5B3516 !important; color: #fff !important;
+    font-size: 16px; font-weight: 700;
+    box-shadow: 0 2px 8px rgba(91,53,22,0.25);
+  }
+  .nav__links li.nav__portal-item a:active { background-color: #7A4A28 !important; }
+  .nav__links li.nav__portal-item svg { opacity: 0.85; flex-shrink: 0; }
 }
