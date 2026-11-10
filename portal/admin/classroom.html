@@ -198,6 +198,16 @@ const FAM_LABEL = {
   'test-class': 'Test Class',
 };
 const famLabel = (f) => FAM_LABEL[f.slug] || f.name;
+// Corp Class Half Day / Full Day (2026-11-10): one course type covers many different in-house
+// classes (Legal Copilot for a law firm, something else for the next client), so a shared course
+// library would leak one client's content into another's class. These families get NO library:
+// every cohort has its own content folder (its class items + its own Storage folder) instead.
+const CORP_SLUGS = ['corp-half-day', 'corp-full-day'];
+const isCorpFam = (f) => !!f && CORP_SLUGS.includes(f.slug);
+const isCorpCourse = (c) => !!c && isCorpFam(famById(c.family_id));
+const classLabel = (c) => isCorpCourse(c) ? '🏢 ' + c.name : famLabel(famById(c.family_id) || {});
+// Storage folder for a corporate class: corp/2026-11-18-master-copilot-ai-for-legal-work/
+const corpFolder = (c) => 'corp/' + c.cohort_date + '-' + (String(c.name || 'class').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'class');
 const CM_FILE_BASE = SUPABASE_URL + '/storage/v1/object/public/class-materials/';
 const matHref = (m) => m.kind === 'file' && m.file_path ? CM_FILE_BASE + encodeURI(m.file_path) : (m.url || '');
 
@@ -257,7 +267,7 @@ async function loadAll() {
   starters = sp.data || []; students = st.data || []; emailLog = el.data || [];
   const secretsById = Object.fromEntries(((cs.data) || []).map(x => [x.id, x]));
   courses.forEach(cc => Object.assign(cc, secretsById[cc.id] || {}));
-  if (!curFam) { const first = families.find(x => x.status === 'active' && x.slug !== 'test-class'); curFam = first && first.id; }
+  if (!curFam) { const first = families.find(x => x.status === 'active' && x.slug !== 'test-class' && !isCorpFam(x)); curFam = first && first.id; }
   renderBoard(); renderPast(); renderFamChips(); renderLibrary(); renderExtras(); renderStarter(); renderSpWait(); renderSpDone();
   healStarterDocx().then(() => healStarterNotify());   // Word files first, then ✉️ ready-emails (covers outside-generated sheets and earlier send failures)
 }
@@ -283,14 +293,16 @@ function renderBoard() {
       const nMat = visibleCount(c);
       return '<tr><td style="white-space:nowrap">' + dow(c.cohort_date) + ' ' + fdate(c.cohort_date) +
         '<div class="muted" style="font-size:11.5px">' + esc(c.session_time || '') + '</div></td>' +
-        '<td><b>' + esc(famLabel(f)) + '</b>' + (f2f ? '' : '') + '</td>' +
+        '<td><b>' + esc(classLabel(c)) + '</b>' + (f2f ? '' : '') + '</td>' +
         '<td>' + (seats || '<span class="muted">0</span>') + '</td>' +
         '<td>' + dot(!!c.zoom_link, seats > 0) + '</td>' +
         '<td>' + dot(!!c.whatsapp_url, seats > 0) + '</td>' +
         '<td>' + (nMat ? nMat : '<span class="no-dot">0</span>') + '</td>' +
         '<td style="text-align:right;white-space:nowrap">' +
-          '<button class="btn ghost sm" onclick="jumpLibrary(\'' + c.family_id + '\')">Library</button> ' +
-          '<button class="btn ghost sm" onclick="jumpExtras(\'' + c.id + '\')">Extras</button></td></tr>';
+          (isCorpCourse(c)
+            ? '<button class="btn ghost sm" onclick="jumpExtras(\'' + c.id + '\')">📁 Folder</button></td></tr>'
+            : '<button class="btn ghost sm" onclick="jumpLibrary(\'' + c.family_id + '\')">Library</button> ' +
+              '<button class="btn ghost sm" onclick="jumpExtras(\'' + c.id + '\')">Extras</button></td></tr>');
     }).join('') + '</tbody></table>' +
     '<p class="muted" style="margin-top:8px;font-size:12px">Zoom &amp; WhatsApp are set on the <a href="./" target="_blank">Dashboard</a> cohort card (Create Zoom / +WA). Students always see them in their portal Classroom once set — materials come from the library below.</p>';
 }
@@ -330,7 +342,7 @@ function renderPast() {
         : '<span class="muted">none</span>';
       return '<tr><td style="white-space:nowrap">' + dow(c.cohort_date) + ' ' + fdate(c.cohort_date) +
         '<div class="muted" style="font-size:11.5px">' + esc(c.session_time || '') + '</div></td>' +
-        '<td><b>' + esc(famLabel(f)) + '</b></td>' +
+        '<td><b>' + esc(classLabel(c)) + '</b></td>' +
         '<td>' + (seatCount(c.id) || '<span class="muted">0</span>') + '</td>' +
         '<td>' + ex + '</td>' +
         '<td style="text-align:right;white-space:nowrap"><button class="btn ghost sm" onclick="jumpExtras(\'' + c.id + '\')">Manage</button></td></tr>';
@@ -345,7 +357,7 @@ $('past-toggle').onclick = () => {
 // ── Course library ─────────────────────────────────────────────────────────
 function renderFamChips() {
   $('famchips').innerHTML = families
-    .filter(f => f.status === 'active' && f.slug !== 'test-class')
+    .filter(f => f.status === 'active' && f.slug !== 'test-class' && !isCorpFam(f))
     .map(f => '<button type="button" class="chip' + (f.id === curFam ? ' on' : '') + '" data-fam="' + f.id + '">' + esc(famLabel(f)) + '</button>').join('');
   document.querySelectorAll('[data-fam]').forEach(b => b.onclick = () => { curFam = b.dataset.fam; editing = null; renderFamChips(); renderLibrary(); });
 }
@@ -431,17 +443,74 @@ function renderExtras() {
   $('exsel').innerHTML = '<option value="">— choose a class —</option>' + opts.map(c => {
     const f = famById(c.family_id) || {};
     return '<option value="' + c.id + '"' + (c.id === curCourse ? ' selected' : '') + '>' +
-      esc(dow(c.cohort_date) + ' ' + fdate(c.cohort_date) + ' · ' + famLabel(f) + (c.session_time ? ' · ' + c.session_time : '') + (c.cohort_date < tod ? ' · past' : '')) + '</option>';
+      esc(dow(c.cohort_date) + ' ' + fdate(c.cohort_date) + ' · ' + classLabel(c) + (c.session_time ? ' · ' + c.session_time : '') + (c.cohort_date < tod ? ' · past' : '')) + '</option>';
   }).join('');
   $('exsel').onchange = () => { curCourse = $('exsel').value || null; editing = null; renderExtras(); };
   if (!curCourse) { $('exlist').textContent = 'Course-library items already cover every class — extras are only for one-off additions like a session recording.'; $('exform').innerHTML = ''; return; }
   const rows = courseMats(curCourse);
   const c = courses.find(x => x.id === curCourse);
   const inherited = c ? famMats(c.family_id).filter(m => m.is_published).length : 0;
-  $('exlist').innerHTML = (inherited ? '<p class="muted" style="margin-bottom:4px">This class already inherits <b>' + inherited + '</b> published item(s) from its course library.</p>' : '') +
-    (rows.length ? rows.map(m => matRow(m, 'ex')).join('') : '<p class="muted">No extras for this class yet.</p>');
+  const corp = isCorpCourse(c);
+  $('exlist').innerHTML =
+    (corp ? '<div style="margin-bottom:8px;padding:10px 12px;border:1px solid #f1d9b5;background:#fffaf2;border-radius:10px">' +
+        '<div style="font-weight:700;font-size:13.5px">📁 Content folder · ' + esc(c.name) + '</div>' +
+        '<div class="muted" style="font-size:12.5px;margin-top:3px">Corporate class — there is no shared course library, so this folder is <b>everything</b> its staff see in their portal Classroom. Files upload to <code>' + esc(corpFolder(c)) + '/</code>. Start from existing material with <b>Copy in</b> below — copies arrive hidden, so you can trim them before publishing.</div></div>' : '') +
+    (inherited ? '<p class="muted" style="margin-bottom:4px">This class already inherits <b>' + inherited + '</b> published item(s) from its course library.</p>' : '') +
+    (rows.length ? rows.map(m => matRow(m, 'ex')).join('') : '<p class="muted">' + (corp ? 'This folder is empty — add items below or copy some in.' : 'No extras for this class yet.') + '</p>') +
+    copyInHTML(c);
   $('exform').innerHTML = formHTML('ex');
   wireList('ex');
+  wireCopyIn();
+}
+
+// ── Copy in (2026-11-10) ───────────────────────────────────────────────────
+// Seed a class's folder from a course library (e.g. the public Master Copilot slides) or from
+// another class. Copies are new rows on THIS class only, arrive HIDDEN, and point at the same
+// file in Storage — no re-upload. delMat() keeps a shared file until nothing references it.
+function copySources(c) {
+  const out = [];
+  families.filter(f => f.status === 'active' && f.slug !== 'test-class' && !isCorpFam(f) && famMats(f.id).length)
+    .forEach(f => out.push({ key: 'fam:' + f.id, label: 'Course library · ' + famLabel(f) + ' (' + famMats(f.id).length + ')', rows: famMats(f.id) }));
+  courses.filter(x => x.id !== c.id && courseMats(x.id).length)
+    .slice().reverse()
+    .forEach(x => out.push({ key: 'cls:' + x.id, label: 'Class · ' + fdate(x.cohort_date) + ' · ' + classLabel(x) + ' (' + courseMats(x.id).length + ')', rows: courseMats(x.id) }));
+  return out;
+}
+function copyInHTML(c) {
+  if (!c) return '';
+  const src = copySources(c);
+  if (!src.length) return '';
+  return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px">' +
+    '<span class="muted" style="font-size:12.5px;font-weight:600">Copy in from</span>' +
+    '<select id="cp-src" style="width:auto;max-width:100%;flex:1">' +
+      '<option value="">— choose a library or class —</option>' +
+      src.map(x => '<option value="' + x.key + '">' + esc(x.label) + '</option>').join('') + '</select>' +
+    '<button class="btn ghost sm" id="cp-go">Copy items</button></div>';
+}
+function wireCopyIn() {
+  const go = $('cp-go');
+  if (!go) return;
+  go.onclick = async () => {
+    if (busy) return;
+    const c = courses.find(x => x.id === curCourse);
+    const src = c && copySources(c).find(x => x.key === $('cp-src').value);
+    if (!src) return msg('exmsg', 'err', 'Choose where to copy from.');
+    if (!confirm('Copy ' + src.rows.length + ' item(s) into ' + classLabel(c) + ' (' + fdate(c.cohort_date) + ')?\n\nThey arrive hidden — publish the ones you want.')) return;
+    busy = true;
+    try {
+      let order = courseMats(c.id).reduce((mx, m) => Math.max(mx, m.sort_order), 0);
+      const rows = src.rows.map(m => ({
+        course_id: c.id, family_id: null, kind: m.kind, title: m.title, description: m.description,
+        url: m.url, file_path: m.file_path, file_name: m.file_name, is_published: false, sort_order: (order += 10),
+      }));
+      const { error } = await sb.from('class_materials').insert(rows);
+      if (error) throw new Error(error.message);
+      await loadAll();
+      msg('exmsg', 'ok', 'Copied ' + rows.length + ' item(s) — hidden from students until you click Publish on each.');
+    } catch (e) {
+      msg('exmsg', 'err', e.message || 'Could not copy.');
+    } finally { busy = false; }
+  };
 }
 
 // ── Shared list/form wiring ────────────────────────────────────────────────
@@ -487,7 +556,8 @@ async function saveMat(prefix) {
     if (file) {
       msg(mid, 'ok', 'Uploading ' + file.name + '…');
       const f = famById(prefix === 'lib' ? curFam : (courses.find(c => c.id === curCourse) || {}).family_id);
-      const dir = prefix === 'lib' ? ((f && f.slug) || 'course') : ('class-' + curCourse);
+      const cc = prefix === 'ex' ? courses.find(c => c.id === curCourse) : null;
+      const dir = prefix === 'lib' ? ((f && f.slug) || 'course') : (isCorpCourse(cc) ? corpFolder(cc) : ('class-' + curCourse));
       const path = dir + '/' + Date.now() + '-' + file.name.replace(/[^\w.\-]+/g, '_');
       const { data: up, error: upErr } = await sb.storage.from('class-materials').upload(path, file);
       if (upErr) throw new Error('Upload failed: ' + upErr.message);
@@ -564,7 +634,7 @@ function renderStarter() {
     const f = famById(c.family_id) || {};
     const n = spRoster(c.id).filter(s => { const r = spFor(c.id, s.email); return r && r.goal; }).length;
     return '<option value="' + c.id + '"' + (c.id === curSpCourse ? ' selected' : '') + '>' +
-      esc(dow(c.cohort_date) + ' ' + fdate(c.cohort_date) + ' · ' + famLabel(f) + (c.cohort_date < tod ? ' · past' : '') + (n ? ' · ' + n + ' goal' + (n > 1 ? 's' : '') : '')) + '</option>';
+      esc(dow(c.cohort_date) + ' ' + fdate(c.cohort_date) + ' · ' + classLabel(c) + (c.cohort_date < tod ? ' · past' : '') + (n ? ' · ' + n + ' goal' + (n > 1 ? 's' : '') : '')) + '</option>';
   }).join('');
   $('spsel').onchange = () => { curSpCourse = $('spsel').value || null; spGoalEdit = null; spView = null; renderStarter(); };
   if (!curSpCourse) { $('splist').textContent = 'Choose a class to see its students and their goals.'; return; }
@@ -897,7 +967,10 @@ async function delMat(id, prefix) {
   if (!confirm('Delete "' + m.title + '"? Students will no longer see it.')) return;
   if (busy) return; busy = true;
   const { error } = await sb.from('class_materials').delete().eq('id', id);
-  if (!error && m.kind === 'file' && m.file_path) {
+  // A copied item points at the same Storage file as its original — only remove the file once
+  // no other item still uses it.
+  const shared = m.file_path && materials.some(x => x.id !== m.id && x.file_path === m.file_path);
+  if (!error && m.kind === 'file' && m.file_path && !shared) {
     try { await sb.storage.from('class-materials').remove([m.file_path]); } catch (e) { /* best effort */ }
   }
   busy = false;

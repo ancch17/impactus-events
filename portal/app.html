@@ -1524,6 +1524,14 @@ LEVELS['test-class'] = { key: 'test', short: 'Test Class', title: 'Test Class', 
 // "Corporate Class", never the bare fallback "Class". Not in LEVEL_ORDER on purpose — no chip
 // in the course key. Booking these needs a company code — see the quote_only handling below.
 LEVELS['corp-claude-fd'] = { key: 'corpfd', short: 'Corporate Class', title: 'Claude Corporate Full Day', color: '#6d28d9', f2f: false };
+// Corp Class Half Day / Full Day (2026-11-10): generic in-house types. Each cohort carries its own
+// title (courses.name, e.g. "Master Copilot: AI for Legal Work"), so title is left blank here and
+// classTitle() below uses the cohort's name. corp:true swaps the Online / F2F tag for "In-house".
+LEVELS['corp-half-day'] = { key: 'corp', short: 'Corporate Class', title: '', color: '#b45309', f2f: false, corp: true };
+LEVELS['corp-full-day'] = { key: 'corp', short: 'Corporate Class', title: '', color: '#7c2d12', f2f: false, corp: true };
+const classTitle = (L, c) => L.title || (L.corp ? (c.name || c.course_name) : c.family_name) || '';
+const formatTag = (L) => L.corp ? '<span class="f2f-tag">In-house class</span>'
+  : L.f2f ? '<span class="f2f-tag">F2F · in person</span>' : '<span class="online-tag">Online</span>';
 const lvlOf = (slug) => LEVELS[slug] || { key: 'x', short: 'Class', title: '', color: '#64748b', f2f: false };
 
 let allCohorts = [], attendedMap = {}, calMonth = null, calFilter = '';
@@ -1761,11 +1769,11 @@ function renderCards() {
         <div class="ccard-top">
           <div>
             <div class="ccard-pills">
-              ${L.f2f ? '<span class="f2f-tag">F2F · in person</span>' : '<span class="online-tag">Online</span>'}
+              ${formatTag(L)}
               <span class="lvl-pill" style="background:${L.color}">${L.short}</span>
               ${been ? `<span class="pill again">${balance > 0 ? 'Come back — use your ' + balance + ' pts' : 'You’ve taken this'}</span>` : ''}
             </div>
-            <div class="ccard-title">${esc(L.title || next.family_name)}</div>
+            <div class="ccard-title">${esc(classTitle(L, next))}</div>
             ${sub ? `<div class="hist-sub" style="margin-top:4px">${esc(sub)}</div>` : ''}
           </div>
           <div class="ccard-price">${priceBlock}</div>
@@ -2035,10 +2043,10 @@ function renderPaySummary(c) {
   }
   box.innerHTML = `
     <div class="ps-pills">
-      ${L.f2f ? '<span class="f2f-tag">F2F · in person</span>' : '<span class="online-tag">Online</span>'}
+      ${formatTag(L)}
       <span class="lvl-pill" style="background:${L.color}">${L.short}</span>
     </div>
-    <div class="ps-title">${esc(L.title || c.family_name)}</div>
+    <div class="ps-title">${esc(classTitle(L, c))}</div>
     <div class="ps-when"><strong>${fdate(c.cohort_date)}</strong>${c.session_time ? ' · ' + esc(c.session_time) : ''}</div>
     ${L.f2f ? `<div class="ps-min">In-person classes run with a minimum of ${F2F_MIN_PAX} participants. If this date doesn't reach the minimum, we'll offer you a place on another date.</div>` : ''}`;
 }
@@ -2514,7 +2522,7 @@ function classroomBlock(r, tod) {
       + '<div style="font-weight:700;font-size:13.5px">📍 ' + esc(r.venue || CM_VENUE_FALLBACK)
       + (/beach road/i.test(r.venue || CM_VENUE_FALLBACK) ? ' <a href="' + CM_VENUE_MAP + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;white-space:nowrap">Open in Google Maps</a>' : '')
       + '</div>'
-      + '<div class="muted" style="font-size:12.5px;margin-top:3px">Face-to-face class · doors open 30 minutes before start.'
+      + '<div class="muted" style="font-size:12.5px;margin-top:3px">' + (L.corp ? 'In-house class at your organisation.' : 'Face-to-face class · doors open 30 minutes before start.')
       + (r.zoom_link ? ' <a href="' + esc(r.zoom_link) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">Zoom link</a> only if you\'re asked to join online.' : '')
       + '</div></div>';
   } else if (r.zoom_link) {

@@ -239,6 +239,17 @@
         </select></div>
         <div><label>Price (SGD)</label><input type="number" id="f-price" min="0" step="1" placeholder="180"></div>
       </div>
+      <!-- Corporate classes only (Corp Class Half Day / Full Day, 2026-11-10): one course type covers
+           many different in-house classes, so each cohort carries its own title and the client's
+           address. Hidden for every public course, whose title is the course name. -->
+      <div id="f-corpbox" class="hidden" style="margin-top:12px;padding:10px 12px;border:1px solid #f1d9b5;background:#fffaf2;border-radius:10px">
+        <div style="font-size:12.5px;font-weight:700;margin-bottom:4px">🏢 Corporate class</div>
+        <label>Class title (what the client's staff see)</label>
+        <input id="f-title" placeholder="e.g. Master Copilot: AI for Legal Work">
+        <label style="margin-top:10px">Venue (the client's office — leave blank if the class runs online)</label>
+        <input id="f-venue" placeholder="e.g. 50 Raffles Place #16-03, Singapore Land Tower, Singapore 048623">
+        <p class="muted" style="margin:6px 0 0;font-size:12px">Price stays S$0 — staff book with a company code, the client pays you by invoice. The portal shows "As quoted", never a figure. Class content goes in this class's own folder on the <a href="classroom" target="_blank">Classroom</a> tab.</p>
+      </div>
       <label>Details (one-liner shown on portal)</label>
       <input id="f-details" placeholder="Optional description">
       <label style="margin-top:12px">WhatsApp group invite link (added as a footnote to this class's emails)</label>
@@ -696,15 +707,21 @@ function slotsOf(t) {
   for (let i = s; i <= Math.max(s, e); i++) out.push(i);
   return out;
 }
-const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude L1', 'AI Animation Masterclass': 'Animation L1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude L1', 'F2F AI Animation Masterclass': 'F2F Animation L1', 'F2F AI Animation Automation': 'F2F Animation L2', 'F2F Master Claude - Build': 'F2F Claude L2', 'Claude Corporate Full Day': 'Claude Corp FD', 'Master Copilot: AI for Everyday Work': 'Copilot' };
+const SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'Claude L1', 'AI Animation Masterclass': 'Animation L1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F Claude L1', 'F2F AI Animation Masterclass': 'F2F Animation L1', 'F2F AI Animation Automation': 'F2F Animation L2', 'F2F Master Claude - Build': 'F2F Claude L2', 'Claude Corporate Full Day': 'Claude Corp FD', 'Master Copilot: AI for Everyday Work': 'Copilot', 'Corp Class Half Day': 'Corp ½ day', 'Corp Class Full Day': 'Corp full day' };
 const shortName = (n) => SHORTNAMES[n] || (n.length > 14 ? n.slice(0, 13) + '…' : n);
 // Calendar cells are narrow - a long label clips the attendee count at the end.
 // So the calendar (and its legend) use even shorter labels: Claude -> C, Animation -> A.
 // Used ONLY by renderCalendar() + renderLegend(); everywhere else still uses shortName().
-const CAL_SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'C L1', 'AI Animation Masterclass': 'A L1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F C L1', 'F2F AI Animation Masterclass': 'F2F A L1', 'F2F AI Animation Automation': 'F2F A L2', 'F2F Master Claude - Build': 'F2F C L2', 'Claude Corporate Full Day': 'C Corp FD', 'Master Copilot: AI for Everyday Work': 'Copilot' };
+const CAL_SHORTNAMES = { 'Master Claude: Agentic AI Masterclass': 'C L1', 'AI Animation Masterclass': 'A L1', 'F2F Master Claude - Agentic AI Masterclass': 'F2F C L1', 'F2F AI Animation Masterclass': 'F2F A L1', 'F2F AI Animation Automation': 'F2F A L2', 'F2F Master Claude - Build': 'F2F C L2', 'Claude Corporate Full Day': 'C Corp FD', 'Master Copilot: AI for Everyday Work': 'Copilot', 'Corp Class Half Day': 'Corp ½', 'Corp Class Full Day': 'Corp FD' };
 const calName = (n) => CAL_SHORTNAMES[n] || (n.length > 10 ? n.slice(0, 9) + '…' : n);
 // Family = hue (Claude=magenta/violet, Animation=green/blue), tier = lightness (Masterclass lighter, Build/Automation darker), format = the hue split within a family.
-const COURSE_COLORS = { 'Master Claude: Agentic AI Masterclass': '#b83db8', 'F2F Master Claude - Agentic AI Masterclass': '#5e38a8', 'F2F Master Claude - Build': '#372163', 'AI Animation Masterclass': '#22872a', 'F2F AI Animation Masterclass': '#1b6da7', 'F2F AI Animation Automation': '#103f60', 'Claude Corporate Full Day': '#6d28d9', 'Master Copilot: AI for Everyday Work': '#0f766e' };
+// Corp Class Half/Full Day cohorts are named after the class (e.g. "Master Copilot: AI for Legal
+// Work"), so their colour comes from the FAMILY name via cohortColor(), not from the cohort name.
+const COURSE_COLORS = { 'Corp Class Half Day': '#b45309', 'Corp Class Full Day': '#7c2d12', 'Master Claude: Agentic AI Masterclass': '#b83db8', 'F2F Master Claude - Agentic AI Masterclass': '#5e38a8', 'F2F Master Claude - Build': '#372163', 'AI Animation Masterclass': '#22872a', 'F2F AI Animation Masterclass': '#1b6da7', 'F2F AI Animation Automation': '#103f60', 'Claude Corporate Full Day': '#6d28d9', 'Master Copilot: AI for Everyday Work': '#0f766e' };
+const cohortColor = (c) => { const f = families.find(x => x.id === c.family_id); return f && CORP_SLUGS.includes(f.slug) ? COURSE_COLORS[f.name] || courseColor(f.name) : courseColor(c.name); };
+// Calendar cells are too narrow for a corp class's own title — show the type (Corp ½ / Corp FD); the
+// hover title still has the full class name.
+const calLabel = (c) => { const f = families.find(x => x.id === c.family_id); return calName(f && CORP_SLUGS.includes(f.slug) ? f.name : c.name); };
 function courseColor(n) { if (COURSE_COLORS[n]) return COURSE_COLORS[n]; let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},52%,38%)`; }
 function renderLegend() {
   $('cal-legend').innerHTML = Object.keys(COURSE_COLORS).map(full => `
@@ -743,8 +760,8 @@ function renderCalendar() {
           `<div class="cal-ev" style="background:${x.color || '#475569'}" title="${x.note || x.title}${x.session_time ? ' · ' + x.session_time : ''}" onclick="event.stopPropagation()">${x.title}</div>`
         ).join('') +
         slots[si].map(c => c.is_draft
-          ? `<div class="cal-ev draftev" title="DRAFT — ${c.name}${c.session_time ? ' · ' + c.session_time : ''}" onclick="event.stopPropagation();selectCohort('${c.id}')">✎ ${calName(c.name)}</div>`
-          : `<div class="cal-ev ${c.is_open ? '' : 'closed'}" style="background:${courseColor(c.name)}" title="${c.name} · ${c.session_time || ''} · ${cohortCount(c.id)} confirmed — click to open it below, shift-click for the roster only" onclick="event.stopPropagation();calendarPick(event,'${c.id}')">${calName(c.name)} · ${cohortCount(c.id)}</div>`
+          ? `<div class="cal-ev draftev" title="DRAFT — ${c.name}${c.session_time ? ' · ' + c.session_time : ''}" onclick="event.stopPropagation();selectCohort('${c.id}')">✎ ${calLabel(c)}</div>`
+          : `<div class="cal-ev ${c.is_open ? '' : 'closed'}" style="background:${cohortColor(c)}" title="${c.name} · ${c.session_time || ''} · ${cohortCount(c.id)} confirmed — click to open it below, shift-click for the roster only" onclick="event.stopPropagation();calendarPick(event,'${c.id}')">${calLabel(c)} · ${cohortCount(c.id)}</div>`
         ).join('') + '</div></div>').join('');
       html += `<td class="${out ? 'out' : ''} ${iso < tod ? 'past' : ''} ${iso === tod ? 'today' : ''}" onclick="calendarSlot(event,'${iso}','am')"><span class="dnum">${d.getDate()}</span>${slotHtml}</td>`;
     }
@@ -769,7 +786,10 @@ const SLOT_TIMES_F2F    = { am: '9:00am – 12:30pm', pm: '1:30pm – 5:00pm', n
 // one time instead of AM/PM/Night. Because it crosses noon, slotsOf() draws it in both the AM
 // and PM calendar rows. Keep this table single-entry — the slot pickers read Object.keys(T).
 const SLOT_TIMES_FULLDAY = { fd: '9:00am – 5:00pm' };
-const HOUSE_TIMES = [...Object.values(SLOT_TIMES_ONLINE), ...Object.values(SLOT_TIMES_F2F), ...Object.values(SLOT_TIMES_FULLDAY)];
+// Corp Class Half Day (2026-11-10, Andrew): a morning 9–12 OR an afternoon 2–5, three hours either
+// way, at the client's office. Two slots only — no night run.
+const SLOT_TIMES_CORP_HALF = { am: '9:00am – 12:00pm', pm: '2:00pm – 5:00pm' };
+const HOUSE_TIMES = [...Object.values(SLOT_TIMES_ONLINE), ...Object.values(SLOT_TIMES_F2F), ...Object.values(SLOT_TIMES_FULLDAY), ...Object.values(SLOT_TIMES_CORP_HALF)];
 // F2F families are the ones whose slug starts f2f- (f2f-claude, f2f-build, f2f-animation…).
 // Anything else — including a blank course on a fresh form — is online.
 const isF2FFamily = (famId) => /^f2f-/.test((families.find(f => f.id === famId) || {}).slug || '');
@@ -777,9 +797,16 @@ const isF2FFamily = (famId) => /^f2f-/.test((families.find(f => f.id === famId) 
 // is not automatically full-day, and a future half-day corporate offer must not inherit 9–5.
 // f2f-copilot (2026-09-17): the public Master Copilot day, 9:00am – 5:00pm — listed here so the
 // cohort form offers the one full-day time and the calendar draws it across AM and PM.
-const FULLDAY_SLUGS = ['corp-claude-fd', 'f2f-copilot'];
-const isFullDayFamily = (famId) => FULLDAY_SLUGS.includes((families.find(f => f.id === famId) || {}).slug || '');
-const slotTimesFor = (famId) => isFullDayFamily(famId) ? SLOT_TIMES_FULLDAY : isF2FFamily(famId) ? SLOT_TIMES_F2F : SLOT_TIMES_ONLINE;
+// corp-full-day (2026-11-10): Corp Class Full Day, 9:00am – 5:00pm.
+const FULLDAY_SLUGS = ['corp-claude-fd', 'f2f-copilot', 'corp-full-day'];
+const HALFDAY_SLUGS = ['corp-half-day'];
+const famSlug = (famId) => (families.find(f => f.id === famId) || {}).slug || '';
+const isFullDayFamily = (famId) => FULLDAY_SLUGS.includes(famSlug(famId));
+const isHalfDayFamily = (famId) => HALFDAY_SLUGS.includes(famSlug(famId));
+// The two generic corporate course types: each cohort has its own title and venue.
+const CORP_SLUGS = ['corp-half-day', 'corp-full-day'];
+const isCorpFamily = (famId) => CORP_SLUGS.includes(famSlug(famId));
+const slotTimesFor = (famId) => isFullDayFamily(famId) ? SLOT_TIMES_FULLDAY : isHalfDayFamily(famId) ? SLOT_TIMES_CORP_HALF : isF2FFamily(famId) ? SLOT_TIMES_F2F : SLOT_TIMES_ONLINE;
 // A slot table may hold three entries (online/F2F) or one (full day) — never index it with .am.
 const firstTime = (T) => T[Object.keys(T)[0]];
 // The cohort form's time is a fixed three-way choice, and WHICH three depends on the course.
@@ -1913,7 +1940,15 @@ function renderForm() {
     const T = slotTimesFor($('f-family').value);
     // Switching TO a full-day course has no AM/PM/Night to keep, so fall back to its one time.
     setSessionTime(HOUSE_TIMES.includes(prev) ? (T[SLOT_KEYS[slotOf(prev)]] || firstTime(T)) : prev);
+    renderCorpBox();
   };
+}
+// Show the corporate title/venue box only for Corp Class Half Day / Full Day. A new corp cohort
+// starts at S$0 (staff book with a company code; the client is invoiced).
+function renderCorpBox() {
+  const corp = isCorpFamily($('f-family').value);
+  $('f-corpbox').classList.toggle('hidden', !corp);
+  if (corp && !editingCourse && $('f-price').value === '') $('f-price').value = 0;
 }
 // The portal dropdown is a view over the two DB flags. is_full only ever applied while the
 // cohort was open, so "not open" collapses to Hidden however is_full happens to be set.
@@ -1946,17 +1981,27 @@ window.editCohort = function (cid, noScroll) {
   setSessionTime(c.session_time); $('f-price').value = c.price_sgd;
   $('f-details').value = c.details || ''; setPortalState(c);
   $('f-whatsapp').value = c.whatsapp_url || '';
+  const corp = isCorpFamily(c.family_id);
+  $('f-title').value = corp && c.name !== (families.find(f => f.id === c.family_id) || {}).name ? c.name : '';
+  $('f-venue').value = corp ? (c.venue || '') : '';
+  renderCorpBox();
   $('f-cancel').classList.remove('hidden');
   renderFormActions(cid); renderCohorts(); emFollowCohort(cid);
   if (!noScroll) $('formcard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
-$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-price','f-details','f-whatsapp'].forEach(i => $(i).value = ''); setSessionTime(null); setPortalState(null); $('f-cancel').classList.add('hidden'); renderFormActions(null); selectedCourse = rosterCourse; renderCohorts(); };
+$('f-cancel').onclick = () => { editingCourse = null; $('formtitle').textContent = 'Add a new cohort'; ['f-family','f-date','f-price','f-details','f-whatsapp','f-title','f-venue'].forEach(i => $(i).value = ''); renderCorpBox(); setSessionTime(null); setPortalState(null); $('f-cancel').classList.add('hidden'); renderFormActions(null); selectedCourse = rosterCourse; renderCohorts(); };
 $('f-save').onclick = async () => {
   const fam = families.find(f => f.id === $('f-family').value);
   if (!fam) return msg('formmsg', 'err', 'Pick a course — cohorts without one never reach the student portal.');
   const rec = { family_id: fam.id, name: fam.name, cohort_date: $('f-date').value, session_time: $('f-time').value.trim() || null,
     price_sgd: Number($('f-price').value), details: $('f-details').value.trim() || null, whatsapp_url: $('f-whatsapp').value.trim() || null, ...readPortalState() };
   if (!rec.cohort_date || !(rec.price_sgd >= 0)) return msg('formmsg', 'err', 'Date and price are required.');
+  if (isCorpFamily(fam.id)) {
+    const title = $('f-title').value.trim();
+    if (!title) return msg('formmsg', 'err', 'Give the corporate class a title — e.g. "Master Copilot: AI for Legal Work".');
+    rec.name = title;
+    rec.venue = $('f-venue').value.trim() || null;
+  }
   let error;
   if (editingCourse) ({ error } = await sb.from('courses').update(rec).eq('id', editingCourse));
   else ({ error } = await sb.from('courses').insert(rec));
