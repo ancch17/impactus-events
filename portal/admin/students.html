@@ -698,6 +698,7 @@ function render() {
             <span class="muted">${waLink(s.mobile)}</span>
             ${isAnon(s) ? '' : `<button class="btn ghost sm" onclick="editMobile('${s.id}')" style="margin-left:4px;padding:1px 6px;font-size:10.5px" title="The number the class WhatsApp goes to. A student who retypes it at sign-in does NOT change it — this is the only place it can be corrected.">✎</button>`}
           </div>
+          ${isAnon(s) ? '' : `<div id="mktcell-${s.id}" style="margin-top:3px">${mktHtml(s)}</div>`}
         </td>
         <td>${clsHtml}</td>
         <td class="num">${paidHtml}</td>
@@ -754,6 +755,37 @@ window.savePreferredName = async function (id) {
   if (error) return msg('stu-msg', 'err', error.message);
   students.find(x => x.id === id).preferred_name = val || null;
   msg('stu-msg', 'ok', 'Preferred name saved — used for portal greeting and {first} in emails.');
+  render();
+};
+
+// Updates and offers (2026-11-10) - students.marketing_opt_in. The student's answer to the
+// OPTIONAL tick at booking ("Yes, Impactus Learning may send me updates and offers on future
+// classes by email, WhatsApp or SMS..."): true = yes, false = no / opted out, null = never
+// asked (everyone from before 2026-11-10 - nothing was back-filled, on purpose).
+// A student changes it with the switch in their own portal. This is where ANDREW changes it:
+// someone replies "stop" or emails, he presses Stop here. Switching it ON for someone is a
+// consent record, so it asks first.
+const MKT_SRC = { booking: 'ticked at booking', guest_booking: 'ticked at guest booking', portal: 'their portal switch', admin: 'set here by admin' };
+function mktHtml(s) {
+  const v = s.marketing_opt_in;
+  const when = s.marketing_opt_in_at ? new Date(s.marketing_opt_in_at).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  const how = [MKT_SRC[s.marketing_opt_in_source] || s.marketing_opt_in_source || '', when].filter(Boolean).join(', ');
+  const b = 'class="btn ghost sm" style="margin-left:3px;padding:1px 6px;font-size:10.5px"';
+  if (v === true) return `<span class="bdg paid" title="Said YES to updates and offers${how ? ' (' + esc(how) + ')' : ''}">📣 offers: yes</span>
+    <button ${b} onclick="setMarketing('${s.id}', false)" title="They replied stop or asked to opt out - switch updates and offers OFF for this student">Stop</button>`;
+  if (v === false) return `<span class="bdg warn" title="Said NO or opted out${how ? ' (' + esc(how) + ')' : ''}. Do not send updates or offers.">🚫 offers: no</span>
+    <button ${b} onclick="setMarketing('${s.id}', true)" title="Only if they have told you yes">Set yes</button>`;
+  return `<span class="bdg" title="Never asked - booked before the optional tick existed (10 Nov 2026). They see the tick at their next booking.">offers: not asked</span>
+    <button ${b} onclick="setMarketing('${s.id}', true)" title="Only if they have told you yes">Set yes</button><button ${b} onclick="setMarketing('${s.id}', false)" title="They asked not to hear about future classes">Set no</button>`;
+}
+window.setMarketing = async function (id, on) {
+  const st = students.find(x => x.id === id); if (!st) return;
+  if (on && !confirm(`Switch updates and offers ON for ${st.name || st.email}?\n\nOnly do this if they have told you yes. It is recorded as set by admin, today.`)) return;
+  const patch = { marketing_opt_in: !!on, marketing_opt_in_at: new Date().toISOString(), marketing_opt_in_source: 'admin' };
+  const { error } = await sb.from('students').update(patch).eq('id', id);
+  if (error) return msg('stu-msg', 'err', error.message);
+  Object.assign(st, patch);
+  msg('stu-msg', 'ok', on ? 'Updates and offers: ON for ' + (st.name || st.email) + '.' : 'Updates and offers: OFF for ' + (st.name || st.email) + ' — leave them off your broadcast lists.');
   render();
 };
 
@@ -983,11 +1015,12 @@ $('stu-xlsx').onclick = () => {
       'Referral Code': s.referral_code || '',
       'Remarks': s.remarks || '',
       'Pinned': s.remark_pinned ? 'yes' : '',
+      'Updates & Offers': s.marketing_opt_in === true ? 'yes' : s.marketing_opt_in === false ? 'no' : 'not asked',
     };
   });
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 14 }, { wch: 60 }, { wch: 9 }, { wch: 16 }, { wch: 18 }, { wch: 15 },
-    { wch: 22 }, { wch: 14 }, { wch: 13 }, { wch: 10 }, { wch: 14 }, { wch: 13 }, { wch: 13 }, { wch: 50 }, { wch: 8 }];
+    { wch: 22 }, { wch: 14 }, { wch: 13 }, { wch: 10 }, { wch: 14 }, { wch: 13 }, { wch: 13 }, { wch: 50 }, { wch: 8 }, { wch: 16 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Students');
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');

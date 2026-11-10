@@ -234,6 +234,21 @@
   .terms-tick input { width:20px; height:20px; margin:1px 0 0; flex:none; accent-color:var(--navy); cursor:pointer; }
   .terms-tick.on { background:#e3f4ea; border-color:#b7e2c6; }
   .terms-tick a { color:#3c5bd2; font-weight:600; }
+  /* Optional marketing tick (2026-11-10): same shape, deliberately NOT the yellow "required" look. */
+  .terms-tick.opt { background:#fff; border-color:var(--line); margin-top:9px; color:#3a4658; }
+  .terms-tick.opt.on { background:#e3f4ea; border-color:#b7e2c6; color:var(--ink); }
+  /* "Updates and offers" on/off switch for a signed-in student. A real checkbox, drawn as a switch. */
+  .switchrow { display:flex; gap:14px; align-items:center; justify-content:space-between; cursor:pointer; font-weight:400; }
+  .switchtxt { display:flex; flex-direction:column; gap:3px; font-size:14.5px; line-height:1.45; }
+  .switchtxt strong { font-size:15px; }
+  .switchrow input { appearance:none; -webkit-appearance:none; flex:none; width:48px; height:28px; margin:0; border-radius:28px;
+                     background:#c3cad6; position:relative; cursor:pointer; transition:background .15s; }
+  .switchrow input::after { content:''; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%;
+                            background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.28); transition:transform .15s; }
+  .switchrow input:checked { background:#17a45c; }
+  .switchrow input:checked::after { transform:translateX(20px); }
+  .switchrow input:focus-visible { outline:2px solid #3c5bd2; outline-offset:3px; }
+  @media (prefers-reduced-motion: reduce) { .switchrow input, .switchrow input::after { transition:none; } }
   /* ---------- Payment method chooser (our order, not Stripe's) ---------- */
   .pm-label { font-size:13px; font-weight:700; color:var(--mut); margin:16px 0 9px; }
   .pm { display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:#fff;
@@ -557,14 +572,25 @@ input[aria-invalid="true"] { border-color:#c0392b; background:#fffafa; }
         </div>
         <input type="text" class="hp" id="gwebsite" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
       </form>
-      <!-- Required on EVERY booking (Andrew, 2026-09-17): one tick covers the T&Cs and the
+      <!-- Required on EVERY booking (Andrew, 2026-09-17): this tick covers the T&Cs and the
            personal-data consents inside them (class admin + WhatsApp group, photos/reviews in
-           marketing, updates on future classes). Reset each time a class is picked. The pay
-           buttons stay disabled until ticked; startCheckout() re-checks the box (never the
-           buttons — rule 7) and create-checkout refuses a request without terms_version. -->
+           marketing). Reset each time a class is picked. The pay buttons stay disabled until
+           ticked; startCheckout() re-checks the box (never the buttons — rule 7) and
+           create-checkout refuses a request without terms_version.
+           2026-11-10 (Andrew): "updates on future classes" came OUT of this tick. Marketing
+           messages are now the separate OPTIONAL tick below (#mktok) — never required, never
+           pre-ticked, wording is Andrew's own. Don't fold it back in without asking. -->
       <label class="terms-tick" id="termsrow">
         <input type="checkbox" id="termsok">
-        <span>I agree to the <a href="terms" target="_blank" rel="noopener">Terms &amp; Conditions</a> — including Impactus Learning using my contact details to run my class and its WhatsApp group, using class photos, recordings and my public reviews in its marketing, and sending me updates on future classes. I can opt out any time.</span>
+        <span>I agree to the <a href="terms" target="_blank" rel="noopener">Terms &amp; Conditions</a> — including Impactus Learning using my contact details to run my class and its WhatsApp group, and using class photos, recordings and my public reviews in its marketing. I can opt out any time.</span>
+      </label>
+      <!-- OPTIONAL. Shown to guests and to signed-in students who have not said yes yet
+           (syncMarketing()). Sent as `marketing: true|false`; create-checkout-v2 stores it on
+           the student. Changing it later = the "Updates and offers" switch (#prefscard), or a
+           "stop" reply that Andrew flips on the admin Students tab. -->
+      <label class="terms-tick opt" id="mktrow">
+        <input type="checkbox" id="mktok">
+        <span>Yes, Impactus Learning may send me updates and offers on future classes by email, WhatsApp or SMS. I can opt out at any time.</span>
       </label>
       <!-- Our page, our order: PayNow first, GrabPay second, card last. Stripe's hosted
            page reorders a multi-method list for conversion and can front it with a Link
@@ -652,6 +678,17 @@ input[aria-invalid="true"] { border-color:#c0392b; background:#fffafa; }
       </div>
     </div></div>
   </div>
+
+  <!-- "How can they change their mind later?" (Andrew, 2026-11-10): here. Signed-in only.
+       Writes through set_my_marketing_opt_in() — own row, this one field. -->
+  <div class="card hidden" id="prefscard">
+    <label class="switchrow" for="mktswitch">
+      <span class="switchtxt"><strong>Updates and offers</strong>
+        <span class="muted">Impactus Learning may send me updates and offers on future classes by email, WhatsApp or SMS.</span></span>
+      <input type="checkbox" role="switch" id="mktswitch">
+    </label>
+    <div class="msg" id="mktmsg" role="status" aria-live="polite"></div>
+  </div>
 </div>
 
 <footer class="muted">Impactus Learning Pte Ltd · Points are non-transferable and not exchangeable for cash.<br>
@@ -683,7 +720,7 @@ const F2F_MIN_PAX = 5;
 // The "Last updated" date on portal/terms.html. Sent with every checkout and stamped on the
 // booking (bookings.terms_version / terms_accepted_at) as evidence of WHICH terms were ticked.
 // Bump it whenever terms.html changes materially — the two must match.
-const TERMS_VERSION = '2026-09-17';
+const TERMS_VERSION = '2026-11-10';
 (function gate() {
   const p = new URLSearchParams(location.search);
   if (p.get('preview') === PREVIEW_TOKEN) {
@@ -712,6 +749,9 @@ let student = null, balance = 0, courses = [], selCourse = null, myEmail = '';
 // because sign-in is email-only). nameIsPlaceholder = their name is still the part of the
 // email before the @, which is what a new email-only account starts with.
 let guestMode = false, myMobile = '', nameIsPlaceholder = false;
+// myMarketing = the signed-in student's answer to "updates and offers" (students.marketing_opt_in):
+// true = yes, false = no / opted out, null = never asked or not known. A guest is always null.
+let myMarketing = null;
 const GUEST_STASH = 'ilGuest';   // sessionStorage: what a guest typed, across the Stripe round-trip (this tab only)
 // Seats reserved but unpaid. They ring-fence points, so the portal must price against
 // them — quoting the raw balance is what made the page and Stripe disagree.
@@ -915,12 +955,46 @@ function setMode() {
   if (!guestMode) $('guestdone').classList.add('hidden');
 }
 
+// ── Updates and offers (2026-11-10) ───────────────────────────────────────────────
+// One place decides both controls. The optional tick at booking is offered to a guest and to
+// a signed-in student who has not said yes; someone who already said yes is not asked again.
+// The switch is the signed-in student's own on/off, any time.
+function syncMarketing() {
+  const ask = guestMode || myMarketing !== true;
+  if (!ask) $('mktok').checked = false;
+  $('mktrow').classList.toggle('hidden', !ask);
+  $('mktrow').classList.toggle('on', ask && $('mktok').checked);
+  $('prefscard').classList.toggle('hidden', guestMode || !student);
+  $('mktswitch').checked = myMarketing === true;
+}
+$('mktok').onchange = () => $('mktrow').classList.toggle('on', $('mktok').checked);
+let mktBusy = false;   // a flag, never the control's disabled state (rule 7)
+$('mktswitch').onchange = async () => {
+  const want = $('mktswitch').checked;
+  if (mktBusy || guestMode) { $('mktswitch').checked = myMarketing === true; return; }
+  mktBusy = true;
+  msg('mktmsg', 'ok', 'Saving…');
+  try {
+    const { data, error } = await sb.rpc('set_my_marketing_opt_in', { p_on: want });
+    if (error) throw error;
+    myMarketing = data === true;
+    msg('mktmsg', 'ok', myMarketing
+      ? 'On. We’ll let you know about new classes and offers.'
+      : 'Off. No more updates and offers. You’ll still get messages about classes you’ve booked.');
+  } catch (e) {
+    msg('mktmsg', 'err', 'We couldn’t save that just now. Please try again, or email andrew@impactuslearning.com.');
+  }
+  mktBusy = false;
+  syncMarketing();
+};
+
 // Nobody is signed in: show the classes and let them book. No per-student query runs here —
 // open_cohorts and bundle_offers are public views; everything else needs a session.
 async function showGuest() {
   guestMode = true; student = null; balance = 0; myEmail = ''; myMobile = ''; nameIsPlaceholder = false;
+  myMarketing = null; $('mktok').checked = false;
   holds = []; bookedIds = new Set();
-  show('view-app'); setMode();
+  show('view-app'); setMode(); syncMarketing();
   $('hello').textContent = 'Impactus Learning';
   $('balline').textContent = 'Reserve your seat';
   $('bansub').textContent = 'Pick a class and pay. No account needed.';
@@ -1050,8 +1124,12 @@ async function showApp(session) {
   // name. Read the student's own row to know whether the booking step must ask. If the read
   // fails, assume the number is there — never nag someone who has already given it (the
   // server fills a blank mobile only, and refuses a v2 booking that still has none).
-  const { data: own, error: ownErr } = await sb.from('students').select('name,mobile').eq('email', myEmail).limit(1);
+  const { data: own, error: ownErr } = await sb.from('students').select('name,mobile,marketing_opt_in').eq('email', myEmail).limit(1);
   myMobile = ownErr || !own || !own[0] ? 'on file' : String(own[0].mobile || '').trim();
+  // Updates and offers: only a stored TRUE is a yes. Unknown (read failed) is treated as
+  // "not asked", so the optional tick is offered — it can only ever add a yes.
+  myMarketing = ownErr || !own || !own[0] || own[0].marketing_opt_in == null ? null : own[0].marketing_opt_in === true;
+  syncMarketing();
   nameIsPlaceholder = String(student.name || '').trim().toLowerCase() === myEmail.split('@')[0];
   $('bansub').textContent = 'Points never expire, and they come off your next class automatically.';
   $('hello').textContent = nameIsPlaceholder && !(student.preferred_name && student.preferred_name.trim()) ? 'Welcome!'
@@ -2198,6 +2276,9 @@ async function startCheckout(method) {
     if (guestMode) payload.guest = { name: det.name, email: det.email, mobile: det.mobile,
                                      referral_code: currentRef(), website: $('gwebsite').value };
     else if (det) payload.details = { name: det.name || '', mobile: det.mobile };
+    // The optional "updates and offers" tick — only when the box was actually on screen, so a
+    // student who was not asked sends nothing. Never required; the server just stores it.
+    if (!$('mktrow').classList.contains('hidden')) payload.marketing = !!$('mktok').checked;
     const what = bundleSel
       ? `${bundleSel.offer.name} (both classes) on ${fdate(selCourse.cohort_date)}`
       : `${selCourse.name} on ${fdate(selCourse.cohort_date)}`;
@@ -2208,6 +2289,11 @@ async function startCheckout(method) {
     if (!res.ok) { const err = new Error(out.error || 'Something went wrong'); err.code = out.code; throw err; }
     // The details were accepted (or weren't needed): don't ask a signed-in student twice.
     if (!guestMode && det && det.mobile) myMobile = det.mobile;
+    // Their answer was stored with the request (signed in). A yes is not asked for again.
+    if (!guestMode && out.status !== 'signin_required' && typeof payload.marketing === 'boolean') {
+      if (payload.marketing) myMarketing = true; else if (myMarketing === null) myMarketing = false;
+      syncMarketing();
+    }
     if (out.status === 'signin_required') {
       // This email already belongs to a student. Nothing was booked or held: they sign in,
       // land back on this class, and their points apply (Andrew, 2026-11-10).
