@@ -2517,7 +2517,11 @@ function classroomBlock(r, tod) {
   // How to join: online = big Zoom button; F2F = venue + doors (Zoom stays a quiet fallback —
   // for face-to-face classes the link exists to record, not to join).
   let joinHtml = '';
-  if (r.is_f2f) {
+  // A corporate class with a venue (the client's office) is in person; with no venue it runs
+  // online. Decided here from the venue the RPC already returns — get_my_classroom's own is_f2f
+  // only knows the f2f- course types.
+  const inPerson = !!r.is_f2f || (!!L.corp && !!String(r.venue || '').trim());
+  if (inPerson) {
     joinHtml = '<div style="margin-top:10px;padding:11px 13px;background:#f6f7fa;border:1px solid var(--line);border-radius:11px">'
       + '<div style="font-weight:700;font-size:13.5px">📍 ' + esc(r.venue || CM_VENUE_FALLBACK)
       + (/beach road/i.test(r.venue || CM_VENUE_FALLBACK) ? ' <a href="' + CM_VENUE_MAP + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;white-space:nowrap">Open in Google Maps</a>' : '')
@@ -2546,7 +2550,7 @@ function classroomBlock(r, tod) {
   return '<div style="border:1px solid var(--line);border-radius:13px;padding:14px 15px;margin-top:12px;border-left:5px solid ' + L.color + '">'
     + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">'
     + '<div><div class="hist-course" style="font-size:15px">' + esc(L.title || r.course_name) + chip + '</div>'
-    + '<div class="hist-sub">' + fdate(r.cohort_date) + (r.session_time ? ' · ' + esc(r.session_time) : '') + (r.is_f2f ? ' · In person' : ' · Online') + '</div></div></div>'
+    + '<div class="hist-sub">' + fdate(r.cohort_date) + (r.session_time ? ' · ' + esc(r.session_time) : '') + (inPerson ? ' · In person' : ' · Online') + '</div></div></div>'
     + joinHtml + waHtml
     + (mats ? '<div style="margin-top:12px"><div class="muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Class materials</div>' + mats + '</div>'
             : '<p class="muted" style="margin-top:10px;font-size:12.5px">Materials for this class will appear here.</p>')
