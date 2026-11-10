@@ -436,9 +436,12 @@ function renderTable() {
       const when = r.account_created_at
         ? '<strong>' + esc(sgWhen(r.account_created_at)) + '</strong>'
         : '<span class="muted">—</span>';
-      const kindPill = r.signup_kind === 'new' ? '<span class="pill new">New account</span>'
+      // Guest booking (2026-11-10): the record was created by booking without signing in
+      // (signup_report.guest_checkout_at). "never" under Last seen = they haven't signed in yet.
+      const kindPill = (r.signup_kind === 'new' ? '<span class="pill new">New account</span>'
         : r.signup_kind === 'activation' ? '<span class="pill act">Activation</span>'
-        : '<span class="pill wait">No account yet</span>';
+        : '<span class="pill wait">No account yet</span>')
+        + (r.guest_checkout_at ? ' <span class="pill wait" title="Created by booking as a guest, without signing in">Guest booking</span>' : '');
       const conv = !r.account_created_at ? '<span class="muted">—</span>'
         : r.converted ? '<span class="pill yes">Yes</span>' : '<span class="pill no">Not yet</span>';
       const days = r.days_to_first_booking == null ? '<span class="muted">—</span>' : String(r.days_to_first_booking);
@@ -463,7 +466,7 @@ $('export').onclick = () => {
     'Account created (SGT)': sgWhen(r.account_created_at),
     'Date (SGT)': r.day || '',
     'Time (SGT)': sgTime(r.account_created_at),
-    'Type': r.signup_kind === 'new' ? 'New account' : r.signup_kind === 'activation' ? 'Activation' : 'No account yet',
+    'Type': (r.signup_kind === 'new' ? 'New account' : r.signup_kind === 'activation' ? 'Activation' : 'No account yet') + (r.guest_checkout_at ? ' (guest booking)' : ''),
     'Referred by': r.referrer_name || '',
     'Referrer email': r.referrer_email || '',
     'Company': r.corp_name || '',

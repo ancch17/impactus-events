@@ -261,13 +261,42 @@
   }
 </style>
 <style>
-/* The date the visitor picked before they had an account. An account form that says nothing
-   about the date they just clicked reads as a toll gate; echoing the date back makes the
-   account read as step one of booking it. */
-.pickstrip { background:#fff8e6; border:1px solid #f0dca8; border-left:4px solid var(--amber);
-  border-radius:12px; padding:14px 16px; margin-top:16px; }
-.pickstrip b { display:block; font-size:15px; }
-.pickstrip span { display:block; font-size:13.5px; color:var(--mut); margin-top:4px; line-height:1.5; }
+/* ── Guest booking + email-only sign-in (2026-11-10). A visitor books and pays without an
+   account; the sign-in box is for people who already have one. */
+#signincard { padding:0; overflow:hidden; }
+.si-toggle { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; text-align:left;
+  background:none; border:0; padding:16px 20px; font:inherit; color:var(--ink); cursor:pointer; }
+.si-toggle strong { display:block; font-size:15px; }
+.si-toggle .si-sub { display:block; color:var(--mut); font-size:13px; margin-top:2px; }
+.si-chev { color:var(--mut); font-size:17px; flex:none; transition:transform .25s ease; }
+#signincard.open .si-chev { transform:rotate(180deg); }
+.si-panel { display:none; padding:0 20px 20px; }
+#signincard.open .si-panel { display:block; }
+.si-panel label { margin-top:0; }
+.details { margin-top:16px; padding:16px; border:1.5px solid var(--line); border-radius:12px; background:#fff; }
+.det-head { font-size:15px; font-weight:800; }
+.det-sub { margin-top:4px; }
+.details label span, .si-panel label span { font-weight:400; }
+.mobrow { display:flex; gap:8px; }
+.mobrow select { width:auto; flex:0 1 44%; min-width:0; max-width:180px; }
+.mobrow input { flex:1 1 56%; min-width:0; }
+.ferr { color:#c0392b; font-size:12.5px; font-weight:600; margin-top:5px; }
+.ferr:empty { display:none; }
+input[aria-invalid="true"] { border-color:#c0392b; background:#fffafa; }
+.details input:focus-visible, .details select:focus-visible, .si-panel input:focus-visible { outline:3px solid #3c5bd2; outline-offset:1px; }
+.hint-fix { margin-top:6px; font-size:13px; background:#fff8e6; border:1px solid #f0dca8; border-radius:8px; padding:7px 10px; }
+.linkbtn { background:none; border:0; padding:0; font:inherit; font-weight:700; color:#3c5bd2; cursor:pointer; text-decoration:underline; }
+/* Honeypot: off-screen, not display:none (bots skip hidden fields; people never see this one). */
+.hp { position:absolute; width:1px; height:1px; margin:-1px; padding:0; border:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+#confirmto { margin-top:14px; font-size:13.5px; }
+#confirmto strong { overflow-wrap:anywhere; }
+#guestdone { border-color:#b7e2c6; background:#f3fbf6; text-align:center; padding:26px 20px; }
+.gd-tick { width:54px; height:54px; border-radius:50%; background:var(--green); color:#fff; font-size:28px; line-height:54px; margin:0 auto 12px; }
+.gd-title { font-size:21px; font-weight:800; }
+.gd-what { font-size:15px; font-weight:600; margin-top:6px; }
+.gd-email { font-size:13.5px; color:var(--mut); margin-top:10px; line-height:1.55; }
+.gd-email strong { color:var(--ink); overflow-wrap:anywhere; }
+#guestdone .btn { max-width:340px; }
 </style>
 <style>
 /* ── Dashboard accordion (2026-08-14): five big buttons, sections roll out underneath.
@@ -308,6 +337,7 @@
 <body>
 <header><div class="wrap">
   <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:26px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Reserve Seat</span></div>
+  <button type="button" class="signout hidden" id="signinbtn">Sign in</button>
   <button class="signout hidden" id="signout">Sign out</button>
 </div></header>
 
@@ -324,65 +354,47 @@
   </div>
 </div>
 
-<!-- SIGNED OUT -->
-<div class="wrap hidden" id="view-login">
-  <div class="banner">
-    <h1>Your classes. Your rebates.</h1>
-    <p class="muted" style="color:#cfd6e4;margin-top:6px">Earn 10% back in rebate points on every class — 1 point = S$1, and they come off your next class automatically.</p>
-  </div>
-  <div class="pickstrip hidden" id="pickstrip"></div>
-  <div class="card">
-    <h2>Sign in / Create account</h2>
-    <label>Email</label>
-    <input type="email" id="email" placeholder="you@email.com" autocomplete="email">
-    <div id="newFields">
-      <label>Full name <span style="font-weight:400">(new students)</span></label>
-      <input type="text" id="fullname" placeholder="Your name" autocomplete="name">
-      <label>Mobile <span style="font-weight:400">(required — WhatsApp updates for your class)</span></label>
-      <div style="display:flex;gap:8px">
-        <select id="ccode" style="width:auto;flex:none;max-width:180px">
-          <option value="+65" selected>🇸🇬 Singapore +65</option>
-          <option value="+61">🇦🇺 Australia +61</option>
-          <option value="+673">🇧🇳 Brunei +673</option>
-          <option value="+855">🇰🇭 Cambodia +855</option>
-          <option value="+1">🇨🇦 Canada +1</option>
-          <option value="+86">🇨🇳 China +86</option>
-          <option value="+33">🇫🇷 France +33</option>
-          <option value="+49">🇩🇪 Germany +49</option>
-          <option value="+852">🇭🇰 Hong Kong +852</option>
-          <option value="+91">🇮🇳 India +91</option>
-          <option value="+62">🇮🇩 Indonesia +62</option>
-          <option value="+81">🇯🇵 Japan +81</option>
-          <option value="+82">🇰🇷 South Korea +82</option>
-          <option value="+60">🇲🇾 Malaysia +60</option>
-          <option value="+95">🇲🇲 Myanmar +95</option>
-          <option value="+64">🇳🇿 New Zealand +64</option>
-          <option value="+63">🇵🇭 Philippines +63</option>
-          <option value="+886">🇹🇼 Taiwan +886</option>
-          <option value="+66">🇹🇭 Thailand +66</option>
-          <option value="+971">🇦🇪 UAE +971</option>
-          <option value="+44">🇬🇧 United Kingdom +44</option>
-          <option value="+1">🇺🇸 United States +1</option>
-          <option value="+84">🇻🇳 Vietnam +84</option>
-          <option value="">🌐 Other (type full number with +)</option>
-        </select>
-        <input type="tel" id="mobile" placeholder="9123 4567" autocomplete="tel" style="flex:1">
-      </div>
-      <label id="reflabel">Referred by a friend? <span style="font-weight:400">(optional — fills in automatically if you used their link or QR)</span></label>
-      <input type="text" id="refcode" placeholder="Their code, if they gave you one">
-    </div>
-    <button class="btn" id="sendlink">Email me a sign-in link</button>
-    <div class="msg" id="loginmsg"></div>
-    <p class="muted" style="margin-top:14px">No password needed — we email you a secure link. Existing students: use the same email you registered with, your points are already waiting.</p>
-  </div>
-</div>
-
-<!-- SIGNED IN -->
+<!-- THE PORTAL — one view for everyone since 2026-11-10 (guest booking).
+     Signed in: the full five-button dashboard. Not signed in ("guest mode"): the same
+     Book a class section, open, plus a sign-in box for people who already have an account.
+     A guest books and pays with name + email + mobile; see showGuest() / setMode(). -->
 <div class="wrap hidden" id="view-app">
   <div class="banner">
     <p style="font-size:14px;color:#cfd6e4" id="hello">Welcome back</p>
     <p class="big" id="balline">…</p>
-    <p class="muted" style="color:#cfd6e4;margin-top:4px">Points never expire, and they come off your next class automatically.</p>
+    <p class="muted" style="color:#cfd6e4;margin-top:4px" id="bansub">Points never expire, and they come off your next class automatically.</p>
+  </div>
+
+  <!-- Guest: shown after a booking made without signing in (free seat confirmed here, or back
+       from Stripe). The page cannot read the booking without a session, so this is a receipt
+       of what the visitor just did, not a database read. -->
+  <div class="card hidden" id="guestdone" role="status" aria-live="polite">
+    <div class="gd-tick" aria-hidden="true">✓</div>
+    <div class="gd-title" id="gd-title">You’re booked!</div>
+    <div class="gd-what" id="gd-what"></div>
+    <div class="gd-email" id="gd-email"></div>
+    <button type="button" class="btn hidden" id="gd-link">Email me a link to My Classroom</button>
+    <div class="msg" id="gd-msg" role="status" aria-live="polite"></div>
+  </div>
+
+  <!-- Guest: sign-in for people who already have an account. Email only — name and mobile
+       are asked at the first booking (Andrew, 2026-11-10). -->
+  <div class="card hidden" id="signincard">
+    <button type="button" class="si-toggle" id="sitoggle" aria-expanded="false" aria-controls="sipanel">
+      <span><strong>Booked with us before? Sign in</strong><span class="si-sub">Use your points, see your classes and open My Classroom.</span></span>
+      <span class="si-chev" aria-hidden="true">▾</span>
+    </button>
+    <div class="si-panel" id="sipanel">
+      <form id="siform" novalidate>
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="you@email.com" autocomplete="email" inputmode="email"
+               autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="send" aria-describedby="sihint">
+        <div class="hint-fix hidden" id="emailfix"></div>
+        <button type="submit" class="btn" id="sendlink">Email me a sign-in link</button>
+        <div class="msg" id="loginmsg" role="status" aria-live="polite"></div>
+        <p class="muted" style="margin-top:14px" id="sihint">No password needed. We email you a secure link. Use the email you booked with, and your points will be waiting.</p>
+      </form>
+    </div>
   </div>
 
   <!-- Seats reserved but not paid for. Previously these were invisible: they quietly held
@@ -479,6 +491,72 @@
         <div class="row total"><span>You pay</span><span id="bd-total"></span></div>
       </div>
       <p class="muted hidden" id="bd-lock" style="margin-top:9px;font-size:12.5px;color:#c78d0a"></p>
+      <!-- "Your details" (2026-11-10). Shown to a GUEST (name, email, mobile — that is the whole
+           sign-up) and to a signed-in student with no mobile on file (sign-in is email-only, so
+           the number is collected here). Mobile is compulsory to book (Andrew, 2026-11-10).
+           create-checkout validates every field again; this form only helps. -->
+      <form class="details hidden" id="detailsform" novalidate aria-labelledby="dethead">
+        <div class="det-head" id="dethead">Your details</div>
+        <p class="muted det-sub" id="detsub">No account needed. <button type="button" class="linkbtn" id="detsignin">Booked with us before? Sign in</button> to use your points.</p>
+        <p class="muted det-sub hidden" id="detsub2">We need a mobile number before your first booking.</p>
+        <div id="row-gname">
+          <label for="gname">Full name</label>
+          <input type="text" id="gname" name="name" autocomplete="name" enterkeyhint="next" maxlength="80" aria-describedby="err-gname">
+          <div class="ferr" id="err-gname" aria-live="polite"></div>
+        </div>
+        <div id="row-gemail">
+          <label for="gemail">Email <span>(your confirmation goes here)</span></label>
+          <input type="email" id="gemail" name="email" autocomplete="email" inputmode="email" autocapitalize="none"
+                 autocorrect="off" spellcheck="false" enterkeyhint="next" maxlength="200" aria-describedby="err-gemail">
+          <div class="hint-fix hidden" id="gemailfix"></div>
+          <div class="ferr" id="err-gemail" aria-live="polite"></div>
+        </div>
+        <div id="row-gmobile">
+          <label for="mobile">Mobile <span>(for class reminders and last-minute changes)</span></label>
+          <div class="mobrow">
+            <select id="ccode" name="country-code" autocomplete="tel-country-code" aria-label="Country code">
+          <option value="+65" selected>🇸🇬 +65 Singapore</option>
+          <option value="+61">🇦🇺 +61 Australia</option>
+          <option value="+673">🇧🇳 +673 Brunei</option>
+          <option value="+855">🇰🇭 +855 Cambodia</option>
+          <option value="+1">🇨🇦 +1 Canada</option>
+          <option value="+86">🇨🇳 +86 China</option>
+          <option value="+33">🇫🇷 +33 France</option>
+          <option value="+49">🇩🇪 +49 Germany</option>
+          <option value="+852">🇭🇰 +852 Hong Kong</option>
+          <option value="+91">🇮🇳 +91 India</option>
+          <option value="+62">🇮🇩 +62 Indonesia</option>
+          <option value="+81">🇯🇵 +81 Japan</option>
+          <option value="+82">🇰🇷 +82 South Korea</option>
+          <option value="+60">🇲🇾 +60 Malaysia</option>
+          <option value="+95">🇲🇲 +95 Myanmar</option>
+          <option value="+64">🇳🇿 +64 New Zealand</option>
+          <option value="+63">🇵🇭 +63 Philippines</option>
+          <option value="+886">🇹🇼 +886 Taiwan</option>
+          <option value="+66">🇹🇭 +66 Thailand</option>
+          <option value="+971">🇦🇪 +971 UAE</option>
+          <option value="+44">🇬🇧 +44 United Kingdom</option>
+          <option value="+1">🇺🇸 +1 United States</option>
+          <option value="+84">🇻🇳 +84 Vietnam</option>
+          <option value="">🌐 Other (type full number with +)</option>
+        
+            </select>
+            <input type="tel" id="mobile" name="mobile" placeholder="9123 4567" autocomplete="tel-national" inputmode="tel"
+                   enterkeyhint="done" maxlength="24" aria-describedby="err-mobile">
+          </div>
+          <div class="ferr" id="err-mobile" aria-live="polite"></div>
+        </div>
+        <div id="row-ref">
+          <p class="muted hidden" id="refnote" style="font-size:12.5px;margin-top:12px"></p>
+          <button type="button" class="linkbtn" id="reftoggle" style="margin-top:12px;font-size:13px">Have a friend’s referral code?</button>
+          <div class="hidden" id="refrow">
+            <label for="refcode">Friend’s referral code <span>(optional)</span></label>
+            <input type="text" id="refcode" name="referral-code" autocomplete="off" autocapitalize="characters" spellcheck="false"
+                   maxlength="12" style="text-transform:uppercase">
+          </div>
+        </div>
+        <input type="text" class="hp" id="gwebsite" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      </form>
       <!-- Required on EVERY booking (Andrew, 2026-09-17): one tick covers the T&Cs and the
            personal-data consents inside them (class admin + WhatsApp group, photos/reviews in
            marketing, updates on future classes). Reset each time a class is picked. The pay
@@ -491,6 +569,7 @@
       <!-- Our page, our order: PayNow first, GrabPay second, card last. Stripe's hosted
            page reorders a multi-method list for conversion and can front it with a Link
            prompt, so the choice is made here and Stripe is handed exactly one method. -->
+      <p class="muted hidden" id="confirmto"></p>
       <div id="paymethods" class="hidden">
         <div class="pm-label" id="pmlabel">How would you like to pay?</div>
         <button type="button" class="pm" data-pm="paynow">
@@ -511,7 +590,7 @@
       </div>
       <button class="btn hidden" id="paybtn">Book now — pay S$0</button>
     </div>
-    <div class="msg" id="bookmsg"></div>
+    <div class="msg" id="bookmsg" role="status" aria-live="polite"></div>
   </div>
     </div></div>
   </div>
@@ -624,6 +703,16 @@ const TERMS_VERSION = '2026-09-17';
 })();
 
 let student = null, balance = 0, courses = [], selCourse = null, myEmail = '';
+// ── GUEST BOOKING (2026-11-10) ───────────────────────────────────────────────
+// guestMode = nobody is signed in. The visitor still sees every open class and can book and
+// pay with name + email + mobile; create-checkout-v2 (verify_jwt off, it authenticates inside) finds or creates
+// their student record. An email that already belongs to an established student is told to
+// sign in instead (status 'signin_required') so points and alumni codes always apply.
+// myMobile = the signed-in student's number on file ('' = none: the booking step asks for it,
+// because sign-in is email-only). nameIsPlaceholder = their name is still the part of the
+// email before the @, which is what a new email-only account starts with.
+let guestMode = false, myMobile = '', nameIsPlaceholder = false;
+const GUEST_STASH = 'ilGuest';   // sessionStorage: what a guest typed, across the Stripe round-trip (this tab only)
 // Seats reserved but unpaid. They ring-fence points, so the portal must price against
 // them — quoting the raw balance is what made the page and Stripe disagree.
 let holds = [], holdTick = null;
@@ -637,7 +726,7 @@ const r2 = (n) => Math.round(Number(n) * 100) / 100;
 const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
 if (hashParams.get('error_description') || hashParams.get('error')) {
   const desc = hashParams.get('error_description') || 'This sign-in link has expired or was already used.';
-  setTimeout(() => msg('loginmsg', 'err', desc.replace(/\+/g, ' ') + ' — enter your email above for a fresh link (always use the newest email).'), 300);
+  setTimeout(() => { openSignIn(false); msg('loginmsg', 'err', desc.replace(/\+/g, ' ') + ' — enter your email above for a fresh link (always use the newest email).'); }, 300);
   history.replaceState({}, '', location.pathname + location.search);
 }
 const params = new URLSearchParams(location.search);
@@ -665,11 +754,17 @@ const refIncoming = ((params.get('ref') || refCookieRead()) || '').trim().toUppe
 if (refIncoming) {
   $('refcode').value = refIncoming;
   if (params.get('ref')) refCookieWrite(refIncoming);
-  // Honest wording (Andrew, 2026-08-04): referrals are only recorded when a brand-new account
-  // is created — a past student activating an existing record never gets referred_by set
-  // (see handle_new_auth_user), so don't promise "attached" to someone it won't count for.
-  setTimeout(() => msg('loginmsg', 'ok', "Your friend's referral code is filled in ✓ — it counts when you create a new account. Sign up above to get started."), 300);
+  // Honest wording (Andrew, 2026-08-04): referrals are only recorded when a brand-new record
+  // is created — a past student never gets referred_by set (see handle_new_auth_user and
+  // guest_student_resolve), so don't promise "attached" to someone it won't count for.
+  $('refnote').textContent = 'Your friend’s referral code ' + refIncoming + ' is attached ✓ It counts when you’re new to Impactus Learning.';
+  $('refnote').classList.remove('hidden');
+  $('reftoggle').classList.add('hidden');
 }
+
+// The code that rides along with a sign-up, whether it arrived by link/cookie or was typed.
+const currentRef = () => $('refcode').value.trim().toUpperCase();
+$('reftoggle').onclick = () => { $('refrow').classList.remove('hidden'); $('reftoggle').classList.add('hidden'); $('refcode').focus(); };
 
 /* ── The date picked on a marketing page ───────────────────────────────────────
    Course pages deep-link in as ?course=&date=&time= — the shape applyDeepLink() already
@@ -683,7 +778,9 @@ if (refIncoming) {
    Neither is reliable alone. Together they cover everything except "signed up on desktop,
    opened the email on a phone, and the allowlist is missing" — which degrades to the plain
    portal, signed in, with nothing preselected. Never to an error. */
-const DL_KEYS = ['course', 'date', 'time'];
+// `code` (2026-11-10): a company or discount code in the link — ?course=…&date=…&code=ABC —
+// is filled in and applied once the class is picked (see applyDeepLink).
+const DL_KEYS = ['course', 'date', 'time', 'code'];
 const DL_STASH = 'ilDeepLink';
 const GA_STASH = 'ilGaCheckout';   // stash the checkout value across the Stripe round-trip, analytics-only
 const DL_TTL = 3600e3;   // an hour: a sign-in link left overnight is a different intent
@@ -702,7 +799,7 @@ if (!deepLink) {
   try {
     const s = JSON.parse(localStorage.getItem(DL_STASH) || 'null');
     if (s && s.course && s.at && Date.now() - s.at < DL_TTL) {
-      deepLink = { course: s.course, date: s.date, time: s.time };
+      deepLink = { course: s.course, date: s.date, time: s.time, code: s.code };
       DL_KEYS.forEach(k => { if (deepLink[k]) params.set(k, deepLink[k]); });
       // Put it back in the address bar too, so a refresh on the landing page still works
       // once the stash below is cleared.
@@ -714,33 +811,13 @@ if (!deepLink) {
 // half-finished pick out of nowhere.
 if (deepLink) { try { localStorage.removeItem(DL_STASH); } catch (e) {} }
 
-function renderPick() {
-  const el = $('pickstrip');
-  if (!el || !deepLink) return;
-  let when = '';
-  const d = deepLink.date;
-  if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
-    const p = d.split('-');
-    // Built from parts, not Date.parse — 'YYYY-MM-DD' parses as UTC and shows the day before
-    // in Singapore.
-    when = new Date(+p[0], +p[1] - 1, +p[2])
-      .toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-  }
-  const f2f = deepLink.course.indexOf('f2f-') === 0;
-  el.innerHTML = when
-    ? '<b>You picked ' + when + '</b><span>' + (f2f ? 'Face-to-face, 43A Beach Road' : 'Online')
-      + ' — sign in below and we\'ll take you straight to it. Nothing is held until you book.</span>'
-    : '<b>Your class is waiting</b><span>Sign in below and we\'ll take you straight to it.</span>';
-  el.classList.remove('hidden');
-}
-renderPick();
-
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
-  if (session) { await showApp(session); } else { show('view-login'); }
+  if (session) { await showApp(session); } else { await showGuest(); }
   sb.auth.onAuthStateChange(async (ev, s) => {
     if (ev === 'SIGNED_IN' && s) await showApp(s);
-    if (ev === 'SIGNED_OUT') { show('view-login'); $('signout').classList.add('hidden'); }
+    // Signing out drops every bit of the student's state by starting the page again as a guest.
+    if (ev === 'SIGNED_OUT' && !guestMode) location.replace(location.pathname);
   });
   // Returning from Stripe: open the booking section so the confirmation is visible,
   // then scroll the message itself into view.
@@ -769,18 +846,23 @@ async function init() {
         gtag('event', 'close_convert_lead', Object.assign({ method: (stash && stash.method) || 'paid' }, p));
       }
     } catch (e) {}
-    payBack('Payment received! Your booking is confirmed and points are updated. (Refresh if you don\'t see it yet.)');
+    if (guestMode) await guestBack(true);
+    else payBack('Payment received! Your booking is confirmed and points are updated. (Refresh if you don\'t see it yet.)');
   }
-  if (params.get('payment') === 'cancelled') payBack('No payment was taken. Your seat is still held for a short while — pick it up under “Seats you\'re holding” at the top whenever you\'re ready.');
+  if (params.get('payment') === 'cancelled' && guestMode) await guestBack(false);
+  else if (params.get('payment') === 'cancelled') payBack('No payment was taken. Your seat is still held for a short while — pick it up under “Seats you\'re holding” at the top whenever you\'re ready.');
   if (params.get('setup') === 'done') payBack('Card saved ✓ — you have NOT been charged. Your card is only charged if your seat is accepted; we\'ll email you either way.');
   // ✉️ From the "starter prompt ready" email: land straight in My Classroom.
   if (params.get('go') === 'classroom') {
     history.replaceState({}, '', location.pathname);
-    setTimeout(() => openSection('classroom', true), 350);
+    // My Classroom needs an account. Signed out, point at the sign-in box instead — the link
+    // it sends carries ?go=classroom, so they still land there (see sendSignInLink).
+    if (guestMode) { openSignIn(true); msg('loginmsg', 'ok', 'Sign in to open My Classroom.'); }
+    else setTimeout(() => openSection('classroom', true), 350);
   }
 }
 
-function show(id) { ['view-soon', 'view-login', 'view-app'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+function show(id) { ['view-soon', 'view-app'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
 function msg(id, cls, text) { const el = $(id); el.className = 'msg ' + cls; el.textContent = text; }
 function msgHTML(id, cls, html) { const el = $(id); el.className = 'msg ' + cls; el.innerHTML = html; }
 
@@ -822,41 +904,140 @@ function setBadge(key, text) {
 }
 $('cm2book').onclick = () => openSection('book', true);
 
-$('sendlink').onclick = async () => {
-  const email = $('email').value.trim().toLowerCase();
-  if (!email || !email.includes('@')) return msg('loginmsg', 'err', 'Please enter a valid email.');
-  const rawMobile = $('mobile').value.trim();
-  const digits = rawMobile.replace(/[^0-9]/g, '');
-  if (digits.length < 6) return msg('loginmsg', 'err', 'Please enter your mobile number — we use it for class WhatsApp updates.');
-  const cc = $('ccode').value;
-  const fullMobile = rawMobile.startsWith('+') ? rawMobile : (cc ? cc + ' ' + rawMobile : rawMobile);
-  if (!fullMobile.startsWith('+')) return msg('loginmsg', 'err', 'Chose "Other"? Type your full number starting with + and country code.');
-  $('sendlink').disabled = true;
+// ── Guest mode vs signed in ─────────────────────────────────────────────────
+// One switch for everything that differs. Signed in: Sign out + the five buttons.
+// Guest: Sign in + the sign-in box + Book a class only (the other four need an account).
+function setMode() {
+  $('signout').classList.toggle('hidden', guestMode);
+  $('signinbtn').classList.toggle('hidden', !guestMode);
+  $('signincard').classList.toggle('hidden', !guestMode);
+  ['classroom', 'classes', 'points', 'referral'].forEach(k => accBox(k).classList.toggle('hidden', guestMode));
+  if (!guestMode) $('guestdone').classList.add('hidden');
+}
+
+// Nobody is signed in: show the classes and let them book. No per-student query runs here —
+// open_cohorts and bundle_offers are public views; everything else needs a session.
+async function showGuest() {
+  guestMode = true; student = null; balance = 0; myEmail = ''; myMobile = ''; nameIsPlaceholder = false;
+  holds = []; bookedIds = new Set();
+  show('view-app'); setMode();
+  $('hello').textContent = 'Impactus Learning';
+  $('balline').textContent = 'Reserve your seat';
+  $('bansub').textContent = 'Pick a class and pay. No account needed.';
+  renderHolds();
+  // Open for someone who came to sign in; folded away for someone who arrived with a class picked.
+  if (!deepLink && !params.get('payment')) openSignIn(false);
+  openSection('book');
+  try { const { data: offers } = await sb.from('bundle_offers').select('*'); bundleOffers = offers || []; } catch (e) { bundleOffers = []; }
+  await loadCourses();
+}
+
+function openSignIn(focus, email) {
+  $('signincard').classList.add('open');
+  $('sitoggle').setAttribute('aria-expanded', 'true');
+  if (email) $('email').value = email;
+  if (focus) {
+    $('signincard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => $('email').focus({ preventScroll: true }), 350);
+  }
+}
+$('sitoggle').onclick = () => {
+  const on = !$('signincard').classList.contains('open');
+  $('signincard').classList.toggle('open', on);
+  $('sitoggle').setAttribute('aria-expanded', on ? 'true' : 'false');
+};
+$('signinbtn').onclick = () => openSignIn(true);
+$('detsignin').onclick = () => openSignIn(true, $('gemail').value.trim().toLowerCase());
+
+const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 200;
+
+// A typed email is never verified before a guest pays, so catch the common slips here.
+// A gentle suggestion on leaving the field — never a block (plenty of valid addresses look odd).
+const EMAIL_DOMAIN_FIX = {
+  'gmial.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gmal.com': 'gmail.com', 'gamil.com': 'gmail.com', 'gnail.com': 'gmail.com',
+  'gmaill.com': 'gmail.com', 'gmail.co': 'gmail.com', 'gmail.cm': 'gmail.com', 'gmail.om': 'gmail.com',
+  'hotmial.com': 'hotmail.com', 'hotmai.com': 'hotmail.com', 'hotmal.com': 'hotmail.com', 'homail.com': 'hotmail.com',
+  'hotnail.com': 'hotmail.com', 'hotmail.co': 'hotmail.com',
+  'yaho.com': 'yahoo.com', 'yahooo.com': 'yahoo.com', 'yhoo.com': 'yahoo.com', 'yahoo.co': 'yahoo.com', 'yahoo.com.sq': 'yahoo.com.sg',
+  'outlok.com': 'outlook.com', 'outloo.com': 'outlook.com', 'oulook.com': 'outlook.com', 'outlook.co': 'outlook.com',
+  'iclod.com': 'icloud.com', 'icoud.com': 'icloud.com', 'icloud.co': 'icloud.com', 'singnet.com.sq': 'singnet.com.sg',
+};
+function emailSuggestion(v) {
+  const m = String(v || '').trim().toLowerCase().match(/^([^\s@]+)@([^\s@]+)$/);
+  if (!m) return null;
+  let d = EMAIL_DOMAIN_FIX[m[2]];
+  if (!d) { const t = m[2].match(/^(.+)\.(con|cmo|ocm|vom|xom|comm|coom)$/); if (t) d = t[1] + '.com'; }
+  if (d && EMAIL_DOMAIN_FIX[d]) d = EMAIL_DOMAIN_FIX[d];
+  return d && d !== m[2] ? m[1] + '@' + d : null;
+}
+function wireEmailFix(inputId, boxId) {
+  const inp = $(inputId), box = $(boxId);
+  const run = () => {
+    const sug = emailSuggestion(inp.value);
+    if (!sug) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    box.innerHTML = 'Did you mean <strong>' + esc(sug) + '</strong>? <button type="button" class="linkbtn">Use this</button>';
+    box.classList.remove('hidden');
+    box.querySelector('button').onclick = () => {
+      inp.value = sug; box.classList.add('hidden'); box.innerHTML = '';
+      inp.dispatchEvent(new Event('input'));
+    };
+  };
+  inp.addEventListener('blur', run);
+  inp.addEventListener('input', () => { if (!box.classList.contains('hidden')) run(); });
+}
+wireEmailFix('email', 'emailfix');
+wireEmailFix('gemail', 'gemailfix');
+
+// The class on screen, as a link the sign-in email can bring them back to.
+function pickAsLink() {
+  if (selCourse) {
+    const o = { course: selCourse.family_slug, date: selCourse.cohort_date, time: ['am', 'pm', 'n'][slotOf(selCourse.session_time)] };
+    if (coupon && coupon.code) o.code = coupon.code;
+    return o;
+  }
+  return deepLink;
+}
+
+// ONE way to send a sign-in link. Email only: an account that is new starts with no mobile
+// and a placeholder name, and the first booking asks for both (see syncDetails).
+// go = 'classroom' lands in My Classroom; otherwise the class on screen (or the one in the
+// link they arrived with) rides along so they come back to it — see the DL_STASH note above.
+async function sendSignInLink(email, go) {
+  const toClass = go === 'classroom' || (!selCourse && !deepLink && params.get('go') === 'classroom');
+  const dl = toClass ? null : pickAsLink();
   // Stash before sending, not after: if signInWithOtp throws, the pick still survives the
   // retry they are about to make.
-  if (deepLink) {
-    try { localStorage.setItem(DL_STASH, JSON.stringify(Object.assign({ at: Date.now() }, deepLink))); } catch (e) {}
-  }
-  const { error } = await sb.auth.signInWithOtp({
+  if (dl) { try { localStorage.setItem(DL_STASH, JSON.stringify(Object.assign({ at: Date.now() }, dl))); } catch (e) {} }
+  const out = await sb.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: PORTAL_URL + (deepLink ? '?' + dlQuery(deepLink) : (params.get('go') === 'classroom' ? '?go=classroom' : '')),
-      data: {
-        full_name: $('fullname').value.trim(),
-        mobile: fullMobile,
-        referral_code: $('refcode').value.trim().toUpperCase(),
-      },
+      emailRedirectTo: PORTAL_URL + (dl ? '?' + dlQuery(dl) : (toClass ? '?go=classroom' : '')),
+      data: { referral_code: currentRef() },
     },
   });
-  $('sendlink').disabled = false;
-  if (error) return msg('loginmsg', 'err', error.message);
+  if (!out.error) { try { if (typeof gtag === 'function') gtag('event', 'signin_link_sent', { has_pick: !!dl }); } catch (e) {} }
+  return out;
+}
+
+let signinBusy = false;   // a flag, not the button (rule 7)
+$('siform').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  if (signinBusy) return;
+  const email = $('email').value.trim().toLowerCase();
+  if (!validEmail(email)) { $('email').focus(); return msg('loginmsg', 'err', 'Please enter a valid email.'); }
+  signinBusy = true; $('sendlink').disabled = true;
+  let error = null;
+  try { ({ error } = await sendSignInLink(email)); } catch (e) { error = e; }
+  signinBusy = false; $('sendlink').disabled = false;
+  if (error) return msg('loginmsg', 'err', error.message || 'Could not send the link — please try again.');
   msgHTML('loginmsg', 'ok', '<div class="msg-big">Sign-in link has been sent to your email:<br><span class="msg-email">' + esc(email) + '</span></div><div>The sign-in link comes from Impactus Learning (noreply@impactuslearning.com). Not there within a minute? Check your Spam/Junk folder (and Promotions tab in Gmail).</div>');
-};
+});
 
 $('signout').onclick = () => sb.auth.signOut();
 
 async function showApp(session) {
-  show('view-app'); $('signout').classList.remove('hidden');
+  guestMode = false;
+  show('view-app'); setMode();
   // Defense-in-depth: filter explicitly by the signed-in user's email, never rely on RLS alone
   // to return "only my row". (A view without security_invoker once returned another student's row.)
   myEmail = (session && session.user && session.user.email || '').toLowerCase();
@@ -865,7 +1046,16 @@ async function showApp(session) {
   if (!student) { $('hello').textContent = 'Welcome!'; $('balline').textContent = 'Setting up your account…'; setTimeout(() => showApp(session), 1500); return; }
   balance = student.balance_points;
   setBadge('points', balance > 0 ? balance + ' pts' : null);
-  $('hello').textContent = 'Welcome back, ' + (student.preferred_name && student.preferred_name.trim() ? student.preferred_name.trim() : student.name.split(' ')[0]);
+  // Sign-in is email-only (2026-11-10): a brand-new account has no mobile and a placeholder
+  // name. Read the student's own row to know whether the booking step must ask. If the read
+  // fails, assume the number is there — never nag someone who has already given it (the
+  // server fills a blank mobile only, and refuses a v2 booking that still has none).
+  const { data: own, error: ownErr } = await sb.from('students').select('name,mobile').eq('email', myEmail).limit(1);
+  myMobile = ownErr || !own || !own[0] ? 'on file' : String(own[0].mobile || '').trim();
+  nameIsPlaceholder = String(student.name || '').trim().toLowerCase() === myEmail.split('@')[0];
+  $('bansub').textContent = 'Points never expire, and they come off your next class automatically.';
+  $('hello').textContent = nameIsPlaceholder && !(student.preferred_name && student.preferred_name.trim()) ? 'Welcome!'
+    : 'Welcome back, ' + (student.preferred_name && student.preferred_name.trim() ? student.preferred_name.trim() : student.name.split(' ')[0]);
   $('balline').textContent = balance > 0 ? `You've earned S$${balance} toward your next class` : 'Book your first class to start earning rebates';
   // The share link lands on the company homepage — a new person can browse every course
   // first; the site carries the code into the portal for whenever they decide to sign up.
@@ -1185,6 +1375,8 @@ let courseGroups = {};
 
 // Which course families has this student already sat in? Drives the "come back" badge.
 async function attendedFamilies() {
+  // A guest has no history to read (and no session to read it with).
+  if (guestMode || !myEmail) { bookedIds = new Set(); return {}; }
   // SGT, not UTC — the UTC date lags Singapore by 8h and mis-badges same-day classes.
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
   const { data } = await sb.from('student_history').select('course_id,family_slug,cohort_date,status').eq('email', myEmail);
@@ -1307,6 +1499,13 @@ async function loadCourses() {
   renderCalendar();
   renderAgenda();
   renderCards();
+  // A class picked BEFORE this load (a guest who then signed in on the same page): keep it
+  // only if it is still bookable for this person, and re-price it for who they are now.
+  if (selCourse) {
+    const again = allCohorts.find(x => x.id === selCourse.id);
+    if (!again || isBooked(again)) deselectCohort();
+    else { syncDetails(); updateBreakdown(); }
+  }
   applyDeepLink();
 }
 
@@ -1572,7 +1771,12 @@ function applyDeepLink() {
   let target = d ? open.find(c => c.cohort_date === d && (wantSlot === undefined || slotOf(c.session_time) === wantSlot)) : null;
   if (!target && d) target = open.find(c => c.cohort_date === d);
   if (!target) target = open[0];
-  if (target) pickCohort(target.id, true);
+  if (target) {
+    pickCohort(target.id, true);
+    // ?code=… (a company code in the link a team is sent): fill it in and apply it.
+    const code = (params.get('code') || '').trim();
+    if (code && selCourse) { $('couponcode').value = code.toUpperCase().slice(0, 40); applyCoupon(); }
+  }
 }
 
 $('calfilter').onchange = () => { calFilter = $('calfilter').value; renderCalendar(); renderAgenda(); renderCards(); };
@@ -1650,7 +1854,85 @@ function selectCourse(c) {
   $('couponcode').value = ''; $('couponbtn').textContent = 'Apply'; $('couponbtn').disabled = false;
   $('couponmsg').className = 'msg'; $('couponmsg').textContent = '';
   renderPaySummary(c);
+  syncDetails();
   updateBreakdown();
+}
+
+// ── "Your details" (2026-11-10) ───────────────────────────────────────────────
+// 'guest'  = not signed in: name + email + mobile is the whole sign-up.
+// 'mobile' = signed in, no mobile on file: ask for it (and for a real name if theirs is
+//            still the placeholder). null = nothing to ask.
+function detailsKind() { return guestMode ? 'guest' : (student && !myMobile ? 'mobile' : null); }
+function syncDetails() {
+  const kind = detailsKind();
+  $('detailsform').classList.toggle('hidden', !kind);
+  if (kind) {
+    const g = kind === 'guest';
+    $('dethead').textContent = g ? 'Your details' : 'One more thing';
+    $('detsub').classList.toggle('hidden', !g);
+    $('detsub2').classList.toggle('hidden', g);
+    $('row-gname').classList.toggle('hidden', !g && !nameIsPlaceholder);
+    $('row-gemail').classList.toggle('hidden', !g);
+    $('row-ref').classList.toggle('hidden', !g);
+  }
+  updateConfirmTo();
+}
+// Shown right above the pay buttons: the one place a mistyped email gets caught by its owner.
+function updateConfirmTo() {
+  const el = $('confirmto');
+  const email = guestMode ? $('gemail').value.trim().toLowerCase() : '';
+  if (guestMode && validEmail(email)) {
+    el.innerHTML = 'Your confirmation goes to <strong>' + esc(email) + '</strong>';
+    el.classList.remove('hidden');
+  } else el.classList.add('hidden');
+}
+function fieldErr(id, text) {
+  const inp = $(id), box = $('err-' + id);
+  if (text) { inp.setAttribute('aria-invalid', 'true'); box.textContent = text; }
+  else { inp.removeAttribute('aria-invalid'); box.textContent = ''; }
+}
+['gname', 'gemail', 'mobile'].forEach(id => $(id).addEventListener('input', () => {
+  fieldErr(id, '');                                  // typing clears the error; it is re-checked on Pay
+  if (id === 'gemail') updateConfirmTo();
+}));
+$('detailsform').addEventListener('submit', (ev) => ev.preventDefault());
+// Stored the way the portal has always stored it: country code + the number as typed.
+function fullMobile() {
+  const raw = $('mobile').value.trim();
+  if (raw.replace(/[^0-9]/g, '').length < 6) return { error: 'Please enter your mobile number.' };
+  const cc = $('ccode').value;
+  const full = raw.startsWith('+') ? raw : (cc ? cc + ' ' + raw : raw);
+  if (!full.startsWith('+')) return { error: 'Chose “Other”? Type your full number starting with + and the country code.' };
+  const all = full.replace(/[^0-9]/g, '').length;
+  if (all < 8 || all > 15) return { error: 'That number doesn’t look right. Please check it.' };
+  return { value: full };
+}
+// null = nothing to collect · false = something is wrong (shown on the field, focus moved
+// there) · otherwise { name?, email?, mobile } ready for create-checkout.
+function collectDetails() {
+  const kind = detailsKind();
+  if (!kind) return null;
+  const out = {};
+  let bad = null;
+  const mark = (id, text) => { fieldErr(id, text); if (text && !bad) bad = id; };
+  if (!$('row-gname').classList.contains('hidden')) {
+    out.name = $('gname').value.replace(/\s+/g, ' ').trim();
+    mark('gname', out.name.length >= 2 && /\p{L}/u.test(out.name) ? '' : 'Please enter your full name.');
+  }
+  if (kind === 'guest') {
+    out.email = $('gemail').value.trim().toLowerCase();
+    mark('gemail', validEmail(out.email) ? '' : 'Please enter a valid email address.');
+  }
+  const m = fullMobile();
+  mark('mobile', m.error || '');
+  out.mobile = m.value;
+  if (bad) {
+    msg('bookmsg', 'err', 'Please check your details above.');
+    $(bad).focus({ preventScroll: true });
+    $(bad).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return false;
+  }
+  return out;
 }
 
 // Echo the chosen class back at the student, in the same language as the card above.
@@ -1721,12 +2003,33 @@ function quote() {
   return { pts, discount, pay };
 }
 
-$('couponbtn').onclick = async () => {
+// The preview_coupon RPC is granted to signed-in students only. A guest asks create-checkout-v2
+// (action 'preview_coupon'), which answers in the same shape with the rules a guest is held
+// to — so quote() below treats both alike. Either way the server decides again at checkout.
+async function previewCoupon(code, courseId) {
+  if (!guestMode) return await sb.rpc('preview_coupon', { p_code: code, p_course_id: courseId });
+  try {
+    const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout-v2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({ action: 'preview_coupon', course_id: courseId, coupon_code: code }),
+    });
+    const data = await res.json();
+    return { data: data && typeof data.ok === 'boolean' ? data : null, error: data && data.error ? { message: data.error } : null };
+  } catch (e) {
+    return { data: null, error: { message: 'Could not check that code just now. Please try again.' } };
+  }
+}
+
+async function applyCoupon() {
+  if (!selCourse) return;
+  const forCourse = selCourse.id;
   const code = $('couponcode').value.trim();
   if (!code) { coupon = null; $('couponmsg').className = 'msg'; $('couponmsg').textContent = ''; updateBreakdown(); return; }
   $('couponbtn').disabled = true; $('couponbtn').textContent = '…';
-  const { data, error } = await sb.rpc('preview_coupon', { p_code: code, p_course_id: selCourse.id });
+  const { data, error } = await previewCoupon(code, forCourse);
   $('couponbtn').disabled = false; $('couponbtn').textContent = 'Apply';
+  if (!selCourse || selCourse.id !== forCourse) return;   // they moved to another class while it was checking
   if (error || !data || !data.ok) {
     coupon = null;
     msg('couponmsg', 'err', (data && data.message) || (error && error.message) || 'Code not recognised');
@@ -1745,7 +2048,8 @@ $('couponbtn').onclick = async () => {
              discount: data.discount == null ? 0 : Number(data.discount), label: data.label };
   msg('couponmsg', 'ok', data.label + ' applied ✓');
   updateBreakdown();
-};
+}
+$('couponbtn').onclick = applyCoupon;
 $('couponcode').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); $('couponbtn').click(); } };
 
 function updateBreakdown() {
@@ -1855,6 +2159,10 @@ async function startCheckout(method) {
     $('termsrow').scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
+  // Details (2026-11-10): a guest's name/email/mobile, or a signed-in student's missing
+  // mobile. Checked on the fields themselves; create-checkout checks them all again.
+  const det = collectDetails();
+  if (det === false) return;
   const payNow = quote().pay;
   if (payNow > 0 && !PAYMENTS_LIVE) return;   // card checkout not live yet
   // GA4 Key Event: qualify_lead — student has passed every gate and is really starting a
@@ -1864,7 +2172,7 @@ async function startCheckout(method) {
     if (typeof gtag === 'function') {
       gtag('event', 'qualify_lead', {
         value: payNow, currency: 'SGD', method: method || 'free',
-        course_id: selCourse.id, course_name: selCourse.name
+        course_id: selCourse.id, course_name: selCourse.name, guest: guestMode
       });
     }
   } catch (e) {}
@@ -1874,27 +2182,42 @@ async function startCheckout(method) {
   msg('bookmsg', 'ok', method ? `Setting up your ${METHOD_NAME[method]} payment…` : 'Preparing your booking…');
   try {
     const { data: { session } } = await sb.auth.getSession();
-    const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      // A full day sends both classes: course_id = the morning class, bundle_course_id = the
-      // afternoon one. create-checkout prices and holds both in one payment.
-      body: JSON.stringify({ course_id: bundleSel ? bundleSel.first.id : selCourse.id,
-                             bundle_course_id: bundleSel ? bundleSel.second.id : undefined,
-                             coupon_code: coupon ? coupon.code : null, pay_method: method,
-                             terms_version: TERMS_VERSION }),
+    if (!guestMode && !session) throw new Error('Your sign-in has expired. Please refresh this page and sign in again.');
+    // A signed-in student sends their token; a guest has none and sends the three details
+    // instead. create-checkout-v2 authenticates inside (verify_jwt is off for it on purpose).
+    // The old `create-checkout` function is superseded: nothing on this page calls it.
+    const headers = { 'Content-Type': 'application/json' };
+    if (guestMode) headers.apikey = SUPABASE_KEY; else headers.Authorization = 'Bearer ' + session.access_token;
+    // A full day sends both classes: course_id = the morning class, bundle_course_id = the
+    // afternoon one. create-checkout prices and holds both in one payment.
+    // v: 2 = this page can ask for a mobile, so the server may insist on one.
+    const payload = { course_id: bundleSel ? bundleSel.first.id : selCourse.id,
+                      bundle_course_id: bundleSel ? bundleSel.second.id : undefined,
+                      coupon_code: coupon ? coupon.code : null, pay_method: method,
+                      terms_version: TERMS_VERSION, v: 2 };
+    if (guestMode) payload.guest = { name: det.name, email: det.email, mobile: det.mobile,
+                                     referral_code: currentRef(), website: $('gwebsite').value };
+    else if (det) payload.details = { name: det.name || '', mobile: det.mobile };
+    const what = bundleSel
+      ? `${bundleSel.offer.name} (both classes) on ${fdate(selCourse.cohort_date)}`
+      : `${selCourse.name} on ${fdate(selCourse.cohort_date)}`;
+    const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout-v2', {
+      method: 'POST', headers, body: JSON.stringify(payload),
     });
     const out = await res.json();
-    if (!res.ok) throw new Error(out.error || 'Something went wrong');
-    if (out.status === 'confirmed_free') {
+    if (!res.ok) { const err = new Error(out.error || 'Something went wrong'); err.code = out.code; throw err; }
+    // The details were accepted (or weren't needed): don't ask a signed-in student twice.
+    if (!guestMode && det && det.mobile) myMobile = det.mobile;
+    if (out.status === 'signin_required') {
+      // This email already belongs to a student. Nothing was booked or held: they sign in,
+      // land back on this class, and their points apply (Andrew, 2026-11-10).
+      await needSignIn(det.email);
+    } else if (out.status === 'confirmed_free') {
       // Nothing was owed, so there's no Stripe redirect and the student stays on this page.
       // Close the payment step before re-rendering: leaving it open with a live button is
       // what invited the second click in the first place.
       bookedIds.add(selCourse.id);
       if (bundleSel) { bookedIds.add(bundleSel.first.id); bookedIds.add(bundleSel.second.id); }
-      const what = bundleSel
-        ? `${bundleSel.offer.name} (both classes) on ${fdate(selCourse.cohort_date)}`
-        : `${selCourse.name} on ${fdate(selCourse.cohort_date)}`;
       // GA4 Key Event: close_convert_lead — the booking is confirmed right here (S$0: fully
       // covered by points/coupon/corp code), so this is the true conversion moment for this
       // path. Analytics-only, fired after the booking already succeeded server-side.
@@ -1906,6 +2229,12 @@ async function startCheckout(method) {
           });
         }
       } catch (e) {}
+      if (guestMode) {
+        // No session, so nothing to re-read: close the form and show the receipt.
+        deselectCohort();
+        showGuestDone({ email: det.email, what, paid: false });
+        return;                                // form is closed; nothing to re-enable
+      }
       deselectCohort();
       const { data: { session: s2 } } = await sb.auth.getSession(); await showApp(s2);
       const both = what.includes('(both classes)');   // deselectCohort() above has cleared bundleSel
@@ -1922,6 +2251,17 @@ async function startCheckout(method) {
           course_id: selCourse.id, course_name: selCourse.name, at: Date.now()
         }));
       } catch (e) {}
+      // A guest comes back from Stripe with no session, so the page remembers (this tab only)
+      // what they typed: to say where the confirmation went, or — if they backed out — to
+      // put the class and their details back exactly as they were.
+      if (guestMode) {
+        try {
+          sessionStorage.setItem(GUEST_STASH, JSON.stringify({
+            at: Date.now(), email: det.email, name: det.name, mobile: $('mobile').value.trim(), cc: $('ccode').value,
+            course_id: selCourse.id, bundle: !!bundleSel, code: coupon ? coupon.code : '', what
+          }));
+        } catch (e) {}
+      }
       location.href = out.url;
       return;                                  // leaving the page; leave the buttons disabled
     }
@@ -1929,7 +2269,7 @@ async function startCheckout(method) {
     // The server says this seat is already theirs — that's not a failure, it's the outcome
     // they wanted. Reaching here means an identical request won the race (or another tab
     // did the booking), so show it as done rather than as a red error.
-    if (/already have a booking/i.test(e.message || '')) {
+    if (!guestMode && /already have a booking/i.test(e.message || '')) {
       if (selCourse) bookedIds.add(selCourse.id);
       deselectCohort();
       const { data: { session: s3 } } = await sb.auth.getSession(); await showApp(s3);
@@ -1937,10 +2277,91 @@ async function startCheckout(method) {
       checkoutBusy = false;
       return;
     }
+    // The server names the field it didn't accept — show it there as well.
+    if (e.code === 'mobile_required') { myMobile = ''; syncDetails(); fieldErr('mobile', 'Please add your mobile number.'); }
+    else if (e.code === 'name') fieldErr('gname', e.message);
+    else if (e.code === 'email') fieldErr('gemail', e.message);
+    else if (e.code === 'mobile') fieldErr('mobile', e.message);
     msg('bookmsg', 'err', e.message);
   } finally { checkoutBusy = false; }
   document.querySelectorAll('.pm').forEach(b => { b.disabled = false; });
   $('paybtn').disabled = false;
+}
+
+// ── Guest: the three endings ──────────────────────────────────────────────────
+// 1. Their email already belongs to a student → send the sign-in link, say so plainly.
+async function needSignIn(email) {
+  let error = null;
+  try { ({ error } = await sendSignInLink(email)); } catch (e) { error = e; }
+  if (error) {
+    openSignIn(false, email);
+    msg('bookmsg', 'err', 'This email already has an account with us. Please sign in to book: use the “Sign in” box at the top of this page.');
+    return;
+  }
+  msgHTML('bookmsg', 'ok', '<div class="msg-big">Welcome back. Check your email to finish booking.</div>'
+    + '<div>You’ve booked with us before, so we’ve emailed a sign-in link to <strong>' + esc(email) + '</strong>. '
+    + 'Open it and you’ll land back on this class, with any points you’ve earned applied. '
+    + 'It comes from Impactus Learning (noreply@impactuslearning.com). Not there within a minute? Check Spam or Promotions.</div>');
+  $('bookmsg').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// 2. Booked. A receipt of what they just did (the page can't read the booking without a session).
+let gdBusy = false;
+function showGuestDone({ email, what, paid }) {
+  $('gd-title').textContent = paid ? 'Payment received. You’re booked!' : 'You’re booked!';
+  $('gd-what').textContent = what || '';
+  $('gd-email').innerHTML = email
+    ? 'Your confirmation is on its way to <strong>' + esc(email) + '</strong>. It comes from Impactus Learning (noreply@impactuslearning.com). Not there in a few minutes? Check Spam or Promotions.'
+    : 'Your confirmation email is on its way. It comes from Impactus Learning (noreply@impactuslearning.com).';
+  $('gd-msg').className = 'msg';
+  $('gd-link').classList.toggle('hidden', !email);
+  $('gd-link').onclick = async () => {
+    if (gdBusy) return;
+    gdBusy = true; $('gd-link').disabled = true;
+    let error = null;
+    try { ({ error } = await sendSignInLink(email, 'classroom')); } catch (e) { error = e; }
+    gdBusy = false; $('gd-link').disabled = false;
+    msg('gd-msg', error ? 'err' : 'ok', error ? (error.message || 'Could not send the link. Please try again.')
+      : 'Sent. Open the link in that email to see your class, join details and materials.');
+  };
+  $('signincard').classList.remove('open'); $('sitoggle').setAttribute('aria-expanded', 'false');
+  $('guestdone').classList.remove('hidden');
+  setTimeout(() => $('guestdone').scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
+}
+
+// 3. Back from Stripe without a session. paid → the receipt. Not paid → the class and their
+//    details exactly as they left them (the seat is still held for them server-side).
+function readGuestStash() {
+  try {
+    const st = JSON.parse(sessionStorage.getItem(GUEST_STASH) || 'null');
+    return st && st.at && Date.now() - st.at < 2 * 3600e3 ? st : null;
+  } catch (e) { return null; }
+}
+async function guestBack(paid) {
+  history.replaceState({}, '', location.pathname);
+  const st = readGuestStash();
+  if (paid) {
+    try { sessionStorage.removeItem(GUEST_STASH); } catch (e) {}
+    showGuestDone({ email: st && st.email, what: st && st.what, paid: true });
+    return;
+  }
+  openSection('book');
+  if (st) {
+    $('gname').value = st.name || ''; $('gemail').value = st.email || ''; $('mobile').value = st.mobile || '';
+    if (st.cc != null) $('ccode').value = st.cc;
+    const c = allCohorts.find(x => x.id === st.course_id);
+    if (c && !c.is_full) {
+      pickCohort(c.id, true);
+      if (selCourse && !!bundleSel !== !!st.bundle) {
+        bundleSel = st.bundle ? bundleOpt : null;
+        renderBundlePick(); renderPaySummary(selCourse);
+      }
+      if (selCourse && st.code) { $('couponcode').value = st.code; await applyCoupon(); }
+      else if (selCourse) updateBreakdown();
+    }
+  }
+  msg('bookmsg', 'ok', 'No payment was taken.' + (st && selCourse ? ' Your details are still here. Tick the box and choose how to pay when you’re ready.' : ' Pick your class again whenever you’re ready.'));
+  setTimeout(() => $('bookmsg').scrollIntoView({ behavior: 'smooth', block: 'center' }), 500);
 }
 
 document.querySelectorAll('.pm').forEach(b => b.onclick = () => startCheckout(b.dataset.pm));
