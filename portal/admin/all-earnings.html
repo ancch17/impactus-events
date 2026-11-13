@@ -89,12 +89,15 @@
   #msg { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--navy); color:#fff; padding:10px 16px; border-radius:10px; font-size:13px; z-index:30; max-width:92vw; }
   #msg.err { background:var(--red); }
   .overlay { position:fixed; inset:0; background:rgba(16,26,45,.45); z-index:20; display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
-  .modal { background:#fff; border-radius:14px; padding:20px; width:100%; max-width:640px; }
-  .form { display:grid; grid-template-columns:1fr 1fr; gap:12px 14px; margin-top:12px; }
-  .form label { display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:600; color:var(--mut); }
+  .modal { background:#fff; border-radius:14px; padding:20px; width:100%; max-width:680px; box-shadow:0 18px 50px rgba(0,0,0,.25); }
+  /* minmax(0,1fr), not 1fr: a plain 1fr column can't shrink below its longest content, so a long class name in the
+     Class dropdown pushed every field past the modal's edge (14 Nov 2026). */
+  .form { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px 14px; margin-top:12px; }
+  .form label { display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:600; color:var(--mut); min-width:0; }
+  .form input, .form select, .form textarea { width:100%; min-width:0; max-width:100%; }
   .form label.full { grid-column:1 / -1; }
   .form .hint { font-weight:400; font-size:11.5px; }
-  @media (max-width:640px) { .form { grid-template-columns:1fr; } .kpi .v { font-size:19px; } }
+  @media (max-width:640px) { .form { grid-template-columns:minmax(0,1fr); } .kpi .v { font-size:19px; } }
   details summary { cursor:pointer; font-weight:700; font-size:14px; }
   footer { text-align:center; padding:26px 0 34px; }
 </style>
@@ -551,6 +554,7 @@ window.openForm = (id, classId) => {
   $('e-org').innerHTML = orgs.map(o => `<option value="${esc(o.code)}">${esc(o.name)}${o.active ? '' : ' (past)'}</option>`).join('');
   $('e-org').value = org;
   $('e-class').innerHTML = classOptions(org, r ? r.engagement_id : classId);
+  classTip();
   $('e-title').value = r ? r.title : cl ? cl.title : '';
   $('e-payer').value = r ? (r.payer || '') : lastPayer(org);
   $('e-payee').value = r ? r.payee : lastPayee(org);
@@ -567,8 +571,10 @@ window.openForm = (id, classId) => {
   $('ov').classList.remove('hidden');
   setTimeout(() => (r ? $('e-amount') : cl ? $('e-amount') : $('e-title')).focus(), 30);
 };
-$('e-org').onchange = () => { const o = $('e-org').value; $('e-class').innerHTML = classOptions(o, ''); if (!editId) { $('e-payee').value = lastPayee(o); $('e-payer').value = lastPayer(o); } formWarn(); };
-$('e-class').onchange = () => { const cl = classBy[$('e-class').value]; if (cl) { if (!$('e-title').value.trim()) $('e-title').value = cl.title; if (!$('e-earned').value) $('e-earned').value = cl.end_date; } };
+// The closed Class dropdown cuts long names short; hovering shows the full name.
+function classTip() { const sel = $('e-class'), o = sel.options[sel.selectedIndex]; sel.title = o ? o.text : ''; }
+$('e-org').onchange = () => { const o = $('e-org').value; $('e-class').innerHTML = classOptions(o, ''); classTip(); if (!editId) { $('e-payee').value = lastPayee(o); $('e-payer').value = lastPayer(o); } formWarn(); };
+$('e-class').onchange = () => { classTip(); const cl = classBy[$('e-class').value]; if (cl) { if (!$('e-title').value.trim()) $('e-title').value = cl.title; if (!$('e-earned').value) $('e-earned').value = cl.end_date; } };
 $('e-status').onchange = () => { if ($('e-status').value === 'paid' && !$('e-paid').value) $('e-paid').value = today(); formWarn(); };
 $('e-inv').oninput = formWarn; $('e-amount').oninput = formWarn;
 function formWarn() {
