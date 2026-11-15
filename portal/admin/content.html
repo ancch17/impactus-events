@@ -418,7 +418,7 @@ function tracked(p) {
   } catch (e) { return p.link; }
 }
 const statusSel = (p) => `<select class="st ${p.status}" data-id="${p.id}" aria-label="Status">${Object.keys(STATUS).map(s => `<option value="${s}"${s === p.status ? ' selected' : ''}>${STATUS[s]}</option>`).join('')}</select>`;
-const linePill = (p) => isPost(p) ? `<span class="pill ${lineOf(p)}">${esc((PRODUCT[p.product] || PRODUCT.general).label)}</span>` : '<span class="pill">Task</span>';
+const linePill = (p) => isPost(p) ? `<span class="pill ${lineOf(p)}">${esc((PRODUCT[p.product] || PRODUCT.general).label)}</span>` : (p.channel === 'Task' ? '' : '<span class="pill">Task</span>');
 
 function renderAll() { renderKPIs(); renderNext(); renderEffort(); renderFreq(); renderResults(); renderAttr(); renderPosts(); renderChannels(); renderDeleted(); }
 
