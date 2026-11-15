@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- ═══ READ BEFORE EDITING ═══════════════════════════════════════════════
+     Content: the social posting plan, how often each channel posts, what each post achieved,
+     and which posts bookings are traced to. Split by product line (Productivity tools = Claude
+     and Copilot; AI Animation).
+     - One row = one post on one channel (or one prep task). Rows live in tracker.content_posts,
+       channels and weekly targets in tracker.content_channels. Read and written only through
+       the admin-gated RPCs tracker_content / tracker_save_content_post /
+       tracker_set_content_status / tracker_set_content_metrics / tracker_delete_content_post /
+       tracker_save_content_channel. Nothing is hard-deleted.
+     - "Seats booked" comes from the booking system (confirmed bookings by booking date). A seat is
+       only "traced to a post" when it is recorded against that post. Do not present same-week
+       seats as caused by posts.
+     - Tracked links follow UTM_Links_CheatSheet.md: utm_source = the channel's source,
+       utm_medium = social (email / community for those two), utm_campaign = <offer>_<mon><yyyy>,
+       utm_content = the post code. GA4 (G-1ZG98XKEWS) reads them.
+     - This repo is PUBLIC: never hard-code post text, names or numbers in this file.
+     Guide: claude/content-dashboard.md (project doc)
+════════════════════════════════════════════════════════════════════════ -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Content — Impactus Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root { --navy:#101a2d; --amber:#f5b731; --amber-d:#c78d0a; --ink:#1c2333; --mut:#6b7486; --bg:#f6f7fa; --card:#ffffff; --green:#1a9a5c; --red:#c93b3b; --line:#e6e9f0; --soft:#f2f4f8; --prod:#3c5bd2; --anim:#7c3aed; --gen:#9aa3b5; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width:1180px; margin:0 auto; padding:16px; }
+  header { background:var(--navy); color:#fff; position:sticky; top:0; z-index:5; }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; padding-top:12px; padding-bottom:12px; gap:10px; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; }
+  nav.tabs { display:flex; gap:4px; flex-wrap:wrap; }
+  .tab { color:#fff; opacity:.75; padding:6px 12px; border-radius:8px; font-size:13px; text-decoration:none; font-weight:600; }
+  .tab:hover { opacity:1; }
+  .tab.active { background:rgba(255,255,255,.12); opacity:1; color:var(--amber); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; scroll-margin-top:72px; }
+  h1 { font-size:20px; font-weight:800; }
+  h2 { font-size:15px; font-weight:700; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  h3 { font-size:13px; font-weight:700; margin:16px 0 6px; }
+  a { color:#2f4fc4; }
+  .muted { color:var(--mut); font-size:13px; }
+  .small { font-size:12px; }
+  .hidden { display:none !important; }
+  select, input, textarea { padding:8px 10px; border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; background:#fff; color:var(--ink); }
+  textarea { resize:vertical; min-height:60px; }
+  .btn { display:inline-block; padding:8px 15px; background:var(--amber); color:var(--navy); border:none; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; }
+  .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .btn.sm { padding:5px 10px; font-size:12px; }
+  .btn.danger { background:#fff; border:1px solid #f1c6c6; color:var(--red); }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:16px; }
+  .toolbar .grow { flex:1; }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; background:#fff; }
+  .seg button { border:none; background:#fff; padding:7px 12px; font:600 13px Inter,system-ui,sans-serif; color:var(--ink); cursor:pointer; }
+  .seg button + button { border-left:1px solid var(--line); }
+  .seg button.on { background:var(--navy); color:#fff; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:16px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .kpi .v { font-size:21px; font-weight:800; } .kpi .l { font-size:11.5px; color:var(--mut); margin-top:2px; }
+  .kpi .sub { font-size:11.5px; color:var(--mut); margin-top:4px; line-height:1.45; }
+  .kpi.red .v { color:var(--red); } .kpi.green .v { color:var(--green); }
+  .tbl { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); padding:8px 8px 6px 0; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:8px 8px 8px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  tr.total td { font-weight:800; border-top:2px solid var(--ink); }
+  tr.sub td { color:var(--mut); } tr.sub td:first-child { padding-left:18px; }
+  tr.grp td { background:var(--soft); font-weight:700; font-size:12px; padding:6px 8px; }
+  tr.done td .what { color:var(--mut); }
+  .num { text-align:right; white-space:nowrap; } th.num { text-align:right; }
+  th.sortable { cursor:pointer; user-select:none; } th.sortable:hover { color:var(--ink); }
+  th .arr { color:var(--amber-d); margin-left:2px; }
+  .pill { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:99px; background:#eef0f4; color:var(--mut); white-space:nowrap; }
+  .pill.todo { background:#eef0f4; color:#4a5263; } .pill.scheduled { background:#e8edfb; color:#3c5bd2; }
+  .pill.posted { background:#e3f5ec; color:var(--green); } .pill.skipped { background:#fdeede; color:#b3590a; }
+  .pill.late { background:#fdecec; color:var(--red); }
+  .pill.prod { background:#e8edfb; color:var(--prod); } .pill.anim { background:#f0e8fd; color:var(--anim); } .pill.gen { background:#eef0f4; color:var(--mut); }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:middle; }
+  .note { color:var(--mut); font-size:11.5px; margin-top:3px; line-height:1.45; }
+  .warn { background:#fff7e0; border:1px solid #f3dfa2; border-radius:10px; padding:10px 12px; font-size:13px; margin-top:8px; }
+  .bulk { display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:#fff7e0; border:1px solid #f3dfa2; border-radius:10px; padding:8px 12px; margin-bottom:10px; font-size:13px; }
+  .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; align-items:center; }
+  .acts { display:flex; gap:6px; flex-wrap:wrap; }
+  .item { display:grid; grid-template-columns:118px minmax(0,1fr) auto; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); align-items:start; }
+  .item:last-child { border-bottom:none; }
+  .item .when { font-weight:700; font-size:13px; }
+  .item .what { font-size:13.5px; line-height:1.45; margin-top:4px; }
+  select.st { padding:4px 6px; font-size:12px; font-weight:600; border-radius:8px; }
+  select.st.todo { background:#eef0f4; } select.st.scheduled { background:#e8edfb; color:#3c5bd2; }
+  select.st.posted { background:#e3f5ec; color:var(--green); } select.st.skipped { background:#fdeede; color:#b3590a; }
+  .freq td.c { text-align:center; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .freq td.ok { background:#e3f5ec; color:#12693f; font-weight:700; } .freq td.low { background:#fdecec; color:var(--red); font-weight:700; }
+  .freq td.plan-low { background:#fff7e0; color:#8a6200; } .freq td.now, .freq th.now { box-shadow:inset 0 2px 0 var(--amber); }
+  .cal { width:100%; table-layout:fixed; } .cal th { text-align:center; padding-right:0; }
+  .cal td { height:92px; border:1px solid var(--line); padding:4px; vertical-align:top; }
+  .cal td.out { background:var(--soft); } .cal td.today { box-shadow:inset 0 0 0 2px var(--amber); }
+  .cal .d { font-size:11px; color:var(--mut); font-weight:700; display:flex; justify-content:space-between; }
+  .cal .d button { border:none; background:none; color:var(--mut); cursor:pointer; font-size:13px; line-height:1; }
+  .chip2 { display:block; width:100%; text-align:left; border:none; border-left:3px solid var(--gen); background:var(--soft); border-radius:5px; padding:2px 5px; margin-top:3px; font:600 10.5px Inter,system-ui,sans-serif; color:var(--ink); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chip2.prod { border-left-color:var(--prod); } .chip2.anim { border-left-color:var(--anim); }
+  .chip2.posted { background:#e3f5ec; } .chip2.scheduled { background:#e8edfb; } .chip2.skipped { text-decoration:line-through; opacity:.6; }
+  #msg { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--navy); color:#fff; padding:10px 16px; border-radius:10px; font-size:13px; z-index:30; max-width:92vw; }
+  #msg.err { background:var(--red); }
+  .overlay { position:fixed; inset:0; background:rgba(16,26,45,.45); z-index:20; display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
+  .modal { background:#fff; border-radius:14px; padding:20px; width:100%; max-width:720px; box-shadow:0 18px 50px rgba(0,0,0,.25); }
+  .form { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px 14px; margin-top:12px; }
+  .form.three { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .form label { display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:600; color:var(--mut); min-width:0; }
+  .form input, .form select, .form textarea { width:100%; min-width:0; max-width:100%; }
+  .form label.full { grid-column:1 / -1; }
+  .form .hint { font-weight:400; font-size:11.5px; }
+  .trk { background:var(--soft); border-radius:9px; padding:8px 10px; font-size:12px; word-break:break-all; margin-top:10px; }
+  @media (max-width:640px) { .form, .form.three { grid-template-columns:minmax(0,1fr) minmax(0,1fr); } .item { grid-template-columns:minmax(0,1fr); } .kpi .v { font-size:19px; } .cal td { height:70px; } }
+  details summary { cursor:pointer; font-weight:700; font-size:14px; }
+  footer { text-align:center; padding:26px 0 34px; }
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="logo"><img src="https://events.impactuslearning.com/images/white-logo.png" alt="Impactus Learning" style="height:24px;vertical-align:middle"><span style="color:#fff;font-weight:600;font-size:14px;opacity:.8;margin-left:10px">Admin</span></div>
+  <nav class="tabs hidden" id="navtabs">
+    <a class="tab" href="./" target="_blank">Dashboard ↗</a>
+    <a class="tab" href="classroom" target="_blank">Classroom ↗</a>
+    <a class="tab" href="students" target="_blank">Students ↗</a>
+    <a class="tab" href="signups" target="_blank">Signups ↗</a>
+    <a class="tab" href="earnings" target="_blank">Earnings ↗</a>
+    <a class="tab" href="all-earnings" target="_blank">All earnings ↗</a>
+    <a class="tab" href="payments" target="_blank">Payments ↗</a>
+    <a class="tab" href="referrals" target="_blank">Referrals ↗</a>
+    <a class="tab" href="coupons" target="_blank">Discounts ↗</a>
+    <a class="tab" href="draw" target="_blank">Lucky draw ↗</a>
+    <a class="tab" href="teaching" target="_blank">Teaching ↗</a>
+    <a class="tab active" href="content">Content</a>
+  </nav>
+  <button class="btn ghost sm hidden" id="signout" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff">Sign out</button>
+</div></header>
+
+<div class="wrap">
+
+  <div id="view-login" class="card hidden" style="max-width:460px;margin:40px auto">
+    <h1>Sign in required</h1>
+    <p class="muted" style="margin-top:6px">Please sign in from the <a href="./" target="_blank">admin dashboard</a> first, then refresh this page.</p>
+    <button class="btn ghost" style="margin-top:14px" onclick="location.reload()">Refresh</button>
+  </div>
+
+  <div id="view-noauth" class="card hidden" style="max-width:420px;margin:40px auto">
+    <h1>Not authorized</h1>
+    <button class="btn ghost" id="noauth-out" style="margin-top:14px">Sign out</button>
+  </div>
+
+  <div id="view-app" class="hidden">
+
+    <div class="toolbar">
+      <h1 style="margin-right:6px">Content</h1>
+      <span class="seg" id="seg-line" aria-label="Product line">
+        <button data-v="all" class="on">All</button><button data-v="prod">Productivity tools</button><button data-v="anim">AI Animation</button>
+      </span>
+      <span class="grow"></span>
+      <button class="btn ghost" id="btn-xlsx">⬇ Download Excel</button>
+      <button class="btn" id="btn-add">+ Add post</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card" id="card-next">
+      <h2>Do next <span class="muted">overdue, today and the next 7 days</span></h2>
+      <div id="next">Loading…</div>
+    </div>
+
+    <div class="card" id="card-effort">
+      <h2><span>Posting effort by product line</span>
+        <span class="seg" id="seg-effort"><button data-v="planned" class="on">Planned</button><button data-v="posted">Published</button></span></h2>
+      <div style="position:relative;height:230px"><canvas id="chart"></canvas></div>
+      <div class="tbl" style="margin-top:14px" id="effort"></div>
+      <p class="note">Productivity tools = Claude and Copilot posts. AI Animation = animation tutorials and the Teck and Bee comedy on the JustMe Jasmin accounts, which is the showreel for the animation class. Prep tasks are not counted as posts. This table always shows every line, whatever the filter above.</p>
+    </div>
+
+    <div class="card" id="card-freq">
+      <h2>How often each channel posts <span class="muted">published / planned, per week</span></h2>
+      <div class="tbl" id="freq"></div>
+      <p class="note"><span class="dot" style="background:#e3f5ec"></span>target met &nbsp; <span class="dot" style="background:#fdecec"></span>week has passed and fewer were published than the target &nbsp; <span class="dot" style="background:#fff7e0"></span>fewer planned than the target. Weeks run Monday to Sunday.</p>
+    </div>
+
+    <div class="card" id="card-results">
+      <h2><span>What the posts achieved</span>
+        <span class="seg" id="seg-group"><button data-v="channel" class="on">By channel</button><button data-v="format">By format</button><button data-v="product">By product</button></span></h2>
+      <div class="tbl" id="results-sum"></div>
+      <h3>Post by post</h3>
+      <div class="tbl" id="results">Loading…</div>
+      <p class="note">Numbers are typed in per post (press <b>Numbers</b>), or ask Claude to pull them. Engagement rate = (reactions + comments + shares) ÷ views. Click rate = link clicks ÷ views.</p>
+    </div>
+
+    <div class="card" id="card-attr">
+      <h2>Where bookings came from</h2>
+      <div class="tbl" id="attr"></div>
+      <div id="attr-note"></div>
+    </div>
+
+    <div class="card" id="card-posts">
+      <h2><span>All posts and tasks</span>
+        <span class="acts"><span class="seg" id="seg-view"><button data-v="list" class="on">List</button><button data-v="cal">Calendar</button></span></span>
+      </h2>
+      <div class="filters">
+        <input id="f-q" type="search" placeholder="Search…" style="width:170px">
+        <select id="f-status"><option value="">All statuses</option><option value="todo">To do</option><option value="scheduled">Scheduled</option><option value="posted">Posted</option><option value="skipped">Skipped</option></select>
+        <select id="f-channel"><option value="">All channels</option></select>
+        <select id="f-week"><option value="">All weeks</option></select>
+      </div>
+      <div class="bulk hidden" id="bulk">
+        <span id="bulk-n"></span><span>Mark as</span>
+        <button class="btn sm ghost" data-act="bulk" data-v="scheduled">Scheduled</button>
+        <button class="btn sm" data-act="bulk" data-v="posted">Posted</button>
+        <button class="btn sm ghost" data-act="bulk" data-v="todo">To do</button>
+        <button class="btn sm ghost" data-act="bulk" data-v="skipped">Skipped</button>
+        <button class="btn ghost sm" data-act="bulk-clear">Clear selection</button>
+      </div>
+      <div class="tbl" id="list">Loading…</div>
+      <div id="cal" class="hidden"></div>
+    </div>
+
+    <div class="card" id="card-channels">
+      <h2><span>Channel plan</span><button class="btn ghost sm" data-act="edch" data-id="">+ Add channel</button></h2>
+      <div class="tbl" id="channels"></div>
+    </div>
+
+    <div class="card">
+      <details id="deleted-box"><summary>Deleted posts (<span id="del-n">0</span>)</summary><div class="tbl" id="deleted" style="margin-top:10px"></div></details>
+    </div>
+
+  </div>
+</div>
+
+<div class="overlay hidden" id="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="ov-title">
+  <h2 id="ov-title">Add post</h2>
+  <div class="form">
+    <label>Date<input type="date" id="e-date"></label>
+    <label>Type<select id="e-kind"><option value="post">Post</option><option value="task">Prep task (not counted as a post)</option></select></label>
+    <label>Channel<select id="e-channel"></select></label>
+    <label>Product<select id="e-product"><option value="claude">Claude (Productivity tools)</option><option value="copilot">Copilot (Productivity tools)</option><option value="animation">AI Animation</option><option value="general">General</option></select></label>
+    <label class="full">What to post<textarea id="e-what"></textarea></label>
+    <label>Focus<input id="e-focus" placeholder="e.g. Proof, Reach, Class sign-ups"></label>
+    <label>Format<input id="e-format" list="formats" placeholder="e.g. Short video"></label>
+    <label>Link to use<input id="e-link" placeholder="https://events.impactuslearning.com/…"></label>
+    <label>Week label<input id="e-week" list="weeks"></label>
+    <label>Status<select id="e-status"><option value="todo">To do</option><option value="scheduled">Scheduled</option><option value="posted">Posted</option><option value="skipped">Skipped</option></select></label>
+    <label>Notes<input id="e-notes"></label>
+  </div>
+  <div class="trk hidden" id="e-trk"></div>
+  <h3>After it is posted</h3>
+  <div class="form">
+    <label class="full">Link to the live post<input id="e-url" placeholder="Paste the post's web address"></label>
+  </div>
+  <div class="form three">
+    <label>Views<input type="number" min="0" id="e-views" inputmode="numeric"></label>
+    <label>Reactions<input type="number" min="0" id="e-reactions" inputmode="numeric"></label>
+    <label>Comments<input type="number" min="0" id="e-comments" inputmode="numeric"></label>
+    <label>Shares<input type="number" min="0" id="e-shares" inputmode="numeric"></label>
+    <label>Link clicks<input type="number" min="0" id="e-clicks" inputmode="numeric"></label>
+    <label>Enquiries<input type="number" min="0" id="e-leads" inputmode="numeric"></label>
+    <label>Bookings<input type="number" min="0" id="e-bookings" inputmode="numeric"></label>
+    <label>Revenue (SGD)<input type="number" min="0" step="0.01" id="e-revenue" inputmode="decimal"></label>
+    <label>Numbers as at<input type="date" id="e-mon"></label>
+  </div>
+  <datalist id="formats"></datalist><datalist id="weeks"></datalist>
+  <div class="acts" style="margin-top:16px;justify-content:flex-end">
+    <button class="btn danger hidden" id="e-del">Delete</button>
+    <span style="flex:1"></span>
+    <button class="btn ghost" id="e-cancel">Cancel</button>
+    <button class="btn" id="e-save">Save</button>
+  </div>
+</div></div>
+
+<div class="overlay hidden" id="ovc"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="ovc-title" style="max-width:560px">
+  <h2 id="ovc-title">Channel</h2>
+  <div class="form">
+    <label class="full">Channel name<input id="c-channel"><span class="hint">Renaming a channel does not rename posts already planned on it.</span></label>
+    <label>Target posts a week<input type="number" min="0" step="0.5" id="c-target"><span class="hint">Leave blank for "as needed".</span></label>
+    <label>Tracking source<input id="c-utm" placeholder="linkedin, youtube, instagram…"><span class="hint">Goes into the tracked link as utm_source.</span></label>
+    <label class="full">What it posts<textarea id="c-what"></textarea></label>
+    <label>Focus<input id="c-focus"></label>
+    <label>Link to use<input id="c-link"></label>
+  </div>
+  <div class="acts" style="margin-top:16px;justify-content:flex-end">
+    <button class="btn danger hidden" id="c-retire">Remove from plan</button>
+    <span style="flex:1"></span>
+    <button class="btn ghost" id="c-cancel">Cancel</button>
+    <button class="btn" id="c-save">Save</button>
+  </div>
+</div></div>
+
+<div id="msg" class="hidden"></div>
+
+<footer class="muted">Impactus Learning Pte Ltd · Admin console</footer>
+
+<script>
+const SUPABASE_URL = 'https://tdbzxhdlwnchbnxhmpjf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hTMNVquQ7GQJubuGzL-4Bg_AXqqbRKw';
+// Who is admin is decided server-side only (public.is_admin()); every RPC below re-checks it.
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', detectSessionInUrl: true } });
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+// Asia/Singapore, never UTC — the UTC date lags SGT by 8h and mislabels day boundaries.
+const sgDate = (d) => new Date(d).toLocaleDateString('sv-SE', { timeZone: 'Asia/Singapore' });
+const today = () => sgDate(Date.now());
+const D = (s) => new Date(s + 'T00:00:00');
+const iso = (dt) => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+const addDays = (s, n) => { const dt = D(s); dt.setDate(dt.getDate() + n); return iso(dt); };
+const monday = (s) => addDays(s, -((D(s).getDay() + 6) % 7));
+const dshort = (s) => { const dt = D(s); return dt.getDate() + ' ' + MONTHS[dt.getMonth()]; };
+const dlong = (s) => { const dt = D(s); return DAYS[dt.getDay()] + ' ' + dt.getDate() + ' ' + MONTHS[dt.getMonth()]; };
+const daysBetween = (a, b) => Math.round((D(b) - D(a)) / 86400000);
+const nf = (n) => (n === null || n === undefined || n === '') ? '—' : Number(n).toLocaleString('en-SG');
+const pct = (a, b) => (b > 0 ? (Math.round(a / b * 1000) / 10).toLocaleString('en-SG') + '%' : '—');
+const money = (n) => (n === null || n === undefined || n === '') ? '—' : 'S$' + Number(n).toLocaleString('en-SG', { maximumFractionDigits: 0 });
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+
+const LINE = { prod: { label: 'Productivity tools', color: '#3c5bd2' }, anim: { label: 'AI Animation', color: '#7c3aed' }, gen: { label: 'General', color: '#9aa3b5' } };
+const PRODUCT = { claude: { label: 'Claude', line: 'prod', camp: 'masterclass' }, copilot: { label: 'Copilot', line: 'prod', camp: 'copilot' },
+  animation: { label: 'AI Animation', line: 'anim', camp: 'animation' }, general: { label: 'General', line: 'gen', camp: 'impactus' } };
+const BK_LINE = { claude: 'prod', copilot: 'prod', inhouse: 'prod', animation: 'anim' };
+const BK_LABEL = { claude: 'Claude', copilot: 'Copilot', inhouse: 'In-house', animation: 'AI Animation' };
+const STATUS = { todo: 'To do', scheduled: 'Scheduled', posted: 'Posted', skipped: 'Skipped' };
+const METRICS = ['views', 'reactions', 'comments', 'shares', 'clicks', 'leads', 'bookings'];
+const lineOf = (p) => (PRODUCT[p.product] || PRODUCT.general).line;
+
+function show(id) { ['view-login','view-app','view-noauth'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  $('navtabs').classList.toggle('hidden', id !== 'view-app'); $('signout').classList.toggle('hidden', id !== 'view-app'); }
+let msgT = null;
+function msg(t, err) { const m = $('msg'); m.textContent = t; m.className = err ? 'err' : ''; clearTimeout(msgT); msgT = setTimeout(() => m.className = 'hidden', err ? 6000 : 2600); }
+
+let posts = [], deleted = [], channels = [], chanBy = {}, bookings = [];
+let line = store('ilContentLine') || 'all', view = store('ilContentView') || 'list', effortBy = 'planned', groupBy = 'channel';
+let sortKey = 'post_date', sortDir = 1, selected = new Set(), chart = null, editing = null, editingCh = null;
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  route(session);
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') setTimeout(() => route(s), 0); });
+}
+async function route(session) {
+  if (!session) { location.replace('./'); return; }   // sign-in lives on the Dashboard
+  const { data: isAdmin, error: adminErr } = await sb.rpc('is_admin');
+  if (adminErr || !isAdmin) { show('view-noauth'); return; }
+  show('view-app');
+  loadAll();
+}
+$('signout').onclick = () => sb.auth.signOut();
+$('noauth-out').onclick = () => sb.auth.signOut();
+
+async function loadAll() {
+  const { data, error } = await sb.rpc('tracker_content');
+  if (error) { $('list').textContent = 'Could not load: ' + error.message; msg('Could not load: ' + error.message, true); return; }
+  posts = data.posts || []; deleted = data.deleted || []; channels = data.channels || []; bookings = data.bookings || [];
+  chanBy = Object.fromEntries(channels.map(c => [c.channel, c]));
+  selected = new Set([...selected].filter(id => posts.some(p => p.id === id)));
+  const chNames = [...new Set([...channels.map(c => c.channel), ...posts.map(p => p.channel)])];
+  const keepCh = $('f-channel').value, keepWk = $('f-week').value;
+  $('f-channel').innerHTML = '<option value="">All channels</option>' + chNames.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  $('f-channel').value = chNames.includes(keepCh) ? keepCh : '';
+  const wks = [...new Set(posts.map(p => monday(p.post_date)))].sort();
+  $('f-week').innerHTML = '<option value="">All weeks</option>' + wks.map(w => `<option value="${w}">Week of ${dshort(w)}</option>`).join('');
+  $('f-week').value = wks.includes(keepWk) ? keepWk : '';
+  $('formats').innerHTML = [...new Set(posts.map(p => p.format).filter(Boolean))].sort().map(f => `<option value="${esc(f)}">`).join('');
+  $('weeks').innerHTML = [...new Set(posts.map(p => p.week).filter(Boolean))].sort().map(f => `<option value="${esc(f)}">`).join('');
+  [...$('seg-line').children].forEach(x => x.classList.toggle('on', x.dataset.v === line));
+  [...$('seg-view').children].forEach(x => x.classList.toggle('on', x.dataset.v === view));
+  renderAll();
+}
+
+// ---- helpers ----
+const lineOk = (p) => line === 'all' || lineOf(p) === line;
+const isPost = (p) => p.kind === 'post';
+const sumOf = (list, k) => list.reduce((s, p) => s + (Number(p[k]) || 0), 0);
+const hasNumbers = (p) => METRICS.some(k => p[k] !== null && p[k] !== undefined);
+const engage = (p) => (Number(p.reactions) || 0) + (Number(p.comments) || 0) + (Number(p.shares) || 0);
+const planStart = () => posts.length ? posts.reduce((m, p) => p.post_date < m ? p.post_date : m, posts[0].post_date) : today();
+const bkLineOk = (b) => line === 'all' || BK_LINE[b.product] === line;
+function weekRange() {
+  const list = posts.filter(isPost); if (!list.length) return [monday(today())];
+  let a = monday(list.reduce((m, p) => p.post_date < m ? p.post_date : m, list[0].post_date));
+  let b = monday(list.reduce((m, p) => p.post_date > m ? p.post_date : m, list[0].post_date));
+  const now = monday(today());
+  if (daysBetween(a, now) > 35) a = addDays(now, -35);          // keep the grid to a readable width
+  if (daysBetween(now, b) > 56) b = addDays(now, 56);
+  if (b < a) b = a;
+  const out = []; for (let w = a; w <= b; w = addDays(w, 7)) out.push(w); return out;
+}
+function shortCh(c) {
+  const s = (chanBy[c] && chanBy[c].utm_source) || '';
+  const base = /linkedin/i.test(c) || s === 'linkedin' ? 'LI' : /youtube/i.test(c) || s === 'youtube' ? 'YT' : /instagram/i.test(c) ? 'IG' : /facebook/i.test(c) ? 'FB'
+    : /tiktok/i.test(c) ? 'TT' : /whatsapp/i.test(c) ? 'WA' : /email/i.test(c) ? 'Email' : c === 'Task' ? 'Task' : c.slice(0, 6);
+  return base + (/jasmin/i.test(c) ? '·J' : '') + (/company/i.test(c) ? ' Co' : '');
+}
+// Tracked link, per UTM_Links_CheatSheet.md. Only Impactus pages are tagged.
+function tracked(p) {
+  if (!p.link || !/^https?:\/\//i.test(p.link)) return '';
+  const ch = chanBy[p.channel];
+  if (!ch || !ch.utm_source || !/impactuslearning\.com/i.test(p.link)) return p.link;
+  try {
+    const u = new URL(p.link), dt = D(p.post_date);
+    u.searchParams.set('utm_source', ch.utm_source);
+    u.searchParams.set('utm_medium', ch.utm_source === 'email' ? 'email' : ch.utm_source === 'whatsapp' ? 'community' : 'social');
+    u.searchParams.set('utm_campaign', (PRODUCT[p.product] || PRODUCT.general).camp + '_' + MONTHS[dt.getMonth()].toLowerCase() + dt.getFullYear());
+    u.searchParams.set('utm_content', p.code);
+    return u.toString();
+  } catch (e) { return p.link; }
+}
+const statusSel = (p) => `<select class="st ${p.status}" data-id="${p.id}" aria-label="Status">${Object.keys(STATUS).map(s => `<option value="${s}"${s === p.status ? ' selected' : ''}>${STATUS[s]}</option>`).join('')}</select>`;
+const linePill = (p) => isPost(p) ? `<span class="pill ${lineOf(p)}">${esc((PRODUCT[p.product] || PRODUCT.general).label)}</span>` : '<span class="pill">Task</span>';
+
+function renderAll() { renderKPIs(); renderNext(); renderEffort(); renderFreq(); renderResults(); renderAttr(); renderPosts(); renderChannels(); renderDeleted(); }
+
+function renderKPIs() {
+  const all = posts.filter(lineOk), P = all.filter(isPost), t = today(), wk = monday(t);
+  const planned = P.filter(p => p.status !== 'skipped'), posted = P.filter(p => p.status === 'posted');
+  const wkP = planned.filter(p => monday(p.post_date) === wk), wkDone = wkP.filter(p => p.status === 'posted');
+  const due = all.filter(p => p.post_date === t && (p.status === 'todo' || p.status === 'scheduled')).length;
+  const late = all.filter(p => p.post_date < t && p.status === 'todo').length;
+  const withN = posted.filter(hasNumbers).length;
+  const seats = bookings.filter(b => bkLineOk(b) && b.on >= planStart());
+  const traced = sumOf(P, 'bookings');
+  $('kpis').innerHTML = [
+    { v: posted.length + ' of ' + planned.length, l: 'Posts published', sub: pct(posted.length, planned.length) + ' of the plan', cls: '' },
+    { v: wkDone.length + ' of ' + wkP.length, l: 'This week', sub: 'week of ' + dshort(wk), cls: '' },
+    { v: due, l: 'Due today', sub: due ? 'see Do next' : 'nothing due', cls: '' },
+    { v: late, l: 'Overdue', sub: late ? 'not posted, date has passed' : 'all caught up', cls: late ? 'red' : 'green' },
+    { v: nf(sumOf(posted, 'views')), l: 'Views', sub: withN + ' of ' + posted.length + ' published posts have numbers', cls: '' },
+    { v: nf(sumOf(posted, 'clicks')), l: 'Link clicks', sub: 'click rate ' + pct(sumOf(posted, 'clicks'), sumOf(posted, 'views')), cls: '' },
+    { v: traced + ' of ' + seats.length, l: 'Seats traced to a post', sub: 'seats booked since ' + dshort(planStart()), cls: '' },
+  ].map(k => `<div class="kpi ${k.cls}"><div class="v">${esc(k.v)}</div><div class="l">${esc(k.l)}</div><div class="sub">${esc(k.sub)}</div></div>`).join('');
+}
+
+function renderNext() {
+  const t = today(), lim = addDays(t, 7);
+  const list = posts.filter(p => lineOk(p) && (p.status === 'todo' || p.status === 'scheduled') && p.post_date <= lim);
+  if (!list.length) { $('next').innerHTML = '<p class="muted">Nothing due in the next 7 days.</p>'; return; }
+  const html = list.map(p => {
+    const late = daysBetween(p.post_date, t);
+    const tag = p.status === 'scheduled' ? (late > 0 ? '<span class="pill scheduled">Scheduled: confirm it went out</span>' : '<span class="pill scheduled">Scheduled</span>')
+      : late > 0 ? `<span class="pill late">${late} day${late === 1 ? '' : 's'} late</span>` : late === 0 ? '<span class="pill posted">Today</span>' : '';
+    return `<div class="item"><div class="when">${dlong(p.post_date)}<div style="margin-top:4px">${tag}</div></div>
+      <div><span class="pill">${esc(p.channel)}</span> ${linePill(p)}${p.format ? ` <span class="muted small">${esc(p.format)}</span>` : ''}
+        <div class="what">${esc(p.what)}</div>${p.notes ? `<div class="note">${esc(p.notes)}</div>` : ''}</div>
+      <div class="acts">${p.status === 'todo' && isPost(p) ? `<button class="btn ghost sm" data-act="st" data-v="scheduled" data-id="${p.id}">Scheduled</button>` : ''}
+        <button class="btn sm" data-act="st" data-v="posted" data-id="${p.id}">${isPost(p) ? 'Posted' : 'Done'}</button>
+        <button class="btn ghost sm" data-act="st" data-v="skipped" data-id="${p.id}">Skip</button>
+        <button class="btn ghost sm" data-act="edit" data-id="${p.id}">Edit</button></div></div>`;
+  });
+  const keep = $('next-more') && $('next-more').open;
+  $('next').innerHTML = html.slice(0, 8).join('') + (html.length > 8 ? `<details id="next-more"${keep ? ' open' : ''} style="margin-top:8px"><summary>Show ${html.length - 8} more</summary>${html.slice(8).join('')}</details>` : '');
+}
+
+function renderEffort() {
+  const P = posts.filter(isPost), weeks = weekRange(), now = monday(today());
+  const cnt = (list) => effortBy === 'posted' ? list.filter(p => p.status === 'posted').length : list.filter(p => p.status !== 'skipped').length;
+  if (chart) chart.destroy();
+  if (typeof Chart !== 'undefined') {
+    chart = new Chart($('chart'), { type: 'bar',
+      data: { labels: weeks.map(w => (w === now ? 'This week · ' : '') + dshort(w)),
+        datasets: ['prod', 'anim', 'gen'].map(l => ({ label: LINE[l].label, backgroundColor: LINE[l].color, borderRadius: 4,
+          data: weeks.map(w => cnt(P.filter(p => lineOf(p) === l && monday(p.post_date) === w))) })) },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 12 } } },
+          title: { display: true, text: (effortBy === 'posted' ? 'Posts published' : 'Posts planned') + ' per week, by product line', font: { size: 12 }, color: '#6b7486' } },
+        scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } } });
+  }
+  const totalPlanned = P.filter(p => p.status !== 'skipped').length;
+  const start = planStart();
+  const row = (label, list, bk, cls) => {
+    const planned = list.filter(p => p.status !== 'skipped'), by = (s) => list.filter(p => p.status === s).length, posted = list.filter(p => p.status === 'posted');
+    return `<tr class="${cls || ''}"><td>${label}</td><td class="num">${planned.length}</td><td class="num">${by('posted')}</td><td class="num">${by('scheduled')}</td><td class="num">${by('todo')}</td><td class="num">${by('skipped')}</td>
+      <td class="num">${pct(planned.length, totalPlanned)}</td><td class="num">${nf(sumOf(posted, 'views'))}</td><td class="num">${nf(sumOf(posted, 'clicks'))}</td><td class="num">${nf(sumOf(posted, 'leads'))}</td>
+      <td class="num">${nf(sumOf(list, 'bookings'))}</td><td class="num">${bk === null ? '—' : bk}</td></tr>`;
+  };
+  const bk = (f) => bookings.filter(b => b.on >= start && f(b)).length;
+  $('effort').innerHTML = `<table><thead><tr><th>Product line</th><th class="num">Planned</th><th class="num">Published</th><th class="num">Scheduled</th><th class="num">To do</th><th class="num">Skipped</th>
+    <th class="num">Share of plan</th><th class="num">Views</th><th class="num">Link clicks</th><th class="num">Enquiries</th><th class="num">Seats traced</th><th class="num">Seats booked</th></tr></thead><tbody>` +
+    row(`<span class="dot" style="background:${LINE.prod.color}"></span><b>Productivity tools</b>`, P.filter(p => lineOf(p) === 'prod'), bk(b => BK_LINE[b.product] === 'prod')) +
+    row('Claude', P.filter(p => p.product === 'claude'), bk(b => b.product === 'claude'), 'sub') +
+    row('Copilot', P.filter(p => p.product === 'copilot'), bk(b => b.product === 'copilot'), 'sub') +
+    `<tr class="sub"><td>In-house classes <span class="small">(seats only; their posts are tagged Claude or Copilot)</span></td>${'<td class="num">—</td>'.repeat(10)}<td class="num">${bk(b => b.product === 'inhouse')}</td></tr>` +
+    row(`<span class="dot" style="background:${LINE.anim.color}"></span><b>AI Animation</b>`, P.filter(p => lineOf(p) === 'anim'), bk(b => BK_LINE[b.product] === 'anim')) +
+    row(`<span class="dot" style="background:${LINE.gen.color}"></span>General`, P.filter(p => lineOf(p) === 'gen'), null) +
+    row('Total', P, bk(() => true), 'total') + '</tbody></table>';
+}
+
+function renderFreq() {
+  const P = posts.filter(p => isPost(p) && lineOk(p)), weeks = weekRange(), now = monday(today());
+  const names = [...new Set([...channels.map(c => c.channel), ...P.map(p => p.channel)])];
+  if (!names.length) { $('freq').innerHTML = '<p class="muted">No channels yet.</p>'; return; }
+  let h = `<table class="freq"><thead><tr><th>Channel</th><th class="num">Target a week</th>${weeks.map(w => `<th class="num${w === now ? ' now' : ''}" style="text-align:center">${dshort(w)}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>`;
+  const colP = weeks.map(() => 0), colD = weeks.map(() => 0);
+  names.forEach(n => {
+    const ch = chanBy[n], tgt = ch && ch.target_per_week !== null && ch.target_per_week !== undefined ? Number(ch.target_per_week) : null;
+    const mine = P.filter(p => p.channel === n); let tp = 0, td = 0;
+    const cells = weeks.map((w, i) => {
+      const wkP = mine.filter(p => monday(p.post_date) === w && p.status !== 'skipped'), d = wkP.filter(p => p.status === 'posted').length;
+      tp += wkP.length; td += d; colP[i] += wkP.length; colD[i] += d;
+      let cls = '';
+      if (tgt !== null && tgt > 0) { if (d >= tgt) cls = 'ok'; else if (w < now) cls = 'low'; else if (wkP.length < tgt) cls = 'plan-low'; }
+      return `<td class="c ${cls}${w === now ? ' now' : ''}">${wkP.length || d ? d + ' / ' + wkP.length : '·'}</td>`;
+    }).join('');
+    h += `<tr><td>${esc(n)}${ch ? '' : ' <span class="muted small">(not in the channel plan)</span>'}</td><td class="num">${tgt === null ? '<span class="muted">as needed</span>' : tgt}</td>${cells}<td class="num"><b>${td} / ${tp}</b></td></tr>`;
+  });
+  h += `<tr class="total"><td>All channels</td><td></td>${weeks.map((w, i) => `<td class="c">${colD[i]} / ${colP[i]}</td>`).join('')}<td class="num">${colD.reduce((a, b) => a + b, 0)} / ${colP.reduce((a, b) => a + b, 0)}</td></tr></tbody></table>`;
+  $('freq').innerHTML = h;
+}
+
+function renderResults() {
+  const P = posts.filter(p => isPost(p) && lineOk(p) && p.status === 'posted');
+  const keyOf = (p) => groupBy === 'channel' ? p.channel : groupBy === 'format' ? (p.format || 'No format') : (PRODUCT[p.product] || PRODUCT.general).label;
+  const groups = {}; P.forEach(p => { (groups[keyOf(p)] = groups[keyOf(p)] || []).push(p); });
+  const sumRow = (label, list, cls) => { const v = sumOf(list, 'views'), withV = list.filter(p => p.views !== null && p.views !== undefined).length;
+    return `<tr class="${cls || ''}"><td>${esc(label)}</td><td class="num">${list.length}</td><td class="num">${nf(v)}</td><td class="num">${withV ? nf(Math.round(v / withV)) : '—'}</td>
+      <td class="num">${pct(list.reduce((s, p) => s + engage(p), 0), v)}</td><td class="num">${nf(sumOf(list, 'clicks'))}</td><td class="num">${pct(sumOf(list, 'clicks'), v)}</td>
+      <td class="num">${nf(sumOf(list, 'leads'))}</td><td class="num">${nf(sumOf(list, 'bookings'))}</td><td class="num">${money(sumOf(list, 'revenue_sgd'))}</td></tr>`; };
+  const names = Object.keys(groups).sort((a, b) => sumOf(groups[b], 'views') - sumOf(groups[a], 'views') || a.localeCompare(b));
+  $('results-sum').innerHTML = !P.length ? '<p class="muted">Nothing published yet. Mark a post as Posted, then press Numbers to record what it achieved.</p>'
+    : `<table><thead><tr><th>${groupBy === 'channel' ? 'Channel' : groupBy === 'format' ? 'Format' : 'Product'}</th><th class="num">Published</th><th class="num">Views</th><th class="num">Views a post</th><th class="num">Engagement rate</th>
+      <th class="num">Link clicks</th><th class="num">Click rate</th><th class="num">Enquiries</th><th class="num">Bookings</th><th class="num">Revenue</th></tr></thead><tbody>` +
+      names.map(n => sumRow(n, groups[n])).join('') + sumRow('Total', P, 'total') + '</tbody></table>';
+  if (!P.length) { $('results').innerHTML = ''; return; }
+  const val = (p) => sortKey === 'eng' ? (Number(p.views) > 0 ? engage(p) / Number(p.views) : -1) : sortKey === 'post_date' || sortKey === 'channel' ? p[sortKey] : (p[sortKey] === null || p[sortKey] === undefined ? -1 : Number(p[sortKey]));
+  const list = [...P].sort((a, b) => { const x = val(a), y = val(b); return (x < y ? -1 : x > y ? 1 : 0) * sortDir; });
+  const th = (k, label, num) => `<th class="sortable${num ? ' num' : ''}" data-act="sort" data-k="${k}">${label}${sortKey === k ? `<span class="arr">${sortDir > 0 ? '▲' : '▼'}</span>` : ''}</th>`;
+  $('results').innerHTML = `<table><thead><tr>${th('post_date', 'Date')}${th('channel', 'Channel')}<th>Post</th>${th('views', 'Views', 1)}${th('reactions', 'Reactions', 1)}${th('comments', 'Comments', 1)}${th('shares', 'Shares', 1)}
+    ${th('eng', 'Engagement', 1)}${th('clicks', 'Clicks', 1)}${th('leads', 'Enquiries', 1)}${th('bookings', 'Bookings', 1)}<th></th></tr></thead><tbody>` +
+    list.map(p => `<tr><td style="white-space:nowrap">${dshort(p.post_date)}</td><td>${esc(p.channel)}</td>
+      <td>${p.post_url ? `<a href="${esc(p.post_url)}" target="_blank" rel="noopener">${esc(p.what.slice(0, 70))}${p.what.length > 70 ? '…' : ''}</a>` : esc(p.what.slice(0, 70)) + (p.what.length > 70 ? '…' : '')} ${linePill(p)}
+        ${p.metrics_on ? `<div class="note">numbers as at ${dshort(p.metrics_on)}</div>` : '<div class="note">no numbers yet</div>'}</td>
+      <td class="num">${nf(p.views)}</td><td class="num">${nf(p.reactions)}</td><td class="num">${nf(p.comments)}</td><td class="num">${nf(p.shares)}</td>
+      <td class="num">${pct(engage(p), Number(p.views) || 0)}</td><td class="num">${nf(p.clicks)}</td><td class="num">${nf(p.leads)}</td><td class="num">${nf(p.bookings)}</td>
+      <td><button class="btn ghost sm" data-act="edit" data-id="${p.id}">Numbers</button></td></tr>`).join('') + '</tbody></table>';
+}
+
+function renderAttr() {
+  const P = posts.filter(isPost), start = monday(planStart()), now = monday(today());
+  const weeks = weekRange(); let first = addDays(start, -28); const all = [];
+  for (let w = first; w <= weeks[weeks.length - 1]; w = addDays(w, 7)) all.push(w);
+  const seats = (w, l) => bookings.filter(b => monday(b.on) === w && BK_LINE[b.product] === l).length;
+  const pub = (w, l) => P.filter(p => monday(p.post_date) === w && lineOf(p) === l && p.status === 'posted').length;
+  const tr = (w) => sumOf(P.filter(p => monday(p.post_date) === w), 'bookings');
+  let tot = [0, 0, 0, 0, 0];
+  $('attr').innerHTML = `<table><thead><tr><th>Week of</th><th class="num">Productivity posts published</th><th class="num">Productivity seats booked</th>
+    <th class="num">Animation posts published</th><th class="num">Animation seats booked</th><th class="num">Seats traced to a post</th></tr></thead><tbody>` +
+    all.map(w => { const fut = w > now, a = pub(w, 'prod'), b = seats(w, 'prod'), c = pub(w, 'anim'), d = seats(w, 'anim'), e = tr(w);
+      tot = [tot[0] + a, tot[1] + b, tot[2] + c, tot[3] + d, tot[4] + e];
+      return `<tr${w === start ? ' style="border-top:2px solid var(--amber)"' : ''}><td>${dshort(w)}${w < start ? ' <span class="muted small">before the plan</span>' : w === now ? ' <span class="pill posted">this week</span>' : ''}</td>
+        <td class="num">${fut ? '' : a}</td><td class="num">${fut ? '' : b}</td><td class="num">${fut ? '' : c}</td><td class="num">${fut ? '' : d}</td><td class="num">${fut ? '' : e}</td></tr>`; }).join('') +
+    `<tr class="total"><td>Total</td>${tot.map(x => `<td class="num">${x}</td>`).join('')}</tr></tbody></table>`;
+  const since = bookings.filter(b => b.on >= planStart());
+  const by = {}; since.forEach(b => { by[b.product] = (by[b.product] || 0) + 1; });
+  $('attr-note').innerHTML = `<p class="note">Seats booked come from the booking system, by the day each seat was booked. Since ${dshort(planStart())}: ${since.length} seat${since.length === 1 ? '' : 's'}${since.length ? ' (' + Object.keys(by).map(k => by[k] + ' ' + BK_LABEL[k]).join(', ') + ')' : ''}.</p>
+    <div class="warn"><b>How a seat gets traced.</b> Every post has its own tracked link (press <b>Copy tracked link</b> on the post). Google Analytics then records which post a visitor came from, and you type the bookings against that post under <b>Numbers</b>. The booking system does not yet record where a buyer came from, so seats booked in the same week as a post are shown side by side, not as proof the post caused them.</div>`;
+}
+
+function filteredPosts() {
+  const q = $('f-q').value.trim().toLowerCase(), st = $('f-status').value, ch = $('f-channel').value, wk = $('f-week').value;
+  return posts.filter(p => lineOk(p) && (!st || p.status === st) && (!ch || p.channel === ch) && (!wk || monday(p.post_date) === wk) &&
+    (!q || [p.what, p.channel, p.focus, p.format, p.notes, p.week, p.code].some(x => String(x || '').toLowerCase().includes(q))));
+}
+function renderPosts() {
+  const list = filteredPosts(), t = today();
+  $('bulk').classList.toggle('hidden', !selected.size);
+  $('bulk-n').textContent = selected.size + ' selected';
+  $('list').classList.toggle('hidden', view !== 'list'); $('cal').classList.toggle('hidden', view !== 'cal');
+  if (view === 'cal') { renderCal(list); return; }
+  if (!list.length) { $('list').innerHTML = '<p class="muted">No posts match.</p>'; return; }
+  let h = `<table><thead><tr><th style="width:24px"><input type="checkbox" id="sel-all" aria-label="Select all"${list.every(p => selected.has(p.id)) ? ' checked' : ''}></th><th>Date</th><th>Channel</th><th>What to post</th><th>Link</th><th>Status</th><th></th></tr></thead><tbody>`, last = null;
+  list.forEach(p => {
+    const w = monday(p.post_date);
+    if (w !== last) { last = w; const inW = list.filter(x => monday(x.post_date) === w && isPost(x)), d = inW.filter(x => x.status === 'posted').length;
+      h += `<tr class="grp"><td colspan="7">Week of ${dshort(w)}${p.week ? ' · ' + esc(p.week) : ''} <span class="muted" style="font-weight:600">· ${d} of ${inW.length} posts published</span></td></tr>`; }
+    const late = p.status === 'todo' && p.post_date < t, tl = tracked(p);
+    h += `<tr class="${p.status === 'posted' || p.status === 'skipped' ? 'done' : ''}"><td><input type="checkbox" class="sel" data-id="${p.id}"${selected.has(p.id) ? ' checked' : ''} aria-label="Select"></td>
+      <td style="white-space:nowrap">${dlong(p.post_date)}${late ? '<div><span class="pill late">late</span></div>' : ''}</td>
+      <td>${esc(p.channel)}<div style="margin-top:3px">${linePill(p)}</div></td>
+      <td><div class="what">${esc(p.what)}</div><div class="note">${[p.focus, p.format, p.notes].filter(Boolean).map(esc).join(' · ')}</div></td>
+      <td>${tl ? `<a href="${esc(p.link)}" target="_blank" rel="noopener" class="small">${esc(p.link.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '').slice(0, 34))}</a><div style="margin-top:4px"><button class="btn ghost sm" data-act="copy" data-id="${p.id}">Copy tracked link</button></div>` : (p.link ? `<span class="small">${esc(p.link)}</span>` : '')}
+        ${p.post_url ? `<div style="margin-top:4px"><a class="small" href="${esc(p.post_url)}" target="_blank" rel="noopener">Live post ↗</a></div>` : ''}</td>
+      <td>${statusSel(p)}</td><td><button class="btn ghost sm" data-act="edit" data-id="${p.id}">Edit</button></td></tr>`;
+  });
+  $('list').innerHTML = h + '</tbody></table>';
+}
+function renderCal(list) {
+  if (!list.length) { $('cal').innerHTML = '<p class="muted">No posts match.</p>'; return; }
+  const t = today(), min = list[0].post_date, max = list[list.length - 1].post_date, byDay = {};
+  list.forEach(p => { (byDay[p.post_date] = byDay[p.post_date] || []).push(p); });
+  let h = '', m = D(min); m.setDate(1); const end = D(max);
+  while (m <= end) {
+    const y = m.getFullYear(), mo = m.getMonth();
+    h += `<h3>${MONTHS[mo]} ${y}</h3><table class="cal"><thead><tr>${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>`;
+    let d = D(monday(iso(new Date(y, mo, 1)))); const last = new Date(y, mo + 1, 0);
+    while (d <= last) {
+      h += '<tr>';
+      for (let i = 0; i < 7; i++) {
+        const s = iso(d), inM = d.getMonth() === mo, items = inM ? (byDay[s] || []) : [];
+        h += `<td class="${inM ? '' : 'out'}${s === t ? ' today' : ''}">${inM ? `<div class="d"><span>${d.getDate()}</span><button data-act="add" data-date="${s}" title="Add a post on this day" aria-label="Add a post on ${s}">+</button></div>` : ''}` +
+          items.map(p => `<button class="chip2 ${lineOf(p)} ${p.status}" data-act="edit" data-id="${p.id}" title="${esc(p.channel + ': ' + p.what)}">${esc(shortCh(p.channel))} · ${esc(p.what.slice(0, 26))}</button>`).join('') + '</td>';
+        d.setDate(d.getDate() + 1);
+      }
+      h += '</tr>';
+    }
+    h += '</tbody></table>';
+    m = new Date(y, mo + 1, 1);
+  }
+  $('cal').innerHTML = h + '<p class="note">Blue edge = Productivity tools, purple = AI Animation, grey = general or a prep task. Green = posted, pale blue = scheduled.</p>';
+}
+
+function renderChannels() {
+  $('channels').innerHTML = !channels.length ? '<p class="muted">No channels yet.</p>' : `<table><thead><tr><th>Channel</th><th class="num">Target a week</th><th>What it posts</th><th>Focus</th><th>Link to use</th><th></th></tr></thead><tbody>` +
+    channels.map(c => `<tr><td><b>${esc(c.channel)}</b>${c.utm_source ? `<div class="note">tracked as ${esc(c.utm_source)}</div>` : ''}</td><td class="num">${c.target_per_week === null || c.target_per_week === undefined ? '<span class="muted">as needed</span>' : Number(c.target_per_week)}</td>
+      <td>${esc(c.what)}</td><td>${esc(c.focus)}</td><td class="small">${esc(c.link)}</td><td><button class="btn ghost sm" data-act="edch" data-id="${c.id}">Edit</button></td></tr>`).join('') + '</tbody></table>';
+}
+function renderDeleted() {
+  $('del-n').textContent = deleted.length;
+  $('deleted').innerHTML = !deleted.length ? '<p class="muted">Nothing deleted.</p>' : '<table><tbody>' + deleted.map(p => `<tr><td style="white-space:nowrap">${dlong(p.post_date)}</td><td>${esc(p.channel)}</td><td>${esc(p.what)}</td>
+    <td><button class="btn ghost sm" data-act="restore" data-id="${p.id}">Restore</button></td></tr>`).join('') + '</tbody></table>';
+}
+
+// ---- writes ----
+async function setStatus(ids, status) {
+  const { error } = await sb.rpc('tracker_set_content_status', { p_ids: ids, p_status: status, p_post_url: null });
+  if (error) { msg('Could not save: ' + error.message, true); await loadAll(); return; }
+  msg(ids.length === 1 ? 'Marked as ' + STATUS[status].toLowerCase() : ids.length + ' marked as ' + STATUS[status].toLowerCase());
+  selected.clear(); await loadAll();
+}
+const byId = (id) => posts.find(p => p.id === id);
+function fillChannelSelect(cur) {
+  const names = [...new Set([...channels.map(c => c.channel), ...(cur && cur !== 'Task' ? [cur] : [])])];
+  $('e-channel').innerHTML = names.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('') + '<option value="Task">Task</option>';
+}
+function showTracked() {
+  const p = { link: $('e-link').value.trim(), channel: $('e-channel').value, product: $('e-product').value, post_date: $('e-date').value || today(), code: editing ? editing.code : 'new' };
+  const tl = $('e-kind').value === 'post' ? tracked(p) : '';
+  $('e-trk').classList.toggle('hidden', !tl || tl === p.link);
+  $('e-trk').innerHTML = tl ? `<b>Tracked link</b>${editing ? '' : ' (the code is set when you save)'}: ${esc(tl)}` : '';
+}
+function openForm(p, date) {
+  editing = p || null;
+  $('ov-title').textContent = p ? 'Edit ' + (p.kind === 'task' ? 'task' : 'post') + ' ' + p.code : 'Add post';
+  fillChannelSelect(p && p.channel);
+  $('e-date').value = p ? p.post_date : (date || today());
+  $('e-kind').value = p ? p.kind : 'post';
+  $('e-channel').value = p ? p.channel : (channels[0] ? channels[0].channel : 'Task');
+  $('e-product').value = p ? p.product : (line === 'anim' ? 'animation' : 'claude');
+  $('e-what').value = p ? p.what : ''; $('e-focus').value = p ? (p.focus || '') : ''; $('e-format').value = p ? (p.format || '') : '';
+  $('e-link').value = p ? (p.link || '') : ''; $('e-week').value = p ? (p.week || '') : ''; $('e-status').value = p ? p.status : 'todo';
+  $('e-notes').value = p ? (p.notes || '') : ''; $('e-url').value = p ? (p.post_url || '') : '';
+  METRICS.forEach(k => { $('e-' + k).value = p && p[k] !== null && p[k] !== undefined ? p[k] : ''; });
+  $('e-revenue').value = p && p.revenue_sgd !== null && p.revenue_sgd !== undefined ? p.revenue_sgd : '';
+  $('e-mon').value = p ? (p.metrics_on || '') : '';
+  $('e-del').classList.toggle('hidden', !p);
+  showTracked();
+  $('ov').classList.remove('hidden'); $('e-what').focus();
+}
+['e-link', 'e-channel', 'e-product', 'e-date', 'e-kind'].forEach(id => $(id).addEventListener('input', showTracked));
+$('e-kind').addEventListener('change', () => { if ($('e-kind').value === 'task') { $('e-channel').value = 'Task'; $('e-product').value = 'general'; } showTracked(); });
+$('e-cancel').onclick = () => $('ov').classList.add('hidden');
+$('e-save').onclick = async () => {
+  const anyNum = METRICS.some(k => $('e-' + k).value !== '') || $('e-revenue').value !== '';
+  const p = { id: editing ? editing.id : '', post_date: $('e-date').value, kind: $('e-kind').value, channel: $('e-channel').value, product: $('e-product').value,
+    what: $('e-what').value, focus: $('e-focus').value, format: $('e-format').value, link: $('e-link').value, week: $('e-week').value, status: $('e-status').value,
+    notes: $('e-notes').value, post_url: $('e-url').value, revenue_sgd: $('e-revenue').value, metrics_on: anyNum ? ($('e-mon').value || today()) : '' };
+  METRICS.forEach(k => { p[k] = $('e-' + k).value; });
+  if (!p.post_date) { msg('Give the date', true); return; }
+  if (!p.what.trim()) { msg('Say what to post', true); return; }
+  $('e-save').disabled = true;
+  const { error } = await sb.rpc('tracker_save_content_post', { p });
+  $('e-save').disabled = false;
+  if (error) { msg('Could not save: ' + error.message, true); return; }
+  $('ov').classList.add('hidden'); msg(editing ? 'Saved' : 'Post added'); await loadAll();
+};
+$('e-del').onclick = async () => {
+  if (!editing) return;
+  const { error } = await sb.rpc('tracker_delete_content_post', { p_id: editing.id, p_restore: false });
+  if (error) { msg('Could not delete: ' + error.message, true); return; }
+  $('ov').classList.add('hidden'); msg('Deleted. Restore it from Deleted posts at the bottom.'); await loadAll();
+};
+
+function openChannel(c) {
+  editingCh = c || null;
+  $('ovc-title').textContent = c ? 'Edit channel' : 'Add channel';
+  $('c-channel').value = c ? c.channel : ''; $('c-target').value = c && c.target_per_week !== null && c.target_per_week !== undefined ? c.target_per_week : '';
+  $('c-utm').value = c ? (c.utm_source || '') : ''; $('c-what').value = c ? (c.what || '') : ''; $('c-focus').value = c ? (c.focus || '') : ''; $('c-link').value = c ? (c.link || '') : '';
+  $('c-retire').classList.toggle('hidden', !c);
+  $('ovc').classList.remove('hidden'); $('c-channel').focus();
+}
+async function saveChannel(active) {
+  const t = $('c-target').value;
+  const p = { id: editingCh ? editingCh.id : '', channel: $('c-channel').value, target_per_week: t, per_week: t === '' ? 'As needed' : t, utm_source: $('c-utm').value,
+    what: $('c-what').value, focus: $('c-focus').value, link: $('c-link').value };
+  if (active === false) p.active = false;
+  if (!p.channel.trim()) { msg('Name the channel', true); return; }
+  const { error } = await sb.rpc('tracker_save_content_channel', { p });
+  if (error) { msg('Could not save: ' + error.message, true); return; }
+  $('ovc').classList.add('hidden'); msg(active === false ? 'Removed from the plan. Its posts are kept.' : 'Saved'); await loadAll();
+}
+$('c-cancel').onclick = () => $('ovc').classList.add('hidden');
+$('c-save').onclick = () => saveChannel();
+$('c-retire').onclick = () => saveChannel(false);
+[$('ov'), $('ovc')].forEach(o => o.addEventListener('mousedown', (e) => { if (e.target === o) o.classList.add('hidden'); }));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('ov').classList.add('hidden'); $('ovc').classList.add('hidden'); } });
+
+// ---- events ----
+$('view-app').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  if (act === 'st') { b.disabled = true; await setStatus([id], b.dataset.v); }
+  else if (act === 'edit') openForm(byId(id));
+  else if (act === 'add') openForm(null, b.dataset.date);
+  else if (act === 'copy') { const tl = tracked(byId(id)); try { await navigator.clipboard.writeText(tl); msg('Tracked link copied'); } catch (err) { msg(tl); } }
+  else if (act === 'restore') { const { error } = await sb.rpc('tracker_delete_content_post', { p_id: id, p_restore: true }); if (error) msg('Could not restore: ' + error.message, true); else { msg('Restored'); await loadAll(); } }
+  else if (act === 'edch') openChannel(channels.find(c => c.id === id));
+  else if (act === 'sort') { const k = b.dataset.k; if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = (k === 'post_date' || k === 'channel') ? 1 : -1; } renderResults(); }
+  else if (act === 'bulk') { if (selected.size) await setStatus([...selected], b.dataset.v); }
+  else if (act === 'bulk-clear') { selected.clear(); renderPosts(); }
+});
+$('view-app').addEventListener('change', async (e) => {
+  const t = e.target;
+  if (t.matches('select.st')) await setStatus([t.dataset.id], t.value);
+  else if (t.matches('input.sel')) { if (t.checked) selected.add(t.dataset.id); else selected.delete(t.dataset.id); renderPosts(); }
+  else if (t.id === 'sel-all') { filteredPosts().forEach(p => { if (t.checked) selected.add(p.id); else selected.delete(p.id); }); renderPosts(); }
+});
+const seg = (id, fn) => [...$(id).children].forEach(b => b.onclick = () => { [...$(id).children].forEach(x => x.classList.toggle('on', x === b)); fn(b.dataset.v); });
+seg('seg-line', (v) => { line = v; store('ilContentLine', v); renderAll(); });
+seg('seg-view', (v) => { view = v; store('ilContentView', v); renderPosts(); });
+seg('seg-effort', (v) => { effortBy = v; renderEffort(); });
+seg('seg-group', (v) => { groupBy = v; renderResults(); });
+['f-status', 'f-channel', 'f-week'].forEach(id => $(id).onchange = renderPosts);
+$('f-q').oninput = renderPosts;
+$('btn-add').onclick = () => openForm();
+
+$('btn-xlsx').onclick = () => {
+  if (typeof XLSX === 'undefined') { msg('The Excel library did not load. Refresh and try again.', true); return; }
+  const rows = posts.map(p => ({ 'Code': p.code, 'Date': p.post_date, 'Day': DAYS[D(p.post_date).getDay()], 'Type': p.kind === 'task' ? 'Task' : 'Post', 'Channel': p.channel,
+    'Product': (PRODUCT[p.product] || PRODUCT.general).label, 'Product line': LINE[lineOf(p)].label, 'What to post': p.what, 'Focus': p.focus || '', 'Format': p.format || '',
+    'Status': STATUS[p.status], 'Week': p.week || '', 'Notes': p.notes || '', 'Link to use': p.link || '', 'Tracked link': tracked(p), 'Live post': p.post_url || '', 'Posted on': p.done_on || '',
+    'Views': p.views ?? '', 'Reactions': p.reactions ?? '', 'Comments': p.comments ?? '', 'Shares': p.shares ?? '', 'Link clicks': p.clicks ?? '', 'Enquiries': p.leads ?? '',
+    'Bookings': p.bookings ?? '', 'Revenue SGD': p.revenue_sgd ?? '', 'Numbers as at': p.metrics_on || '' }));
+  const weeks = weekRange(), P = posts.filter(isPost);
+  const freq = [['Channel', 'Target a week', ...weeks.map(w => 'Week of ' + dshort(w) + ' (published / planned)')],
+    ...[...new Set([...channels.map(c => c.channel), ...P.map(p => p.channel)])].map(n => [n, chanBy[n] && chanBy[n].target_per_week !== null ? Number(chanBy[n].target_per_week) : 'as needed',
+      ...weeks.map(w => { const l = P.filter(p => p.channel === n && monday(p.post_date) === w && p.status !== 'skipped'); return l.filter(p => p.status === 'posted').length + ' / ' + l.length; })])];
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.json_to_sheet(rows.length ? rows : [{ 'Code': 'No posts yet' }]);
+  ws1['!cols'] = [{ wch: 6 }, { wch: 11 }, { wch: 5 }, { wch: 6 }, { wch: 28 }, { wch: 12 }, { wch: 18 }, { wch: 60 }, { wch: 26 }, { wch: 14 }, { wch: 10 }, { wch: 20 }, { wch: 36 }, { wch: 40 }, { wch: 60 }, { wch: 30 }, { wch: 11 }];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Posts');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(freq), 'Frequency');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(channels.map(c => ({ 'Channel': c.channel, 'Target a week': c.target_per_week ?? 'as needed', 'What it posts': c.what || '', 'Focus': c.focus || '', 'Link to use': c.link || '', 'Tracking source': c.utm_source || '' }))), 'Channel plan');
+  XLSX.writeFile(wb, `impactus-content-${today()}.xlsx`);
+};
+
+init();
+</script>
+</body>
+</html>
