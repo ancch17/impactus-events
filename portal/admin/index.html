@@ -286,6 +286,16 @@
     <div class="card" id="certcard" style="display:none">
       <h2 id="certtitle">Certificates</h2>
       <p id="cert-template" class="muted" style="margin:-4px 0 8px;font-size:13px"></p>
+      <!-- Which certificate? (2026-11-19) Shown when the class has no certificate yet, or after
+           "Change". Saves to courses.certifier_group_id via manage-certificates set_group. -->
+      <div id="cert-pick" style="display:none;margin:-2px 0 12px;padding:10px 12px;border:1px solid #e6c36a;background:#fff8e6;border-radius:10px">
+        <label for="cert-pick-sel" id="cert-pick-label" style="display:block;font-weight:600;font-size:13px;margin-bottom:6px">Which certificate should this class print?</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select id="cert-pick-sel" style="width:auto;min-width:280px;flex:1;max-width:460px"></select>
+          <button class="btn sm" id="cert-pick-save">Save</button>
+          <button class="btn ghost sm" id="cert-pick-cancel" style="display:none">Cancel</button>
+        </div>
+      </div>
       <p class="muted" style="margin-top:-6px;margin-bottom:10px">Everyone confirmed is ticked by default. The certificate prints the <strong>registered name</strong> unless you overwrite it — edit the box and it saves on its own. <strong>Issue</strong> creates the certificate in Certifier (dated the class date, no email yet); <strong>Email</strong> sends it. If a name changes after issuing, the row offers <strong>Reissue</strong>.</p>
       <div id="certlist"></div>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
@@ -964,24 +974,30 @@ function renderFollowups() {
 //    Certificates panel still lists him ticked; PREPARE-CLASS Step 6 says untick him there.
 const CERT_NAG_EXCLUDE_EMAILS = ['ancch17@gmail.com'];
 const CERT_TRACKED_SINCE = '2026-08-10';
+// 2026-11-19: a class's own certificate (c.certifier_group_id, from course_secrets_admin) counts
+// as mapped. A class with NO certificate now pins too ("certificate not chosen") so the dropdown
+// gets used — except these course types, which never get certificates.
+const CERT_NEVER_SLUGS = ['test-class'];
 function renderCertNag() {
   const byFam = Object.fromEntries(families.map(f => [f.id, f]));
   const owed = courses.filter(c => isPast(c) && c.cohort_date >= CERT_TRACKED_SINCE)
-    .filter(c => { const f = byFam[c.family_id]; return !(f && f.certifier_group_id === null); })
+    .filter(c => { const f = byFam[c.family_id] || {}; return !!(c.certifier_group_id || f.certifier_group_id) || !CERT_NEVER_SLUGS.includes(f.slug); })
     .map(c => {
       const rows = bookings.filter(b => b.course_id === c.id && b.status === 'confirmed')
         .filter(b => !CERT_NAG_EXCLUDE_EMAILS.includes(((byStudent[b.student_id] || {}).email || '').toLowerCase()));
       const sel = rows.filter(b => (certByBooking[b.id] || {}).selected !== false);
       const toIssue = sel.filter(b => !(certByBooking[b.id] || {}).certifier_credential_id).length;
       const toEmail = sel.filter(b => { const x = certByBooking[b.id] || {}; return x.certifier_credential_id && !x.emailed_at; }).length;
-      return { c, seats: rows.length, toIssue, toEmail };
+      const f = byFam[c.family_id] || {};
+      return { c, seats: rows.length, toIssue, toEmail, noCert: !(c.certifier_group_id || f.certifier_group_id) };
     })
     .filter(x => x.toIssue > 0 || x.toEmail > 0)
     .sort((a, b) => a.c.cohort_date < b.c.cohort_date ? -1 : 1);
   if (!owed.length) { $('certnagcard').style.display = 'none'; return; }
   $('certnagcard').style.display = '';
-  $('certnags').innerHTML = owed.map(({ c, seats, toIssue, toEmail }) => {
+  $('certnags').innerHTML = owed.map(({ c, seats, toIssue, toEmail, noCert }) => {
     const bits = [];
+    if (noCert) bits.push('<strong style="color:#a33">certificate not chosen</strong>');
     if (toIssue) bits.push(`<strong>${toIssue} of ${seats}</strong> not issued`);
     if (toEmail) bits.push(`<strong>${toEmail}</strong> issued but not emailed`);
     return `<div class="cohort-row">
@@ -1364,24 +1380,95 @@ const certDate = (t) => t ? fdate(String(t).slice(0, 10)) : '';   // timestamptz
 // roster shows the cohort name, so a wrong mapping is invisible until a student opens the PDF.
 // Read the template's real name from Certifier and show it before Andrew commits a batch.
 // See PREPARE-CLASS.md Step 6.
+// 2026-11-19: a class can also carry its OWN certificate (courses.certifier_group_id, picked
+// from the "Which certificate?" dropdown), which wins over the course type's. Needed for the
+// generic corp types (Corp Class Half Day / Full Day), where one course type covers Claude,
+// Copilot, anything. No certificate at all = the dropdown opens and Issue refuses until Saved.
+// Never auto-pick one: Andrew chooses (his ruling, 2026-11-19: "if not sure, let me select").
 let certTemplate = null;                       // { course_id, name, id } for the cohort on screen
+let certTplInfo = null;                        // last 'template' reply: { course_id, source, family, family_group_id, group }
+let certGroups = null;                         // [{ id, name }] from Certifier, cached for the session
+let certPickBusy = false;                      // module flag, not button.disabled (rule 7)
 async function loadCertTemplate(cid) {
-  certTemplate = null;
+  certTemplate = null; certTplInfo = null;
   const el = $('cert-template');
+  certPickClose();
   if (el) { el.style.color = ''; el.textContent = 'Checking which certificate this course prints...'; }
   const { ok, out } = await callFn('manage-certificates', { action: 'template', course_id: cid });
   if (cid !== rosterCourse) return;            // cohort changed while we were waiting
+  certTplInfo = { course_id: cid, ...(out || {}) };
   if (!ok || !(out.group && out.group.name)) {
     if (el) {
       el.style.color = '#a33';
-      el.textContent = 'No Certifier template mapped for this course - Issue will refuse. ' + ((out && out.error) || '');
+      el.textContent = ok
+        ? 'No certificate chosen for this class yet - pick one below. Issue won\'t run until you do.'
+        : 'Could not confirm which certificate this class prints - Issue will refuse. ' + ((out && out.error) || '');
     }
+    certPickOpen(true);
     return;
   }
   certTemplate = { course_id: cid, name: out.group.name, id: out.group.id };
+  const why = out.source === 'class' ? 'chosen for this class' : (out.family || '');
   if (el) el.innerHTML = 'Prints: <strong>' + esc(out.group.name) + '</strong>'
-    + (out.family ? ' <span class="muted">(' + esc(out.family) + ')</span>' : '');
+    + (why ? ' <span class="muted">(' + esc(why) + ')</span>' : '')
+    + ' · <a href="#" id="cert-change" style="font-size:12.5px">Change</a>';
+  const ch = $('cert-change');
+  if (ch) ch.onclick = (e) => { e.preventDefault(); certPickOpen(false); };
 }
+function certPickClose() {
+  const box = $('cert-pick'); if (box) box.style.display = 'none';
+}
+// required = no certificate yet (no Cancel; the box stays until a choice is saved).
+async function certPickOpen(required) {
+  const cid = rosterCourse;
+  const box = $('cert-pick'), sel = $('cert-pick-sel');
+  if (!box || !sel) return;
+  box.style.display = '';
+  $('cert-pick-cancel').style.display = required ? 'none' : '';
+  $('cert-pick-label').textContent = required
+    ? 'Which certificate should this class print?'
+    : 'Change the certificate for this class';
+  sel.innerHTML = '<option value="">Loading certificates from Certifier...</option>';
+  if (!certGroups) {
+    const { ok, out } = await callFn('manage-certificates', { action: 'groups' });
+    if (ok && Array.isArray(out.groups)) certGroups = out.groups;
+    else { sel.innerHTML = '<option value="">Could not load the list - reopen the class to try again</option>'; return msg('certmsg', 'err', (out && out.error) || 'Could not load certificates from Certifier.'); }
+  }
+  if (cid !== rosterCourse) return;
+  const info = certTplInfo && certTplInfo.course_id === cid ? certTplInfo : {};
+  const current = info.source === 'class' && info.group ? info.group.id : '';
+  const famId = info.family_group_id || '';
+  const famName = (certGroups.find(g => g.id === famId) || {}).name;
+  let opts = '<option value="">— choose a certificate —</option>';
+  if (famId && famName) {
+    opts += `<option value="__default__"${!current ? ' selected' : ''}>Course type's own: ${esc(famName)}</option>`;
+  }
+  opts += certGroups.map(g => `<option value="${esc(g.id)}"${g.id === current ? ' selected' : ''}>${esc(g.name)}</option>`).join('');
+  sel.innerHTML = opts;
+}
+$('cert-pick-cancel').onclick = () => certPickClose();
+$('cert-pick-save').onclick = async () => {
+  if (certPickBusy) return;
+  const cid = rosterCourse;
+  const v = $('cert-pick-sel').value;
+  if (!v) return msg('certmsg', 'err', 'Pick a certificate from the list first.');
+  const gid = v === '__default__' ? null : v;
+  const newName = gid ? ((certGroups || []).find(g => g.id === gid) || {}).name : 'the course type\'s own certificate';
+  if (certTemplate && certTemplate.course_id === cid && gid === certTemplate.id) { certPickClose(); return; }
+  // Issued certificates can't move between designs in Certifier. Say so before changing.
+  const issued = bookings.filter(b => b.course_id === cid && b.status === 'confirmed')
+    .filter(b => (certByBooking[b.id] || {}).certifier_credential_id).length;
+  if (issued && !confirm(`${issued} certificate(s) for this class are already issued${certTemplate ? ' as "' + certTemplate.name + '"' : ''}. They stay as they are.\n\nOnly certificates issued from now on will print "${newName}". To change an issued one, use Reissue on its row.\n\nChange anyway?`)) return;
+  certPickBusy = true;
+  msg('certmsg', 'ok', 'Saving...');
+  const { ok, out } = await callFn('manage-certificates', { action: 'set_group', course_id: cid, group_id: gid });
+  certPickBusy = false;
+  if (!ok) return msg('certmsg', 'err', (out && out.error) || 'Could not save the certificate.');
+  if (byCourse[cid]) byCourse[cid].certifier_group_id = out.certifier_group_id;
+  msg('certmsg', 'ok', gid ? `Saved. This class prints "${out.group && out.group.name || newName}".` : 'Saved. This class uses the course type\'s own certificate.');
+  if (cid === rosterCourse) await loadCertTemplate(cid);
+  renderCertNag();
+};
 function renderCerts(cid) {
   const c = byCourse[cid];
   const show = c && !c.cancelled;
@@ -1465,6 +1552,9 @@ $('cert-issue').onclick = (e) => {
   if (!rows.length) return msg('certmsg', 'err', 'Everyone selected is already issued.');
   const names = rows.map(b => certPrintName(b, byStudent[b.student_id] || {})).join(', ');
   if (!certTemplate || certTemplate.course_id !== rosterCourse) {
+    if (certTplInfo && certTplInfo.course_id === rosterCourse) {
+      return msg('certmsg', 'err', 'Choose which certificate this class prints first (the yellow box above), then Save.');
+    }
     return msg('certmsg', 'err', 'Still checking which certificate this course prints - try again in a moment.');
   }
   certAction('issue', null, `Prints: "${certTemplate.name}"\n\nIssue ${rows.length} certificate(s) in Certifier (no email yet), dated ${fdate((byCourse[rosterCourse] || {}).cohort_date)}?\n\n${names}`, e.target);
